@@ -141,10 +141,10 @@ export async function exportToExcel(
       stockBodega: r.cantidadStockBodega,
       valorUnitario: r.valorUnitario,
       total: r.total,
-      tags: r.tags?.join(', ') || '',
+      tags: r.tags?.length > 0 ? r.tags.join(', ') : null,
       ultimaAct: r.fechaUltimaActualizacionInventario 
         ? new Date(r.fechaUltimaActualizacionInventario).toLocaleDateString('es-CL')
-        : '',
+        : null,
       imgManual: r.imagenesManual.length,
       fotosReales: r.fotosReales.length
     });
@@ -172,15 +172,15 @@ export async function exportToExcel(
 
   // Fila de totales
   const totalRow = wsDetalle.addRow({
-    codigoSAP: '',
-    codigoBaader: '',
+    codigoSAP: null,
+    codigoBaader: null,
     descripcion: 'TOTALES',
     cantidadSolicitada: { formula: `SUM(D2:D${repuestos.length + 1})` },
     stockBodega: { formula: `SUM(E2:E${repuestos.length + 1})` },
-    valorUnitario: '',
+    valorUnitario: null,
     total: { formula: `SUM(G2:G${repuestos.length + 1})` },
-    tags: '',
-    ultimaAct: '',
+    tags: null,
+    ultimaAct: null,
     imgManual: { formula: `SUM(J2:J${repuestos.length + 1})` },
     fotosReales: { formula: `SUM(K2:K${repuestos.length + 1})` }
   });
@@ -210,59 +210,318 @@ export async function exportToExcel(
     });
   }
 
-  // === HOJA 2: RESUMEN ===
+  // === HOJA 2: DASHBOARD (Visual) ===
   if (incluirResumen) {
-    const wsResumen = workbook.addWorksheet('Resumen');
+    const wsDash = workbook.addWorksheet('📊 Dashboard');
     
-    // Título
-    wsResumen.mergeCells('A1:C1');
-    const titleCell = wsResumen.getCell('A1');
-    titleCell.value = 'Resumen de Repuestos Baader 200';
-    titleCell.font = { bold: true, size: 16, color: { argb: COLORS.primary } };
-    titleCell.alignment = { horizontal: 'center' };
+    // Calcular estadísticas
+    const totalRepuestos = repuestos.length;
+    const cantSolicitadaTotal = repuestos.reduce((s, r) => s + r.cantidadSolicitada, 0);
+    const stockBodegaTotal = repuestos.reduce((s, r) => s + r.cantidadStockBodega, 0);
+    const valorTotal = repuestos.reduce((s, r) => s + r.total, 0);
+    const conStock = repuestos.filter(r => r.cantidadStockBodega > 0).length;
+    const sinStock = repuestos.filter(r => r.cantidadStockBodega === 0).length;
+    const conImagenManual = repuestos.filter(r => r.imagenesManual.length > 0).length;
+    const conFotosReales = repuestos.filter(r => r.fotosReales.length > 0).length;
+    const valorPromedio = totalRepuestos > 0 ? valorTotal / totalRepuestos : 0;
+    const stockPromedio = totalRepuestos > 0 ? stockBodegaTotal / totalRepuestos : 0;
+    const pctConStock = totalRepuestos > 0 ? (conStock / totalRepuestos) * 100 : 0;
+    const pctSinStock = totalRepuestos > 0 ? (sinStock / totalRepuestos) * 100 : 0;
     
-    wsResumen.mergeCells('A2:C2');
-    wsResumen.getCell('A2').value = `Fecha: ${new Date().toLocaleDateString('es-CL')}`;
-    wsResumen.getCell('A2').alignment = { horizontal: 'center' };
-
-    // Estadísticas
-    const stats = [
-      ['', '', ''],
-      ['Concepto', 'Valor', 'Porcentaje'],
-      ['Total Repuestos', repuestos.length, '100%'],
-      ['Cantidad Solicitada Total', repuestos.reduce((s, r) => s + r.cantidadSolicitada, 0), ''],
-      ['Stock Bodega Total', repuestos.reduce((s, r) => s + r.cantidadStockBodega, 0), ''],
-      ['Valor Total (USD)', repuestos.reduce((s, r) => s + r.total, 0), ''],
-      ['', '', ''],
-      ['Repuestos con Stock', repuestos.filter(r => r.cantidadStockBodega > 0).length, 
-        `${Math.round(repuestos.filter(r => r.cantidadStockBodega > 0).length / repuestos.length * 100)}%`],
-      ['Repuestos sin Stock', repuestos.filter(r => r.cantidadStockBodega === 0).length,
-        `${Math.round(repuestos.filter(r => r.cantidadStockBodega === 0).length / repuestos.length * 100)}%`],
-      ['', '', ''],
-      ['Con Imágenes Manual', repuestos.filter(r => r.imagenesManual.length > 0).length,
-        `${Math.round(repuestos.filter(r => r.imagenesManual.length > 0).length / repuestos.length * 100)}%`],
-      ['Con Fotos Reales', repuestos.filter(r => r.fotosReales.length > 0).length,
-        `${Math.round(repuestos.filter(r => r.fotosReales.length > 0).length / repuestos.length * 100)}%`]
+    // Valores por tag
+    const allTags = new Set<string>();
+    repuestos.forEach(r => r.tags?.forEach(t => allTags.add(t)));
+    
+    // Anchos de columna
+    wsDash.getColumn(1).width = 3;
+    wsDash.getColumn(2).width = 22;
+    wsDash.getColumn(3).width = 18;
+    wsDash.getColumn(4).width = 3;
+    wsDash.getColumn(5).width = 22;
+    wsDash.getColumn(6).width = 18;
+    wsDash.getColumn(7).width = 3;
+    wsDash.getColumn(8).width = 22;
+    wsDash.getColumn(9).width = 18;
+    
+    // === TÍTULO PRINCIPAL ===
+    wsDash.mergeCells('B2:I2');
+    const titleCell = wsDash.getCell('B2');
+    titleCell.value = '📊 DASHBOARD - Repuestos Baader 200';
+    titleCell.font = { bold: true, size: 20, color: { argb: COLORS.primary } };
+    titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    wsDash.getRow(2).height = 35;
+    
+    wsDash.mergeCells('B3:I3');
+    const dateCell = wsDash.getCell('B3');
+    dateCell.value = `Generado: ${new Date().toLocaleDateString('es-CL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
+    dateCell.font = { size: 11, color: { argb: COLORS.gray } };
+    dateCell.alignment = { horizontal: 'center' };
+    
+    // === TARJETAS DE KPIs (Fila 5-8) ===
+    const createKPICard = (col: string, label: string, value: number | string, format: 'number' | 'currency' | 'percent' | 'text', color: string) => {
+      // Label
+      const labelCell = wsDash.getCell(`${col}5`);
+      labelCell.value = label;
+      labelCell.font = { size: 10, color: { argb: COLORS.gray } };
+      labelCell.alignment = { horizontal: 'center' };
+      
+      // Value
+      const valueCell = wsDash.getCell(`${col}6`);
+      if (format === 'currency') {
+        valueCell.value = value as number;
+        valueCell.numFmt = '"USD "$#,##0.00';
+      } else if (format === 'percent') {
+        valueCell.value = (value as number) / 100;
+        valueCell.numFmt = '0.0%';
+      } else if (format === 'number') {
+        valueCell.value = value as number;
+        valueCell.numFmt = '#,##0';
+      } else {
+        valueCell.value = value;
+      }
+      valueCell.font = { bold: true, size: 24, color: { argb: color } };
+      valueCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      wsDash.getRow(6).height = 40;
+    };
+    
+    // Tarjeta 1: Total Repuestos
+    wsDash.mergeCells('B5:C5');
+    wsDash.mergeCells('B6:C6');
+    createKPICard('B', '📦 TOTAL REPUESTOS', totalRepuestos, 'number', COLORS.primary);
+    
+    // Tarjeta 2: Valor Total
+    wsDash.mergeCells('E5:F5');
+    wsDash.mergeCells('E6:F6');
+    createKPICard('E', '💰 VALOR TOTAL', valorTotal, 'currency', COLORS.success);
+    
+    // Tarjeta 3: Sin Stock
+    wsDash.mergeCells('H5:I5');
+    wsDash.mergeCells('H6:I6');
+    createKPICard('H', '⚠️ SIN STOCK', sinStock, 'number', COLORS.danger);
+    
+    // === SECCIÓN DE MÉTRICAS DETALLADAS (Fila 9-16) ===
+    wsDash.mergeCells('B9:C9');
+    const metricsTitle = wsDash.getCell('B9');
+    metricsTitle.value = '📈 MÉTRICAS PRINCIPALES';
+    metricsTitle.font = { bold: true, size: 12, color: { argb: COLORS.primary } };
+    metricsTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.primaryLight } };
+    
+    const metrics = [
+      ['Cant. Solicitada Total', cantSolicitadaTotal, '#,##0'],
+      ['Stock Bodega Total', stockBodegaTotal, '#,##0'],
+      ['Valor Promedio/Item', valorPromedio, '"$"#,##0.00'],
+      ['Stock Promedio/Item', stockPromedio, '0.0'],
+      ['% Con Stock', pctConStock / 100, '0.0%'],
+      ['% Sin Stock', pctSinStock / 100, '0.0%']
     ];
-
-    stats.forEach((row, index) => {
-      const excelRow = wsResumen.addRow(row);
-      if (incluirEstilos) {
-        if (index === 1) { // Header de tabla
-          excelRow.font = { bold: true, color: { argb: COLORS.white } };
-          excelRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.primary } };
-        }
-        if (index === 5) { // Valor total
-          excelRow.getCell(2).numFmt = '"$"#,##0.00';
-          excelRow.font = { bold: true };
-          excelRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.primaryLight } };
-        }
+    
+    metrics.forEach((metric, i) => {
+      const row = 10 + i;
+      wsDash.getCell(`B${row}`).value = metric[0] as string;
+      wsDash.getCell(`B${row}`).font = { size: 10 };
+      
+      const valCell = wsDash.getCell(`C${row}`);
+      valCell.value = metric[1] as number;
+      valCell.numFmt = metric[2] as string;
+      valCell.font = { bold: true };
+      valCell.alignment = { horizontal: 'right' };
+      
+      if (i % 2 === 0) {
+        wsDash.getCell(`B${row}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.grayLight } };
+        valCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.grayLight } };
       }
     });
-
-    wsResumen.getColumn(1).width = 25;
-    wsResumen.getColumn(2).width = 20;
-    wsResumen.getColumn(3).width = 12;
+    
+    // === SECCIÓN DE DOCUMENTACIÓN (Fila 9-16, columnas E-F) ===
+    wsDash.mergeCells('E9:F9');
+    const docsTitle = wsDash.getCell('E9');
+    docsTitle.value = '📸 DOCUMENTACIÓN';
+    docsTitle.font = { bold: true, size: 12, color: { argb: COLORS.primary } };
+    docsTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.primaryLight } };
+    
+    const docStats = [
+      ['Con Imagen Manual', conImagenManual, totalRepuestos],
+      ['Sin Imagen Manual', totalRepuestos - conImagenManual, totalRepuestos],
+      ['Con Fotos Reales', conFotosReales, totalRepuestos],
+      ['Sin Fotos Reales', totalRepuestos - conFotosReales, totalRepuestos],
+      ['Total Imágenes Manual', repuestos.reduce((s, r) => s + r.imagenesManual.length, 0), null],
+      ['Total Fotos Reales', repuestos.reduce((s, r) => s + r.fotosReales.length, 0), null]
+    ];
+    
+    docStats.forEach((stat, i) => {
+      const row = 10 + i;
+      wsDash.getCell(`E${row}`).value = stat[0] as string;
+      wsDash.getCell(`E${row}`).font = { size: 10 };
+      
+      const valCell = wsDash.getCell(`F${row}`);
+      if (stat[2] !== null) {
+        valCell.value = stat[1] as number;
+        valCell.numFmt = '#,##0';
+        // Agregar porcentaje en otra celda visual
+      } else {
+        valCell.value = stat[1] as number;
+        valCell.numFmt = '#,##0';
+      }
+      valCell.font = { bold: true };
+      valCell.alignment = { horizontal: 'right' };
+      
+      if (i % 2 === 0) {
+        wsDash.getCell(`E${row}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.grayLight } };
+        valCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.grayLight } };
+      }
+    });
+    
+    // === SECCIÓN DE TAGS (Fila 9-16, columnas H-I) ===
+    wsDash.mergeCells('H9:I9');
+    const tagsTitle = wsDash.getCell('H9');
+    tagsTitle.value = '🏷️ DISTRIBUCIÓN POR TAGS';
+    tagsTitle.font = { bold: true, size: 12, color: { argb: COLORS.primary } };
+    tagsTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.primaryLight } };
+    
+    const tagStats = Array.from(allTags).slice(0, 6).map(tag => {
+      const count = repuestos.filter(r => r.tags?.includes(tag)).length;
+      return [tag, count];
+    });
+    
+    tagStats.forEach((stat, i) => {
+      const row = 10 + i;
+      wsDash.getCell(`H${row}`).value = stat[0] as string;
+      wsDash.getCell(`H${row}`).font = { size: 10 };
+      
+      const valCell = wsDash.getCell(`I${row}`);
+      valCell.value = stat[1] as number;
+      valCell.numFmt = '#,##0';
+      valCell.font = { bold: true };
+      valCell.alignment = { horizontal: 'right' };
+      
+      if (i % 2 === 0) {
+        wsDash.getCell(`H${row}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.grayLight } };
+        valCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.grayLight } };
+      }
+    });
+    
+    // === BARRA DE PROGRESO VISUAL (Stock) ===
+    wsDash.mergeCells('B18:I18');
+    const progressTitle = wsDash.getCell('B18');
+    progressTitle.value = '📊 COBERTURA DE STOCK';
+    progressTitle.font = { bold: true, size: 12, color: { argb: COLORS.primary } };
+    
+    // Crear barra visual con caracteres
+    const barLength = 50;
+    const filledLength = Math.round((pctConStock / 100) * barLength);
+    const emptyLength = barLength - filledLength;
+    const progressBar = '█'.repeat(filledLength) + '░'.repeat(emptyLength);
+    
+    wsDash.mergeCells('B19:I19');
+    const barCell = wsDash.getCell('B19');
+    barCell.value = progressBar;
+    barCell.font = { size: 14, color: { argb: pctConStock >= 50 ? COLORS.success : COLORS.danger } };
+    barCell.alignment = { horizontal: 'center' };
+    
+    wsDash.mergeCells('B20:I20');
+    const barLabel = wsDash.getCell('B20');
+    barLabel.value = `${conStock} con stock (${pctConStock.toFixed(1)}%) | ${sinStock} sin stock (${pctSinStock.toFixed(1)}%)`;
+    barLabel.font = { size: 10, color: { argb: COLORS.gray } };
+    barLabel.alignment = { horizontal: 'center' };
+    
+    // === TOP 5 MÁS COSTOSOS ===
+    wsDash.mergeCells('B22:F22');
+    const top5Title = wsDash.getCell('B22');
+    top5Title.value = '💎 TOP 5 REPUESTOS MÁS COSTOSOS';
+    top5Title.font = { bold: true, size: 12, color: { argb: COLORS.primary } };
+    top5Title.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.primaryLight } };
+    
+    const top5 = [...repuestos].sort((a, b) => b.total - a.total).slice(0, 5);
+    
+    // Headers
+    ['#', 'Código', 'Descripción', 'Cant.', 'Total USD'].forEach((h, i) => {
+      const cols = ['B', 'C', 'D', 'E', 'F'];
+      const cell = wsDash.getCell(`${cols[i]}23`);
+      cell.value = h;
+      cell.font = { bold: true, size: 9, color: { argb: COLORS.white } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.gray } };
+      cell.alignment = { horizontal: 'center' };
+    });
+    
+    top5.forEach((r, i) => {
+      const row = 24 + i;
+      wsDash.getCell(`B${row}`).value = i + 1;
+      wsDash.getCell(`C${row}`).value = r.codigoSAP || r.codigoBaader;
+      wsDash.getCell(`D${row}`).value = r.textoBreve.substring(0, 30) + (r.textoBreve.length > 30 ? '...' : '');
+      wsDash.getCell(`E${row}`).value = r.cantidadSolicitada;
+      
+      const totalCell = wsDash.getCell(`F${row}`);
+      totalCell.value = r.total;
+      totalCell.numFmt = '"$"#,##0.00';
+      totalCell.font = { bold: true, color: { argb: COLORS.success } };
+      
+      if (i % 2 === 0) {
+        ['B', 'C', 'D', 'E', 'F'].forEach(col => {
+          wsDash.getCell(`${col}${row}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.grayLight } };
+        });
+      }
+    });
+    
+    // === RESUMEN RÁPIDO ===
+    wsDash.mergeCells('H22:I22');
+    const quickTitle = wsDash.getCell('H22');
+    quickTitle.value = '⚡ RESUMEN RÁPIDO';
+    quickTitle.font = { bold: true, size: 12, color: { argb: COLORS.primary } };
+    quickTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.primaryLight } };
+    
+    const quickStats = [
+      ['Repuestos Totales', totalRepuestos],
+      ['Valor Total', valorTotal],
+      ['Urgentes (sin stock)', sinStock],
+      ['Con documentación', conImagenManual + conFotosReales],
+      ['Tags utilizados', allTags.size]
+    ];
+    
+    ['Concepto', 'Valor'].forEach((h, i) => {
+      const cols = ['H', 'I'];
+      const cell = wsDash.getCell(`${cols[i]}23`);
+      cell.value = h;
+      cell.font = { bold: true, size: 9, color: { argb: COLORS.white } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.gray } };
+      cell.alignment = { horizontal: 'center' };
+    });
+    
+    quickStats.forEach((stat, i) => {
+      const row = 24 + i;
+      wsDash.getCell(`H${row}`).value = stat[0] as string;
+      wsDash.getCell(`H${row}`).font = { size: 10 };
+      
+      const valCell = wsDash.getCell(`I${row}`);
+      valCell.value = stat[1] as number;
+      if (i === 1) {
+        valCell.numFmt = '"$"#,##0.00';
+      } else {
+        valCell.numFmt = '#,##0';
+      }
+      valCell.font = { bold: true };
+      valCell.alignment = { horizontal: 'right' };
+      
+      if (i % 2 === 0) {
+        wsDash.getCell(`H${row}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.grayLight } };
+        valCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.grayLight } };
+      }
+    });
+    
+    // Bordes para las secciones
+    if (incluirEstilos) {
+      // Aplicar bordes a las secciones de datos
+      for (let row = 9; row <= 15; row++) {
+        ['B', 'C', 'E', 'F', 'H', 'I'].forEach(col => {
+          const cell = wsDash.getCell(`${col}${row}`);
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+            left: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+            bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+            right: { style: 'thin', color: { argb: 'FFE5E7EB' } }
+          };
+        });
+      }
+    }
   }
 
   // === HOJA 3: SIN STOCK ===
@@ -298,7 +557,7 @@ export async function exportToExcel(
         cantidadSolicitada: r.cantidadSolicitada,
         valorUnitario: r.valorUnitario,
         total: r.total,
-        tags: r.tags?.join(', ') || ''
+        tags: r.tags?.length > 0 ? r.tags.join(', ') : null
       });
       row.getCell('valorUnitario').numFmt = '"$"#,##0.00';
       row.getCell('total').numFmt = '"$"#,##0.00';
@@ -309,13 +568,13 @@ export async function exportToExcel(
 
     // Total
     const totalSinStock = wsSinStock.addRow({
-      codigoSAP: '',
-      codigoBaader: '',
+      codigoSAP: null,
+      codigoBaader: null,
       descripcion: `TOTAL (${sinStock.length} repuestos)`,
       cantidadSolicitada: sinStock.reduce((s, r) => s + r.cantidadSolicitada, 0),
-      valorUnitario: '',
+      valorUnitario: null,
       total: sinStock.reduce((s, r) => s + r.total, 0),
-      tags: ''
+      tags: null
     });
     if (incluirEstilos) {
       totalSinStock.font = { bold: true };

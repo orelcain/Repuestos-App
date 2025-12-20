@@ -1,8 +1,20 @@
 // Versión de la aplicación
-export const APP_VERSION = '1.5.7';
+export const APP_VERSION = '1.5.8';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '1.5.8',
+    date: '2025-12-20',
+    changes: [
+      'Excel: Nueva hoja Dashboard visual con KPIs',
+      'Excel: Métricas detalladas y barra de progreso de stock',
+      'Excel: Top 5 repuestos más costosos',
+      'Excel: Distribución por tags en dashboard',
+      'Excel: Corrección advertencias "número como texto"',
+      'Excel: Mejor manejo de celdas vacías (null vs string)'
+    ]
+  },
   {
     version: '1.5.7',
     date: '2025-12-20',
