@@ -57,7 +57,7 @@ export default defineConfig({
       }
     })
   ],
-  base: '/baader-repuestos-app/',
+  base: '/Baader-200-Repuestos-app/',
   resolve: {
     alias: {
       '@': '/src'
