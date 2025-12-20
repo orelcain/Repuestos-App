@@ -12,8 +12,8 @@ import {
   Loader2
 } from 'lucide-react';
 
-// Configurar worker de PDF.js
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Configurar worker de PDF.js - usando versión específica estable
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
 
 interface PDFViewerProps {
   pdfUrl: string | null;
