@@ -89,6 +89,14 @@ export function Dashboard() {
   // Modal de exportación PDF
   const [showPDFExportModal, setShowPDFExportModal] = useState(false);
   const [pdfIncludeCharts, setPdfIncludeCharts] = useState(true);
+  
+  // Modal de exportación Excel
+  const [showExcelExportModal, setShowExcelExportModal] = useState(false);
+  const [excelFormato, setExcelFormato] = useState<'simple' | 'completo'>('completo');
+  const [excelIncluirResumen, setExcelIncluirResumen] = useState(true);
+  const [excelIncluirSinStock, setExcelIncluirSinStock] = useState(true);
+  const [excelIncluirPorTags, setExcelIncluirPorTags] = useState(true);
+  const [excelIncluirEstilos, setExcelIncluirEstilos] = useState(true);
 
   // Cargar URL del manual
   useEffect(() => {
@@ -354,9 +362,20 @@ export function Dashboard() {
 
   // Exportaciones - usan repuestos filtrados
   const handleExportExcel = () => {
+    setShowExcelExportModal(true);
+  };
+  
+  const confirmExportExcel = () => {
     const toExport = filteredRepuestos.length > 0 ? filteredRepuestos : repuestos;
-    exportToExcel(toExport);
-    success(`Excel exportado con ${toExport.length} repuestos`);
+    exportToExcel(toExport, {
+      formato: excelFormato,
+      incluirResumen: excelIncluirResumen,
+      incluirSinStock: excelIncluirSinStock,
+      incluirPorTags: excelIncluirPorTags,
+      incluirEstilos: excelIncluirEstilos
+    });
+    success(`Excel exportado con ${toExport.length} repuestos (formato ${excelFormato === 'simple' ? 'simple' : 'completo'})`);
+    setShowExcelExportModal(false);
   };
 
   const handleExportPDF = () => {
@@ -801,6 +820,139 @@ export function Dashboard() {
               >
                 <Download className="w-4 h-4" />
                 Exportar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de exportación Excel */}
+      {showExcelExportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowExcelExportModal(false)}>
+          <div 
+            className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden max-h-[90vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                <FileSpreadsheet className="w-5 h-5 text-green-600" />
+                Exportar Excel
+              </h3>
+              <button 
+                onClick={() => setShowExcelExportModal(false)}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-5 space-y-4">
+              <p className="text-sm text-gray-600">
+                Se exportarán {filteredRepuestos.length > 0 ? filteredRepuestos.length : repuestos.length} repuestos
+              </p>
+              
+              {/* Selector de formato */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Formato de exportación</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setExcelFormato('simple')}
+                    className={`p-3 rounded-lg border-2 text-left transition-all ${
+                      excelFormato === 'simple' 
+                        ? 'border-green-500 bg-green-50' 
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="font-medium text-gray-800">Simple</div>
+                    <div className="text-xs text-gray-500 mt-1">Solo datos, 1 hoja</div>
+                  </button>
+                  <button
+                    onClick={() => setExcelFormato('completo')}
+                    className={`p-3 rounded-lg border-2 text-left transition-all ${
+                      excelFormato === 'completo' 
+                        ? 'border-green-500 bg-green-50' 
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="font-medium text-gray-800">Completo</div>
+                    <div className="text-xs text-gray-500 mt-1">Estilos, múltiples hojas</div>
+                  </button>
+                </div>
+              </div>
+              
+              {/* Opciones solo para formato completo */}
+              {excelFormato === 'completo' && (
+                <div className="space-y-2 pt-2 border-t">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Opciones avanzadas</label>
+                  
+                  <label className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
+                    <input
+                      type="checkbox"
+                      checked={excelIncluirEstilos}
+                      onChange={(e) => setExcelIncluirEstilos(e.target.checked)}
+                      className="w-4 h-4 text-green-600 rounded border-gray-300"
+                    />
+                    <div>
+                      <span className="text-sm font-medium text-gray-800">Incluir estilos</span>
+                      <p className="text-xs text-gray-500">Colores, bordes y formato condicional</p>
+                    </div>
+                  </label>
+                  
+                  <label className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
+                    <input
+                      type="checkbox"
+                      checked={excelIncluirResumen}
+                      onChange={(e) => setExcelIncluirResumen(e.target.checked)}
+                      className="w-4 h-4 text-green-600 rounded border-gray-300"
+                    />
+                    <div>
+                      <span className="text-sm font-medium text-gray-800">Hoja de resumen</span>
+                      <p className="text-xs text-gray-500">Estadísticas y totales generales</p>
+                    </div>
+                  </label>
+                  
+                  <label className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
+                    <input
+                      type="checkbox"
+                      checked={excelIncluirSinStock}
+                      onChange={(e) => setExcelIncluirSinStock(e.target.checked)}
+                      className="w-4 h-4 text-green-600 rounded border-gray-300"
+                    />
+                    <div>
+                      <span className="text-sm font-medium text-gray-800">Hoja "Sin Stock"</span>
+                      <p className="text-xs text-gray-500">Lista de repuestos con stock en 0</p>
+                    </div>
+                  </label>
+                  
+                  <label className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
+                    <input
+                      type="checkbox"
+                      checked={excelIncluirPorTags}
+                      onChange={(e) => setExcelIncluirPorTags(e.target.checked)}
+                      className="w-4 h-4 text-green-600 rounded border-gray-300"
+                    />
+                    <div>
+                      <span className="text-sm font-medium text-gray-800">Hoja "Por Tags"</span>
+                      <p className="text-xs text-gray-500">Resumen agrupado por etiquetas</p>
+                    </div>
+                  </label>
+                </div>
+              )}
+            </div>
+            
+            <div className="px-5 py-4 border-t border-gray-200 bg-gray-50 flex gap-3 justify-end">
+              <button
+                onClick={() => setShowExcelExportModal(false)}
+                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmExportExcel}
+                className="px-4 py-2 text-sm text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                Exportar Excel
               </button>
             </div>
           </div>

@@ -1,8 +1,19 @@
 // Versión de la aplicación
-export const APP_VERSION = '1.5.6';
+export const APP_VERSION = '1.5.7';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '1.5.7',
+    date: '2025-12-20',
+    changes: [
+      'Excel: Modal de opciones de exportación',
+      'Excel: Formato simple (solo datos, 1 hoja)',
+      'Excel: Formato completo (4 hojas, estilos configurables)',
+      'Excel: Opciones para incluir/excluir hojas adicionales',
+      'Excel: Opción para activar/desactivar estilos'
+    ]
+  },
   {
     version: '1.5.6',
     date: '2025-12-20',
