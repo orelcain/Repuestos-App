@@ -49,10 +49,13 @@ export function PDFViewer({
   
   // Estados para búsqueda de texto en PDF
   const [textSearchQuery, setTextSearchQuery] = useState('');
-  const [textSearchResults, setTextSearchResults] = useState<{pageNum: number; text: string}[]>([]);
+  const [textSearchResults, setTextSearchResults] = useState<{pageNum: number; text: string; matches: number}[]>([]);
   const [currentResultIndex, setCurrentResultIndex] = useState(-1);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchPanel, setShowSearchPanel] = useState(false);
+  const [highlightPositions, setHighlightPositions] = useState<{x: number; y: number; width: number; height: number}[]>([]);
+  const [allPagesText, setAllPagesText] = useState<Map<number, {text: string; items: {str: string; transform: number[]}[]}>>(new Map());
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Cargar PDF
   useEffect(() => {
@@ -66,6 +69,9 @@ export function PDFViewer({
         setPdf(pdfDoc);
         setTotalPages(pdfDoc.numPages);
         setLoading(false);
+        
+        // Precargar texto de todas las páginas para búsqueda rápida
+        preloadAllPagesText(pdfDoc);
       })
       .catch((err) => {
         console.error('Error al cargar PDF:', err);
@@ -73,6 +79,42 @@ export function PDFViewer({
         setLoading(false);
       });
   }, [pdfUrl]);
+
+  // Precargar texto de todas las páginas
+  const preloadAllPagesText = async (pdfDoc: pdfjsLib.PDFDocumentProxy) => {
+    const textMap = new Map<number, {text: string; items: {str: string; transform: number[]}[]}>();
+    
+    for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+      try {
+        const page = await pdfDoc.getPage(pageNum);
+        const textContent = await page.getTextContent();
+        
+        const items = textContent.items
+          .filter((item): item is { str: string; transform: number[] } & typeof item => 'str' in item && 'transform' in item)
+          .map(item => ({ str: item.str, transform: item.transform as number[] }));
+        
+        // Unir texto de forma inteligente (sin espacios extra entre caracteres)
+        let fullText = '';
+        let lastX = -1;
+        
+        for (const item of items) {
+          const x = item.transform[4];
+          // Si hay un salto grande en X, agregar espacio
+          if (lastX !== -1 && x - lastX > 10) {
+            fullText += ' ';
+          }
+          fullText += item.str;
+          lastX = x + (item.str.length * 5); // Aproximación del ancho
+        }
+        
+        textMap.set(pageNum, { text: fullText, items });
+      } catch (err) {
+        console.error(`Error cargando texto de página ${pageNum}:`, err);
+      }
+    }
+    
+    setAllPagesText(textMap);
+  };
 
   // Atajo de teclado Ctrl+F para buscar
   useEffect(() => {
@@ -253,53 +295,165 @@ export function PDFViewer({
     }
   };
 
-  // Búsqueda de texto dentro del PDF (como Acrobat)
-  const searchTextInPDF = useCallback(async () => {
-    if (!pdf || !textSearchQuery.trim()) return;
+  // Búsqueda en tiempo real mientras escribe
+  const searchTextInPDF = useCallback((query: string) => {
+    if (!query.trim() || query.length < 1) {
+      setTextSearchResults([]);
+      setCurrentResultIndex(-1);
+      setHighlightPositions([]);
+      return;
+    }
     
     setIsSearching(true);
-    setTextSearchResults([]);
-    setCurrentResultIndex(-1);
     
-    const results: {pageNum: number; text: string}[] = [];
-    const searchLower = textSearchQuery.toLowerCase();
+    const results: {pageNum: number; text: string; matches: number}[] = [];
+    const searchLower = query.toLowerCase().trim();
+    // También buscar sin espacios para manejar texto fragmentado
+    const searchNoSpaces = searchLower.replace(/\s+/g, '');
 
-    try {
-      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-        const page = await pdf.getPage(pageNum);
-        const textContent = await page.getTextContent();
-        const pageText = textContent.items
-          .filter((item): item is { str: string } & typeof item => 'str' in item)
-          .map(item => item.str)
-          .join(' ');
-
-        if (pageText.toLowerCase().includes(searchLower)) {
-          // Extraer contexto alrededor del texto encontrado
-          const index = pageText.toLowerCase().indexOf(searchLower);
-          const start = Math.max(0, index - 40);
-          const end = Math.min(pageText.length, index + textSearchQuery.length + 40);
-          const contextText = (start > 0 ? '...' : '') + pageText.substring(start, end) + (end < pageText.length ? '...' : '');
-          
-          results.push({
-            pageNum,
-            text: contextText
-          });
-        }
+    allPagesText.forEach((pageData, pageNum) => {
+      const pageTextLower = pageData.text.toLowerCase();
+      const pageTextNoSpaces = pageTextLower.replace(/\s+/g, '');
+      
+      // Buscar de múltiples formas
+      let found = false;
+      let matchCount = 0;
+      
+      // Búsqueda normal
+      if (pageTextLower.includes(searchLower)) {
+        found = true;
+        matchCount = (pageTextLower.match(new RegExp(searchLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
       }
-    } catch (err) {
-      console.error('Error buscando en PDF:', err);
-    }
+      
+      // Búsqueda sin espacios (para texto fragmentado)
+      if (!found && searchNoSpaces.length >= 2 && pageTextNoSpaces.includes(searchNoSpaces)) {
+        found = true;
+        matchCount = (pageTextNoSpaces.match(new RegExp(searchNoSpaces.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
+      }
+
+      if (found) {
+        // Extraer contexto
+        const index = pageTextLower.indexOf(searchLower) !== -1 
+          ? pageTextLower.indexOf(searchLower)
+          : pageTextNoSpaces.indexOf(searchNoSpaces);
+        const start = Math.max(0, index - 30);
+        const end = Math.min(pageData.text.length, index + query.length + 30);
+        const contextText = (start > 0 ? '...' : '') + pageData.text.substring(start, end) + (end < pageData.text.length ? '...' : '');
+        
+        results.push({
+          pageNum,
+          text: contextText,
+          matches: matchCount
+        });
+      }
+    });
+
+    // Ordenar por número de coincidencias
+    results.sort((a, b) => b.matches - a.matches);
 
     setTextSearchResults(results);
     setCurrentResultIndex(results.length > 0 ? 0 : -1);
+    setIsSearching(false);
     
-    // Navegar al primer resultado
+    // Si hay resultados, ir al primero
     if (results.length > 0) {
       setCurrentPage(results[0].pageNum);
     }
+  }, [allPagesText]);
+
+  // Efecto para búsqueda en tiempo real con debounce
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
     
-    setIsSearching(false);
-  }, [pdf, textSearchQuery]);
+    if (textSearchQuery.length >= 1) {
+      searchTimeoutRef.current = setTimeout(() => {
+        searchTextInPDF(textSearchQuery);
+      }, 150); // 150ms de debounce
+    } else {
+      setTextSearchResults([]);
+      setHighlightPositions([]);
+    }
+    
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [textSearchQuery, searchTextInPDF]);
+
+  // Resaltar texto encontrado en el canvas
+  useEffect(() => {
+    if (!overlayRef.current || !pdf || !textSearchQuery.trim()) {
+      setHighlightPositions([]);
+      return;
+    }
+    
+    const highlightText = async () => {
+      const pageData = allPagesText.get(currentPage);
+      if (!pageData) return;
+      
+      const page = await pdf.getPage(currentPage);
+      const viewport = page.getViewport({ scale });
+      const textContent = await page.getTextContent();
+      
+      const searchLower = textSearchQuery.toLowerCase().trim();
+      const positions: {x: number; y: number; width: number; height: number}[] = [];
+      
+      // Buscar en cada item de texto
+      textContent.items.forEach((item) => {
+        if (!('str' in item) || !('transform' in item)) return;
+        const textItem = item as { str: string; transform: number[]; width?: number; height?: number };
+        
+        if (textItem.str.toLowerCase().includes(searchLower)) {
+          const [, , , , x, y] = textItem.transform;
+          const width = textItem.width || textItem.str.length * 8;
+          const height = textItem.height || 12;
+          
+          // Transformar coordenadas al viewport
+          const tx = x * scale;
+          const ty = viewport.height - (y * scale) - (height * scale);
+          
+          positions.push({
+            x: tx,
+            y: ty,
+            width: width * scale,
+            height: height * scale * 1.2
+          });
+        }
+      });
+      
+      setHighlightPositions(positions);
+    };
+    
+    highlightText();
+  }, [currentPage, textSearchQuery, pdf, scale, allPagesText]);
+
+  // Dibujar resaltados en el overlay
+  useEffect(() => {
+    if (!overlayRef.current) return;
+    
+    const ctx = overlayRef.current.getContext('2d');
+    if (!ctx) return;
+    
+    // No limpiar si hay marcador activo
+    if (!marker || marker.pagina !== currentPage) {
+      ctx.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height);
+    }
+    
+    // Dibujar resaltados de búsqueda
+    if (highlightPositions.length > 0) {
+      ctx.fillStyle = 'rgba(255, 255, 0, 0.4)';
+      ctx.strokeStyle = 'rgba(255, 200, 0, 0.8)';
+      ctx.lineWidth = 2;
+      
+      highlightPositions.forEach(pos => {
+        ctx.fillRect(pos.x, pos.y, pos.width, pos.height);
+        ctx.strokeRect(pos.x, pos.y, pos.width, pos.height);
+      });
+    }
+  }, [highlightPositions, marker, currentPage]);
 
   // Navegar entre resultados de búsqueda
   const goToNextResult = () => {
@@ -473,103 +627,136 @@ export function PDFViewer({
         </div>
       </div>
 
-      {/* Panel de búsqueda de texto en PDF */}
+      {/* Panel de búsqueda de texto en PDF - Búsqueda en tiempo real */}
       {showSearchPanel && (
-        <div className="px-4 py-3 bg-gray-800 border-b border-gray-700">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="flex-1 flex items-center gap-2">
-              <input
-                type="text"
-                value={textSearchQuery}
-                onChange={(e) => setTextSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && searchTextInPDF()}
-                placeholder="Buscar texto en el PDF (ej: 1-0201-0261)"
-                className="flex-1 px-3 py-2 text-sm bg-gray-700 rounded border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                autoFocus
-              />
-              <button
-                onClick={searchTextInPDF}
-                disabled={isSearching || !textSearchQuery.trim()}
-                className="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {isSearching ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Search className="w-4 h-4" />
+        <div className="px-4 py-3 bg-gray-800 border-b border-gray-700 relative">
+          <div className="flex items-center gap-2">
+            <div className="flex-1 relative">
+              <div className="flex items-center">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={textSearchQuery}
+                    onChange={(e) => setTextSearchQuery(e.target.value)}
+                    placeholder="Buscar en el PDF... (ej: 200, 1-0201, Baader)"
+                    className="w-full pl-10 pr-4 py-2.5 text-sm bg-gray-700 rounded-l-lg border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    autoFocus
+                  />
+                  {isSearching && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-primary-400 animate-spin" />
+                  )}
+                </div>
+                
+                {/* Contador de resultados inline */}
+                {textSearchQuery && !isSearching && (
+                  <div className={`px-3 py-2.5 text-sm border-y border-gray-600 ${
+                    textSearchResults.length > 0 ? 'bg-green-900/50 text-green-300' : 'bg-red-900/50 text-red-300'
+                  }`}>
+                    {textSearchResults.length > 0 
+                      ? `${textSearchResults.length} pág${textSearchResults.length > 1 ? 's' : ''}`
+                      : '0'
+                    }
+                  </div>
                 )}
-                Buscar
-              </button>
-              <button
-                onClick={() => {
-                  setShowSearchPanel(false);
-                  setTextSearchQuery('');
-                  setTextSearchResults([]);
-                  setCurrentResultIndex(-1);
-                }}
-                className="p-2 text-gray-400 hover:text-white rounded hover:bg-gray-700"
-                title="Cerrar búsqueda"
-              >
-                <X className="w-5 h-5" />
-              </button>
+                
+                {/* Navegación rápida */}
+                {textSearchResults.length > 0 && (
+                  <div className="flex border border-gray-600 border-l-0 rounded-r-lg overflow-hidden">
+                    <button
+                      onClick={goToPrevResult}
+                      className="p-2.5 bg-gray-700 hover:bg-gray-600 text-white border-r border-gray-600"
+                      title="Anterior (↑)"
+                    >
+                      <ChevronUp className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={goToNextResult}
+                      className="p-2.5 bg-gray-700 hover:bg-gray-600 text-white"
+                      title="Siguiente (↓)"
+                    >
+                      <ChevronDown className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+                
+                {!textSearchResults.length && textSearchQuery && !isSearching && (
+                  <div className="px-3 py-2.5 bg-gray-700 rounded-r-lg border border-l-0 border-gray-600">
+                    <span className="text-gray-500 text-sm">—</span>
+                  </div>
+                )}
+              </div>
+              
+              {/* Dropdown dinámico con resultados */}
+              {textSearchQuery && textSearchResults.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-50 max-h-64 overflow-y-auto">
+                  <div className="p-2 text-xs text-gray-400 border-b border-gray-700 flex items-center justify-between">
+                    <span>📄 {textSearchResults.length} página{textSearchResults.length > 1 ? 's' : ''} con resultados</span>
+                    <span className="text-yellow-400">🔍 Resaltado activo</span>
+                  </div>
+                  {textSearchResults.map((result, index) => (
+                    <button
+                      key={`${result.pageNum}-${index}`}
+                      onClick={() => {
+                        setCurrentResultIndex(index);
+                        setCurrentPage(result.pageNum);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-sm border-b border-gray-700 last:border-b-0 transition-colors ${
+                        index === currentResultIndex 
+                          ? 'bg-primary-600 text-white' 
+                          : 'text-gray-300 hover:bg-gray-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">Página {result.pageNum}</span>
+                        {result.matches > 1 && (
+                          <span className={`text-xs px-2 py-0.5 rounded ${
+                            index === currentResultIndex ? 'bg-primary-700' : 'bg-gray-600'
+                          }`}>
+                            {result.matches} coincidencias
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs mt-1 opacity-70 truncate">{result.text}</p>
+                    </button>
+                  ))}
+                </div>
+              )}
+              
+              {/* Mensaje de no resultados */}
+              {textSearchQuery && textSearchResults.length === 0 && !isSearching && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-50 p-4 text-center">
+                  <p className="text-yellow-400 text-sm">⚠️ No se encontró "{textSearchQuery}"</p>
+                  <p className="text-gray-500 text-xs mt-1">Prueba con otro término o revisa la ortografía</p>
+                </div>
+              )}
             </div>
+            
+            <button
+              onClick={() => {
+                setShowSearchPanel(false);
+                setTextSearchQuery('');
+                setTextSearchResults([]);
+                setCurrentResultIndex(-1);
+                setHighlightPositions([]);
+              }}
+              className="p-2 text-gray-400 hover:text-white rounded hover:bg-gray-700"
+              title="Cerrar búsqueda (Esc)"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
           
-          {/* Resultados de búsqueda */}
-          {textSearchResults.length > 0 && (
-            <div className="flex items-center justify-between bg-gray-700 rounded px-3 py-2">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-white">
-                  {currentResultIndex + 1} de {textSearchResults.length} resultados
-                </span>
-                <span className="text-xs text-gray-400">
-                  - Página {textSearchResults[currentResultIndex]?.pageNum}
-                </span>
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={goToPrevResult}
-                  className="p-1.5 rounded hover:bg-gray-600 text-white"
-                  title="Resultado anterior"
-                >
-                  <ChevronUp className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={goToNextResult}
-                  className="p-1.5 rounded hover:bg-gray-600 text-white"
-                  title="Siguiente resultado"
-                >
-                  <ChevronDown className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          )}
-          
-          {textSearchResults.length === 0 && textSearchQuery && !isSearching && (
-            <div className="text-sm text-yellow-400 mt-1">
-              No se encontró "{textSearchQuery}" en el PDF
-            </div>
-          )}
-          
-          {/* Lista de resultados con contexto */}
-          {textSearchResults.length > 0 && (
-            <div className="mt-2 max-h-32 overflow-y-auto space-y-1">
-              {textSearchResults.map((result, index) => (
-                <button
-                  key={`${result.pageNum}-${index}`}
-                  onClick={() => {
-                    setCurrentResultIndex(index);
-                    setCurrentPage(result.pageNum);
-                  }}
-                  className={`w-full text-left px-3 py-2 rounded text-sm ${
-                    index === currentResultIndex 
-                      ? 'bg-primary-600 text-white' 
-                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  }`}
-                >
-                  <span className="font-medium">Pág. {result.pageNum}:</span>
-                  <span className="ml-2 text-xs opacity-80">{result.text}</span>
-                </button>
-              ))}
+          {/* Indicador de página actual */}
+          {textSearchResults.length > 0 && currentResultIndex >= 0 && (
+            <div className="mt-2 flex items-center justify-between text-xs">
+              <span className="text-gray-400">
+                Resultado {currentResultIndex + 1} de {textSearchResults.length} • Página {textSearchResults[currentResultIndex]?.pageNum}
+              </span>
+              <span className="text-yellow-400 flex items-center gap-1">
+                <span className="w-3 h-3 bg-yellow-400/40 border border-yellow-500 rounded-sm"></span>
+                Texto resaltado en amarillo
+              </span>
             </div>
           )}
         </div>
