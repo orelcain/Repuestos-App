@@ -73,7 +73,7 @@ export function useRepuestos() {
     try {
       const newRepuesto = {
         ...data,
-        total: data.cantidadSolicitada * data.valorUnitario,
+        total: (data.cantidadSolicitada * data.valorUnitario) + (data.cantidadStockBodega * data.valorUnitario),
         fechaUltimaActualizacionInventario: data.cantidadStockBodega > 0 ? Timestamp.now() : null,
         vinculosManual: [],
         imagenesManual: [],
@@ -106,11 +106,13 @@ export function useRepuestos() {
         updatedAt: Timestamp.now()
       };
 
-      // Si se modifica la cantidad, actualizar total y fecha de inventario
-      if (data.cantidadSolicitada !== undefined || data.valorUnitario !== undefined) {
-        const cantidad = data.cantidadSolicitada ?? originalData?.cantidadSolicitada ?? 0;
+      // Si se modifica la cantidad o stock, actualizar total
+      if (data.cantidadSolicitada !== undefined || data.valorUnitario !== undefined || data.cantidadStockBodega !== undefined) {
+        const cantidadSolicitada = data.cantidadSolicitada ?? originalData?.cantidadSolicitada ?? 0;
+        const cantidadStock = data.cantidadStockBodega ?? originalData?.cantidadStockBodega ?? 0;
         const valor = data.valorUnitario ?? originalData?.valorUnitario ?? 0;
-        (updateData as Record<string, unknown>).total = cantidad * valor;
+        // Total General = (Valor Unit. × Cant. Solicitada) + (Valor Unit. × Stock Bodega)
+        (updateData as Record<string, unknown>).total = (cantidadSolicitada * valor) + (cantidadStock * valor);
       }
 
       // Si se modifica cantidadStockBodega, actualizar fecha

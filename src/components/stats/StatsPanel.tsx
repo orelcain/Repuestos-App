@@ -36,7 +36,9 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
 
   // Estadísticas generales
   const stats = useMemo(() => {
-    const totalSolicitado = filteredRepuestos.reduce((sum, r) => sum + (r.total || 0), 0);
+    const totalSolicitadoUSD = filteredRepuestos.reduce((sum, r) => sum + (r.valorUnitario * r.cantidadSolicitada), 0);
+    const totalStockUSD = filteredRepuestos.reduce((sum, r) => sum + (r.valorUnitario * (r.cantidadStockBodega || 0)), 0);
+    const totalGeneralUSD = filteredRepuestos.reduce((sum, r) => sum + (r.total || 0), 0);
     const totalUnidades = filteredRepuestos.reduce((sum, r) => sum + (r.cantidadSolicitada || 0), 0);
     const totalStock = filteredRepuestos.reduce((sum, r) => sum + (r.cantidadStockBodega || 0), 0);
     const promedioValorUnitario = filteredRepuestos.length > 0 
@@ -51,7 +53,9 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
     const conMarcador = filteredRepuestos.filter(r => (r.vinculosManual?.length || 0) > 0).length;
 
     return {
-      totalSolicitado,
+      totalSolicitadoUSD,
+      totalStockUSD,
+      totalGeneralUSD,
       totalUnidades,
       totalStock,
       promedioValorUnitario,
@@ -188,40 +192,67 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
       <div className="flex-1 overflow-auto p-6 space-y-6">
         {/* Tarjetas de resumen principal */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Total Solicitado */}
-          <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+          {/* Total Solicitado USD */}
+          <div className="bg-white rounded-xl p-5 shadow-sm border border-blue-200">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <DollarSign className="w-5 h-5 text-blue-600" />
+              </div>
+              <span className="text-sm font-medium text-gray-500">Total Solicitado</span>
+            </div>
+            <p className="text-2xl font-bold text-blue-700">{formatCurrency(stats.totalSolicitadoUSD)}</p>
+            <p className="text-xs text-gray-400 mt-1">USD</p>
+          </div>
+
+          {/* Total Stock USD */}
+          <div className="bg-white rounded-xl p-5 shadow-sm border border-green-200">
             <div className="flex items-center gap-3 mb-3">
               <div className="p-2 bg-green-100 rounded-lg">
                 <DollarSign className="w-5 h-5 text-green-600" />
               </div>
-              <span className="text-sm font-medium text-gray-500">Total Solicitado</span>
+              <span className="text-sm font-medium text-gray-500">Total Stock Bodega</span>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{formatCurrency(stats.totalSolicitado)}</p>
+            <p className="text-2xl font-bold text-green-700">{formatCurrency(stats.totalStockUSD)}</p>
             <p className="text-xs text-gray-400 mt-1">USD</p>
+          </div>
+
+          {/* Total General USD */}
+          <div className="bg-white rounded-xl p-5 shadow-sm border border-purple-200">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <DollarSign className="w-5 h-5 text-purple-600" />
+              </div>
+              <span className="text-sm font-medium text-gray-500">Total General</span>
+            </div>
+            <p className="text-2xl font-bold text-purple-700">{formatCurrency(stats.totalGeneralUSD)}</p>
+            <p className="text-xs text-gray-400 mt-1">Solicitado + Stock</p>
           </div>
 
           {/* Total Unidades */}
           <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
             <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Package className="w-5 h-5 text-blue-600" />
+              <div className="p-2 bg-amber-100 rounded-lg">
+                <Package className="w-5 h-5 text-amber-600" />
               </div>
-              <span className="text-sm font-medium text-gray-500">Unidades Solicitadas</span>
+              <span className="text-sm font-medium text-gray-500">Unidades</span>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{formatNumber(stats.totalUnidades)}</p>
-            <p className="text-xs text-gray-400 mt-1">{stats.total} ítems diferentes</p>
+            <p className="text-2xl font-bold text-gray-900">{formatNumber(stats.totalUnidades)} / {formatNumber(stats.totalStock)}</p>
+            <p className="text-xs text-gray-400 mt-1">Solicitadas / Stock</p>
           </div>
+        </div>
 
+        {/* Segunda fila de tarjetas */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Stock en Bodega */}
           <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
             <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <CheckCircle className="w-5 h-5 text-purple-600" />
+              <div className="p-2 bg-teal-100 rounded-lg">
+                <CheckCircle className="w-5 h-5 text-teal-600" />
               </div>
-              <span className="text-sm font-medium text-gray-500">Stock en Bodega</span>
+              <span className="text-sm font-medium text-gray-500">Con Stock</span>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{formatNumber(stats.totalStock)}</p>
-            <p className="text-xs text-gray-400 mt-1">{stats.conStock} ítems con stock</p>
+            <p className="text-2xl font-bold text-gray-900">{stats.conStock}</p>
+            <p className="text-xs text-gray-400 mt-1">de {stats.total} ítems</p>
           </div>
 
           {/* Promedio Valor Unitario */}
@@ -425,8 +456,8 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
           <h3 className="text-lg font-semibold mb-4">📊 Resumen Rápido</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
             <div>
-              <p className="text-primary-200">Inversión total en repuestos</p>
-              <p className="text-2xl font-bold">{formatCurrency(stats.totalSolicitado)}</p>
+              <p className="text-primary-200">Inversión total general</p>
+              <p className="text-2xl font-bold">{formatCurrency(stats.totalGeneralUSD)}</p>
             </div>
             <div>
               <p className="text-primary-200">Repuesto más costoso (unit.)</p>

@@ -22,10 +22,10 @@ const DEFAULT_COLUMNS: ColumnConfig[] = [
   { key: 'totalSolicitadoUSD', label: 'Total Solicitado USD', visible: true, group: 'solicitada', order: 6 },
   { key: 'totalSolicitadoCLP', label: 'Total Solicitado CLP', visible: false, group: 'solicitada', order: 7 },
   { key: 'cantidadStockBodega', label: 'Stock en Bodega', visible: true, group: 'stock', order: 8 },
-  { key: 'totalStockUSD', label: 'Total Stock USD', visible: false, group: 'stock', order: 9 },
+  { key: 'totalStockUSD', label: 'Total Stock USD', visible: true, group: 'stock', order: 9 },
   { key: 'totalStockCLP', label: 'Total Stock CLP', visible: false, group: 'stock', order: 10 },
   { key: 'valorUnitario', label: 'Valor Unitario', visible: true, group: 'general', order: 11 },
-  { key: 'totalUSD', label: 'Total General USD', visible: false, group: 'general', order: 12 },
+  { key: 'totalUSD', label: 'Total General USD', visible: true, group: 'general', order: 12 },
   { key: 'totalCLP', label: 'Total General CLP', visible: false, group: 'general', order: 13 },
   { key: 'acciones', label: 'Acciones', visible: true, required: true, group: 'general', order: 14 },
 ];

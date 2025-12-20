@@ -1,8 +1,19 @@
 // Versión de la aplicación
-export const APP_VERSION = '2.6.2';
+export const APP_VERSION = '2.7.0';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '2.7.0',
+    date: '2025-12-20',
+    changes: [
+      'Total General redefinido: Ahora suma Total Solicitado + Total Stock',
+      'Total General = (Valor Unit. × Cant. Solicitada) + (Valor Unit. × Stock Bodega)',
+      'Estadísticas separadas: Total Solicitado, Total Stock y Total General',
+      'Columnas Total Stock USD y Total General USD visibles por defecto',
+      'Panel de estadísticas mejorado con tarjetas diferenciadas por colores'
+    ]
+  },
   {
     version: '2.6.2',
     date: '2025-12-20',
