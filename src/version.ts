@@ -1,8 +1,20 @@
 // Versión de la aplicación
-export const APP_VERSION = '1.4.7';
+export const APP_VERSION = '1.4.8';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '1.4.8',
+    date: '2025-12-20',
+    changes: [
+      'Fix: Mejora en carga de imágenes para exportación PDF',
+      'Eliminación de timestamp en URLs de Firebase Storage',
+      'Logs de debug para diagnóstico de carga de imágenes',
+      'Aumento de timeout de carga a 15 segundos',
+      'Validación de URLs vacías antes de procesar',
+      'Configuración CORS actualizada para Firebase Hosting'
+    ]
+  },
   {
     version: '1.4.7',
     date: '2025-12-20',

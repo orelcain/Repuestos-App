@@ -25,18 +25,10 @@ export async function exportToExcel(repuestos: Repuesto[], filename: string = 'r
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Repuestos');
 
-  // Ajustar anchos de columna
   const colWidths = [
-    { wch: 12 }, // Código SAP
-    { wch: 15 }, // Código Baader
-    { wch: 40 }, // Descripción
-    { wch: 10 }, // Cantidad
-    { wch: 12 }, // Valor Unitario
-    { wch: 12 }, // Total
-    { wch: 10 }, // Stock
-    { wch: 15 }, // Última Act.
-    { wch: 10 }, // Imágenes
-    { wch: 10 }, // Fotos
+    { wch: 12 }, { wch: 15 }, { wch: 40 }, { wch: 10 },
+    { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 15 },
+    { wch: 10 }, { wch: 10 },
   ];
   worksheet['!cols'] = colWidths;
 
@@ -52,245 +44,173 @@ export async function exportToPDF(
   const doc = new jsPDF('p', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 10;
+  const margin = 8;
   const contentWidth = pageWidth - 2 * margin;
 
-  // Precargar imágenes como base64 para evitar problemas de CORS
+  // Precargar imágenes
   onProgress?.(5, 'Precargando imágenes...');
   const imageMap = await preloadImagesAsBase64(repuestos);
+  console.log('Imágenes cargadas:', imageMap.size);
   onProgress?.(20, 'Generando PDF...');
 
   // Título
-  doc.setFontSize(16);
+  doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(30, 64, 175);
-  doc.text('Repuestos Baader 200', pageWidth / 2, 15, { align: 'center' });
+  doc.text('Repuestos Baader 200', pageWidth / 2, 12, { align: 'center' });
   
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 100, 100);
-  doc.text(`Generado: ${new Date().toLocaleDateString('es-CL')} | Total: ${repuestos.length} repuestos`, pageWidth / 2, 21, { align: 'center' });
+  doc.text(`${new Date().toLocaleDateString('es-CL')} | ${repuestos.length} repuestos`, pageWidth / 2, 17, { align: 'center' });
 
-  let currentY = 28;
+  let currentY = 22;
 
   for (let i = 0; i < repuestos.length; i++) {
     const repuesto = repuestos[i];
     const allImages = [...repuesto.imagenesManual, ...repuesto.fotosReales];
     const hasImages = allImages.length > 0;
     
-    // Calcular altura del bloque según contenido
-    const blockHeight = hasImages ? 50 : 35;
+    // Altura del bloque
+    const blockHeight = hasImages ? 42 : 26;
     
-    // Verificar si necesitamos nueva página
-    if (currentY + blockHeight > pageHeight - 15) {
+    // Nueva página si no cabe
+    if (currentY + blockHeight > pageHeight - 10) {
       doc.addPage();
-      currentY = 15;
+      currentY = 10;
     }
 
-    // Configuración de layout
-    const dataWidth = hasImages ? contentWidth * 0.55 : contentWidth;
-    const imgSectionWidth = hasImages ? contentWidth * 0.45 : 0;
-    const imgStartX = margin + dataWidth + 3;
+    // Layout: 35% datos, 65% imágenes (cuando hay imágenes)
+    const dataWidth = hasImages ? contentWidth * 0.35 : contentWidth;
+    const imgSectionX = margin + dataWidth;
+    const imgSectionWidth = contentWidth - dataWidth;
 
-    // Recuadro del repuesto
-    doc.setDrawColor(220, 220, 220);
-    doc.setFillColor(252, 252, 253);
-    doc.roundedRect(margin, currentY, contentWidth, blockHeight, 2, 2, 'FD');
+    // Fondo
+    doc.setDrawColor(200, 200, 200);
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(margin, currentY, contentWidth, blockHeight, 1, 1, 'FD');
 
-    // Línea divisoria si hay imágenes
-    if (hasImages) {
-      doc.setDrawColor(230, 230, 230);
-      doc.line(margin + dataWidth, currentY + 3, margin + dataWidth, currentY + blockHeight - 3);
-    }
+    // === DATOS (IZQUIERDA) ===
+    const dataX = margin + 2;
+    let textY = currentY + 5;
 
-    // === SECCIÓN IZQUIERDA: DATOS ===
-    let textY = currentY + 6;
-
-    // Código Baader (título principal)
-    doc.setFontSize(11);
+    // Código Baader
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(30, 64, 175);
-    doc.text(repuesto.codigoBaader || '-', margin + 3, textY);
-    
-    // SAP al lado
-    doc.setFontSize(8);
+    doc.text(repuesto.codigoBaader || '-', dataX, textY);
+
+    // SAP
+    textY += 4;
+    doc.setFontSize(6);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(120, 120, 120);
-    const sapText = `SAP: ${repuesto.codigoSAP || '-'}`;
-    doc.text(sapText, margin + 3 + doc.getTextWidth(repuesto.codigoBaader || '-') + 5, textY);
-
-    // Descripción (truncada si es muy larga)
-    textY += 6;
-    doc.setFontSize(9);
-    doc.setTextColor(60, 60, 60);
-    const maxDescWidth = dataWidth - 8;
-    let descripcion = repuesto.textoBreve || '';
-    if (doc.getTextWidth(descripcion) > maxDescWidth) {
-      while (doc.getTextWidth(descripcion + '...') > maxDescWidth && descripcion.length > 0) {
-        descripcion = descripcion.slice(0, -1);
-      }
-      descripcion += '...';
-    }
-    doc.text(descripcion, margin + 3, textY);
-
-    // Datos en fila compacta
-    textY += 8;
-    doc.setFontSize(7);
-    
-    // Cantidad
     doc.setTextColor(100, 100, 100);
-    doc.text('Cant:', margin + 3, textY);
-    doc.setFont('helvetica', 'bold');
+    doc.text(`SAP: ${repuesto.codigoSAP || '-'}`, dataX, textY);
+
+    // Descripción
+    textY += 4;
+    doc.setFontSize(6);
     doc.setTextColor(50, 50, 50);
-    doc.text(`${repuesto.cantidadSolicitada}`, margin + 13, textY);
+    const maxW = dataWidth - 4;
+    const lines = doc.splitTextToSize(repuesto.textoBreve || '', maxW);
+    doc.text(lines.slice(0, 2), dataX, textY);
+    textY += Math.min(lines.length, 2) * 2.5 + 1;
 
-    // Valor Unitario
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 100, 100);
-    doc.text('V.Unit:', margin + 25, textY);
+    // Datos compactos
+    doc.setFontSize(5.5);
+    doc.setTextColor(80, 80, 80);
+    doc.text(`Cant: ${repuesto.cantidadSolicitada}  |  V.U: $${repuesto.valorUnitario.toFixed(0)}`, dataX, textY);
+    
+    textY += 3;
+    doc.text(`Total: $${repuesto.total.toFixed(0)}`, dataX, textY);
+    
+    // Stock
+    const stockColor = repuesto.cantidadStockBodega > 0 ? [0, 130, 0] : [180, 0, 0];
+    doc.setTextColor(80, 80, 80);
+    doc.text(`  |  Stock: `, dataX + doc.getTextWidth(`Total: $${repuesto.total.toFixed(0)}`), textY);
+    doc.setTextColor(stockColor[0], stockColor[1], stockColor[2]);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(50, 50, 50);
-    doc.text(`$${repuesto.valorUnitario.toFixed(2)}`, margin + 37, textY);
+    doc.text(`${repuesto.cantidadStockBodega}`, dataX + doc.getTextWidth(`Total: $${repuesto.total.toFixed(0)}  |  Stock: `), textY);
 
-    // Total
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 100, 100);
-    doc.text('Total:', margin + 58, textY);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(34, 139, 34);
-    doc.text(`$${repuesto.total.toFixed(2)}`, margin + 68, textY);
-
-    // Stock (segunda fila si hay espacio)
+    // === IMÁGENES (DERECHA) ===
     if (hasImages) {
-      textY += 5;
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(100, 100, 100);
-      doc.text('Stock Bodega:', margin + 3, textY);
-      
-      const stockColor = repuesto.cantidadStockBodega > 0 ? [34, 197, 94] : [220, 38, 38];
-      doc.setTextColor(stockColor[0], stockColor[1], stockColor[2]);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`${repuesto.cantidadStockBodega}`, margin + 26, textY);
-    } else {
-      // Stock en la misma fila si no hay imágenes
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(100, 100, 100);
-      doc.text('Stock:', margin + 88, textY);
-      
-      const stockColor = repuesto.cantidadStockBodega > 0 ? [34, 197, 94] : [220, 38, 38];
-      doc.setTextColor(stockColor[0], stockColor[1], stockColor[2]);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`${repuesto.cantidadStockBodega}`, margin + 100, textY);
-    }
-
-    // Tags si existen
-    if (repuesto.tags && repuesto.tags.length > 0) {
-      textY += 5;
-      doc.setFontSize(6);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(100, 100, 150);
-      const tagsText = repuesto.tags.slice(0, 3).join(' • ');
-      doc.text(tagsText, margin + 3, textY);
-    }
-
-    // === SECCIÓN DERECHA: IMÁGENES ===
-    if (hasImages) {
-      const imgPadding = 2;
-      const availableWidth = imgSectionWidth - imgPadding * 2;
-      const availableHeight = blockHeight - imgPadding * 2;
-      const imgY = currentY + imgPadding;
+      const imgPad = 2;
+      const imgAreaX = imgSectionX + imgPad;
+      const imgAreaWidth = imgSectionWidth - imgPad * 2;
+      const imgAreaHeight = blockHeight - imgPad * 2;
+      const imgY = currentY + imgPad;
 
       if (allImages.length === 1) {
-        // Una sola imagen - usar todo el espacio
-        const imgSize = Math.min(availableWidth - 4, availableHeight - 4);
-        const imgX = imgStartX + (availableWidth - imgSize) / 2;
-        const centerY = imgY + (availableHeight - imgSize) / 2;
+        // Una imagen grande
+        const imgSize = Math.min(imgAreaWidth * 0.85, imgAreaHeight - 4);
+        const imgX = imgAreaX + (imgAreaWidth - imgSize) / 2;
+        const centerY = imgY + (imgAreaHeight - imgSize) / 2 - 1;
         
-        const base64 = imageMap.get(allImages[0].url);
-        if (base64) {
-          try {
-            const format = getImageFormat(base64);
-            doc.addImage(base64, format, imgX, centerY, imgSize, imgSize);
-          } catch {
-            drawImagePlaceholder(doc, imgX, centerY, imgSize);
-          }
-        } else {
-          drawImagePlaceholder(doc, imgX, centerY, imgSize);
-        }
+        drawImageOrPlaceholder(doc, imageMap, allImages[0].url, imgX, centerY, imgSize, imgSize);
         
-        // Etiqueta del tipo de imagen
-        doc.setFontSize(5);
-        doc.setTextColor(150, 150, 150);
-        const tipo = allImages[0].tipo === 'manual' ? 'Manual' : 'Real';
-        doc.text(tipo, imgX + imgSize / 2, centerY + imgSize + 3, { align: 'center' });
+        // Etiqueta
+        doc.setFontSize(4);
+        doc.setTextColor(130, 130, 130);
+        doc.setFont('helvetica', 'normal');
+        const label = allImages[0].tipo === 'manual' ? 'Manual' : 'Real';
+        doc.text(label, imgX + imgSize / 2, centerY + imgSize + 2.5, { align: 'center' });
 
       } else {
-        // Dos o más imágenes - dividir espacio
-        const imgSize = Math.min((availableWidth - 6) / 2, availableHeight - 8);
-        const gap = 3;
-        const totalWidth = imgSize * 2 + gap;
-        const startX = imgStartX + (availableWidth - totalWidth) / 2;
-        const centerY = imgY + (availableHeight - imgSize - 6) / 2;
+        // Dos imágenes lado a lado
+        const gap = 2;
+        const imgSize = Math.min((imgAreaWidth - gap) / 2 - 2, imgAreaHeight - 6);
+        const totalW = imgSize * 2 + gap;
+        const startX = imgAreaX + (imgAreaWidth - totalW) / 2;
+        const centerY = imgY + (imgAreaHeight - imgSize - 4) / 2;
 
         for (let j = 0; j < Math.min(2, allImages.length); j++) {
           const img = allImages[j];
           const imgX = startX + j * (imgSize + gap);
-          const base64 = imageMap.get(img.url);
           
-          if (base64) {
-            try {
-              const format = getImageFormat(base64);
-              doc.addImage(base64, format, imgX, centerY, imgSize, imgSize);
-            } catch {
-              drawImagePlaceholder(doc, imgX, centerY, imgSize);
-            }
-          } else {
-            drawImagePlaceholder(doc, imgX, centerY, imgSize);
-          }
-
-          // Etiqueta del tipo
-          doc.setFontSize(5);
-          doc.setTextColor(150, 150, 150);
-          const tipo = img.tipo === 'manual' ? 'Manual' : 'Real';
-          doc.text(tipo, imgX + imgSize / 2, centerY + imgSize + 3, { align: 'center' });
+          drawImageOrPlaceholder(doc, imageMap, img.url, imgX, centerY, imgSize, imgSize);
+          
+          // Etiqueta
+          doc.setFontSize(4);
+          doc.setTextColor(130, 130, 130);
+          doc.setFont('helvetica', 'normal');
+          const label = img.tipo === 'manual' ? 'Manual' : 'Real';
+          doc.text(label, imgX + imgSize / 2, centerY + imgSize + 2.5, { align: 'center' });
         }
 
-        // Indicador de más imágenes
         if (allImages.length > 2) {
-          doc.setFontSize(6);
+          doc.setFontSize(5);
           doc.setTextColor(100, 100, 100);
-          doc.text(`+${allImages.length - 2} más`, imgStartX + availableWidth / 2, currentY + blockHeight - 2, { align: 'center' });
+          doc.text(`+${allImages.length - 2}`, imgAreaX + imgAreaWidth - 5, currentY + blockHeight - 2);
         }
       }
     }
 
-    // Actualizar progreso
+    // Progreso
     const progress = 20 + Math.round((i / repuestos.length) * 70);
     onProgress?.(progress, `Procesando ${i + 1} de ${repuestos.length}...`);
 
-    currentY += blockHeight + 3;
+    currentY += blockHeight + 2;
   }
 
   onProgress?.(95, 'Generando resumen...');
 
-  // Resumen al final
+  // Resumen
   doc.addPage();
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(30, 64, 175);
   doc.text('Resumen', pageWidth / 2, 20, { align: 'center' });
 
-  // Tabla resumen
   autoTable(doc, {
     startY: 30,
     head: [['Concepto', 'Valor']],
     body: [
       ['Total Repuestos', repuestos.length.toString()],
-      ['Total Cantidad Solicitada', repuestos.reduce((sum, r) => sum + r.cantidadSolicitada, 0).toString()],
-      ['Total en Stock', repuestos.reduce((sum, r) => sum + r.cantidadStockBodega, 0).toString()],
-      ['Valor Total (USD)', `$${repuestos.reduce((sum, r) => sum + r.total, 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`],
-      ['Con Imágenes del Manual', repuestos.filter(r => r.imagenesManual.length > 0).length.toString()],
-      ['Sin Imágenes del Manual', repuestos.filter(r => r.imagenesManual.length === 0).length.toString()],
+      ['Total Cantidad', repuestos.reduce((s, r) => s + r.cantidadSolicitada, 0).toString()],
+      ['Total en Stock', repuestos.reduce((s, r) => s + r.cantidadStockBodega, 0).toString()],
+      ['Valor Total (USD)', `$${repuestos.reduce((s, r) => s + r.total, 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`],
+      ['Con Imágenes Manual', repuestos.filter(r => r.imagenesManual.length > 0).length.toString()],
+      ['Con Fotos Reales', repuestos.filter(r => r.fotosReales.length > 0).length.toString()],
     ],
     theme: 'striped',
     headStyles: { fillColor: [30, 64, 175] },
@@ -301,22 +221,35 @@ export async function exportToPDF(
   doc.save(`${filename}.pdf`);
 }
 
-// Función auxiliar para obtener formato de imagen desde base64
-function getImageFormat(base64: string): string {
-  if (base64.includes('image/png')) return 'PNG';
-  if (base64.includes('image/webp')) return 'WEBP';
-  if (base64.includes('image/gif')) return 'GIF';
-  return 'JPEG';
-}
-
-// Función auxiliar para dibujar placeholder de imagen
-function drawImagePlaceholder(doc: jsPDF, x: number, y: number, size: number) {
-  doc.setFillColor(240, 240, 240);
-  doc.setDrawColor(200, 200, 200);
-  doc.roundedRect(x, y, size, size, 1, 1, 'FD');
+// Dibujar imagen o placeholder
+function drawImageOrPlaceholder(
+  doc: jsPDF, 
+  imageMap: Map<string, string>, 
+  url: string, 
+  x: number, 
+  y: number, 
+  w: number, 
+  h: number
+) {
+  const base64 = imageMap.get(url);
+  
+  if (base64) {
+    try {
+      const format = base64.includes('image/png') ? 'PNG' : 'JPEG';
+      doc.addImage(base64, format, x, y, w, h);
+      return;
+    } catch (err) {
+      console.error('Error agregando imagen al PDF:', err);
+    }
+  }
+  
+  // Placeholder
+  doc.setFillColor(245, 245, 245);
+  doc.setDrawColor(220, 220, 220);
+  doc.roundedRect(x, y, w, h, 1, 1, 'FD');
   doc.setFontSize(5);
   doc.setTextColor(180, 180, 180);
-  doc.text('Sin imagen', x + size / 2, y + size / 2 + 1, { align: 'center' });
+  doc.text('Sin img', x + w / 2, y + h / 2 + 1, { align: 'center' });
 }
 
 // Parsear Excel de entrada

@@ -106,52 +106,87 @@ export function formatFileSize(bytes: number): string {
 
 // Convertir imagen URL a base64 (para exportación PDF)
 export async function imageUrlToBase64(url: string): Promise<string | null> {
-  try {
-    // Usar fetch con mode cors
-    const response = await fetch(url, { mode: 'cors' });
-    const blob = await response.blob();
+  if (!url) {
+    console.warn('URL vacía proporcionada');
+    return null;
+  }
+  
+  // Método 1: Usar Image + Canvas
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
     
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        resolve(reader.result as string);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  } catch (error) {
-    console.error('Error convirtiendo imagen a base64:', error);
+    // Timeout para evitar esperas infinitas
+    const timeout = setTimeout(() => {
+      console.warn('Timeout cargando imagen:', url.substring(0, 50) + '...');
+      resolve(null);
+    }, 15000);
     
-    // Método alternativo usando Image y Canvas
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      
-      img.onload = () => {
+    img.onload = () => {
+      clearTimeout(timeout);
+      try {
         const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
+        canvas.width = img.naturalWidth || img.width || 200;
+        canvas.height = img.naturalHeight || img.height || 200;
+        
+        if (canvas.width === 0 || canvas.height === 0) {
+          console.warn('Imagen con dimensiones 0');
+          resolve(null);
+          return;
+        }
         
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.drawImage(img, 0, 0);
-          try {
-            const base64 = canvas.toDataURL('image/jpeg', 0.8);
-            resolve(base64);
-          } catch {
-            resolve(null);
-          }
+          // Usar JPEG para mejor compatibilidad con jsPDF
+          const base64 = canvas.toDataURL('image/jpeg', 0.85);
+          resolve(base64);
         } else {
+          console.warn('No se pudo obtener context 2d');
           resolve(null);
         }
-      };
-      
-      img.onerror = () => {
+      } catch (err) {
+        console.error('Error en canvas:', err);
         resolve(null);
-      };
-      
-      img.src = url;
+      }
+    };
+    
+    img.onerror = (err) => {
+      clearTimeout(timeout);
+      console.warn('Error cargando imagen (onerror):', err);
+      // Intentar método alternativo con fetch
+      fetchImageAsBase64(url).then(resolve);
+    };
+    
+    // NO agregar timestamp a URLs de Firebase (tienen tokens de auth)
+    img.src = url;
+  });
+}
+
+// Método alternativo con fetch
+async function fetchImageAsBase64(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url, { 
+      mode: 'cors',
+      credentials: 'omit'
     });
+    
+    if (!response.ok) {
+      console.warn('Fetch failed:', response.status);
+      return null;
+    }
+    
+    const blob = await response.blob();
+    
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error('Error en fetch:', error);
+    return null;
   }
 }
 
@@ -165,22 +200,35 @@ export async function preloadImagesAsBase64(
   // Recolectar todas las URLs únicas
   for (const repuesto of repuestos) {
     for (const img of repuesto.imagenesManual) {
-      urls.add(img.url);
+      if (img.url) urls.add(img.url);
     }
     for (const img of repuesto.fotosReales) {
-      urls.add(img.url);
+      if (img.url) urls.add(img.url);
     }
   }
 
+  console.log('URLs de imágenes encontradas:', urls.size);
+  console.log('Primeras 3 URLs:', Array.from(urls).slice(0, 3));
+
   // Convertir en paralelo (con límite)
   const urlArray = Array.from(urls);
-  const batchSize = 5;
+  const batchSize = 3;
+  let successCount = 0;
+  let failCount = 0;
   
   for (let i = 0; i < urlArray.length; i += batchSize) {
     const batch = urlArray.slice(i, i + batchSize);
     const results = await Promise.all(
       batch.map(async (url) => {
+        console.log('Procesando imagen:', url.substring(0, 80) + '...');
         const base64 = await imageUrlToBase64(url);
+        if (base64) {
+          console.log('✓ Imagen convertida OK');
+          successCount++;
+        } else {
+          console.log('✗ Imagen falló');
+          failCount++;
+        }
         return { url, base64 };
       })
     );
@@ -192,5 +240,6 @@ export async function preloadImagesAsBase64(
     }
   }
 
+  console.log(`Imágenes convertidas: ${successCount} éxito, ${failCount} fallos`);
   return imageMap;
 }
