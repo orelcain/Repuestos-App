@@ -64,7 +64,7 @@ export function useStorage() {
     setProgress(0);
 
     try {
-      const path = `manual/BAADER_200_manual.pdf`;
+      const path = `manual/BAADER 200 n°parte y materiales.pdf`;
       const storageRef = ref(storage, path);
 
       await uploadBytes(storageRef, file);
@@ -84,7 +84,7 @@ export function useStorage() {
   // Obtener URL del manual
   const getManualURL = useCallback(async (): Promise<string | null> => {
     try {
-      const path = `manual/BAADER_200_manual.pdf`;
+      const path = `manual/BAADER 200 n°parte y materiales.pdf`;
       const storageRef = ref(storage, path);
       const url = await getDownloadURL(storageRef);
       return url;
