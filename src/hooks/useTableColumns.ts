@@ -7,25 +7,27 @@ export interface ColumnConfig {
   visible: boolean;
   required?: boolean; // No se puede ocultar
   width?: string;
+  group?: 'solicitada' | 'stock' | 'general'; // Para agrupar y colorear columnas
+  order?: number; // Orden personalizado
 }
 
 // Columnas por defecto
 const DEFAULT_COLUMNS: ColumnConfig[] = [
-  { key: 'codigoSAP', label: 'Código SAP', visible: true, required: true },
-  { key: 'codigoBaader', label: 'Código Baader', visible: true },
-  { key: 'textoBreve', label: 'Desc. SAP', visible: true },
-  { key: 'descripcion', label: 'Desc. Extendida', visible: true },
-  { key: 'nombreManual', label: 'Nombre Manual', visible: true },
-  { key: 'cantidadSolicitada', label: 'Cant. Solicitada', visible: true },
-  { key: 'totalSolicitadoUSD', label: 'Total Solic. USD', visible: true },
-  { key: 'totalSolicitadoCLP', label: 'Total Solic. CLP', visible: false },
-  { key: 'cantidadStockBodega', label: 'Stock Bodega', visible: true },
-  { key: 'totalStockUSD', label: 'Total Stock USD', visible: false },
-  { key: 'totalStockCLP', label: 'Total Stock CLP', visible: false },
-  { key: 'valorUnitario', label: 'V. Unitario', visible: true },
-  { key: 'totalUSD', label: 'Total USD', visible: true },
-  { key: 'totalCLP', label: 'Total CLP', visible: true },
-  { key: 'acciones', label: 'Acciones', visible: true, required: true },
+  { key: 'codigoSAP', label: 'Código SAP', visible: true, required: true, group: 'general', order: 0 },
+  { key: 'codigoBaader', label: 'Código Baader', visible: true, group: 'general', order: 1 },
+  { key: 'textoBreve', label: 'Desc. SAP', visible: true, group: 'general', order: 2 },
+  { key: 'descripcion', label: 'Desc. Extendida', visible: true, group: 'general', order: 3 },
+  { key: 'nombreManual', label: 'Nombre Manual', visible: true, group: 'general', order: 4 },
+  { key: 'cantidadSolicitada', label: 'Cant. Solicitada', visible: true, group: 'solicitada', order: 5 },
+  { key: 'totalSolicitadoUSD', label: 'Total Solic. USD', visible: true, group: 'solicitada', order: 6 },
+  { key: 'totalSolicitadoCLP', label: 'Total Solic. CLP', visible: false, group: 'solicitada', order: 7 },
+  { key: 'cantidadStockBodega', label: 'Stock Bodega', visible: true, group: 'stock', order: 8 },
+  { key: 'totalStockUSD', label: 'Total Stock USD', visible: false, group: 'stock', order: 9 },
+  { key: 'totalStockCLP', label: 'Total Stock CLP', visible: false, group: 'stock', order: 10 },
+  { key: 'valorUnitario', label: 'V. Unitario', visible: true, group: 'general', order: 11 },
+  { key: 'totalUSD', label: 'Total USD', visible: true, group: 'general', order: 12 },
+  { key: 'totalCLP', label: 'Total CLP', visible: true, group: 'general', order: 13 },
+  { key: 'acciones', label: 'Acciones', visible: true, required: true, group: 'general', order: 14 },
 ];
 
 const STORAGE_KEY = 'table_columns_config';
@@ -83,8 +85,24 @@ export function useTableColumns() {
     return col ? col.visible : true;
   }, [columns]);
 
+  // Reordenar columnas (drag & drop)
+  const reorderColumns = useCallback((fromIndex: number, toIndex: number) => {
+    setColumns(prev => {
+      const newColumns = [...prev];
+      const [moved] = newColumns.splice(fromIndex, 1);
+      newColumns.splice(toIndex, 0, moved);
+      // Actualizar order
+      return newColumns.map((col, idx) => ({ ...col, order: idx }));
+    });
+  }, []);
+
   // Obtener solo columnas visibles
   const visibleColumns = columns.filter(c => c.visible);
+
+  // Obtener columna por key
+  const getColumn = useCallback((key: string) => {
+    return columns.find(c => c.key === key);
+  }, [columns]);
 
   return {
     columns,
@@ -92,6 +110,8 @@ export function useTableColumns() {
     toggleColumn,
     showAllColumns,
     resetColumns,
-    isColumnVisible
+    isColumnVisible,
+    reorderColumns,
+    getColumn
   };
 }

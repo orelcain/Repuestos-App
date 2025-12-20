@@ -149,7 +149,11 @@ export function RepuestosTable({
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   
   // Hook para configuración de columnas
-  const { columns, toggleColumn, resetColumns, isColumnVisible } = useTableColumns();
+  const { columns, toggleColumn, resetColumns, isColumnVisible, reorderColumns, getColumn } = useTableColumns();
+  
+  // Estado para drag & drop de columnas
+  const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
   
   // Estado para historial de campo
   const [historialModal, setHistorialModal] = useState<{
@@ -157,6 +161,69 @@ export function RepuestosTable({
     campo: string;
     historial: HistorialCambio[];
   }>({ isOpen: false, campo: '', historial: [] });
+
+  // Función helper para obtener clases de color según el grupo de columna
+  const getColumnHeaderClass = (columnKey: string) => {
+    const column = getColumn(columnKey);
+    const baseClass = "px-4 py-4 font-semibold text-xs uppercase tracking-wide transition-colors cursor-move select-none";
+    
+    if (!column) return baseClass + " text-gray-600";
+    
+    // Colores de fondo según el grupo
+    let colorClass = "";
+    if (column.group === 'solicitada') {
+      colorClass = "bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800/40";
+    } else if (column.group === 'stock') {
+      colorClass = "bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-800/40";
+    } else {
+      colorClass = "bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600";
+    }
+    
+    // Efecto durante drag
+    if (draggedColumn === columnKey) {
+      colorClass += " opacity-50";
+    }
+    if (dragOverColumn === columnKey) {
+      colorClass += " ring-2 ring-primary-500";
+    }
+    
+    return `${baseClass} ${colorClass}`;
+  };
+
+  // Handlers para drag & drop
+  const handleDragStart = (columnKey: string) => {
+    setDraggedColumn(columnKey);
+  };
+
+  const handleDragOver = (e: React.DragEvent, columnKey: string) => {
+    e.preventDefault();
+    setDragOverColumn(columnKey);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetColumnKey: string) => {
+    e.preventDefault();
+    
+    if (!draggedColumn || draggedColumn === targetColumnKey) {
+      setDraggedColumn(null);
+      setDragOverColumn(null);
+      return;
+    }
+    
+    const fromIndex = columns.findIndex(c => c.key === draggedColumn);
+    const toIndex = columns.findIndex(c => c.key === targetColumnKey);
+    
+    if (fromIndex !== -1 && toIndex !== -1) {
+      reorderColumns(fromIndex, toIndex);
+    }
+    
+    setDraggedColumn(null);
+    setDragOverColumn(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedColumn(null);
+    setDragOverColumn(null);
+  };
 
   // Filtrar repuestos
   const filteredRepuestos = useMemo(() => {
@@ -355,6 +422,39 @@ export function RepuestosTable({
     const totalCLP = convertToClp(totalUSD);
     return { totalSolicitado, totalBodega, totalUSD, totalCLP };
   }, [filteredRepuestos, convertToClp]);
+
+  // Renderizar encabezado de columna con drag & drop
+  const renderColumnHeader = (columnKey: string) => {
+    if (!isColumnVisible(columnKey)) return null;
+    
+    const column = getColumn(columnKey);
+    if (!column) return null;
+
+    const isSortable = ['codigoSAP', 'codigoBaader', 'textoBreve', 'descripcion', 'nombreManual', 
+                       'cantidadSolicitada', 'cantidadStockBodega', 'valorUnitario', 'totalUSD'].includes(columnKey);
+    
+    const alignment = ['cantidadSolicitada', 'cantidadStockBodega', 'acciones'].includes(columnKey) ? 'center' :
+                     ['valorUnitario', 'totalUSD', 'totalCLP', 'totalSolicitadoUSD', 'totalSolicitadoCLP', 
+                      'totalStockUSD', 'totalStockCLP'].includes(columnKey) ? 'right' : 'left';
+
+    return (
+      <th
+        key={columnKey}
+        draggable
+        onDragStart={() => handleDragStart(columnKey)}
+        onDragOver={(e) => handleDragOver(e, columnKey)}
+        onDrop={(e) => handleDrop(e, columnKey)}
+        onDragEnd={handleDragEnd}
+        className={`${getColumnHeaderClass(columnKey)} text-${alignment}`}
+        onClick={isSortable ? () => handleSort(columnKey as any) : undefined}
+      >
+        <div className={`flex items-center gap-1 ${alignment === 'center' ? 'justify-center' : alignment === 'right' ? 'justify-end' : ''}`}>
+          {column.label}
+          {isSortable && <SortIcon column={columnKey} />}
+        </div>
+      </th>
+    );
+  };
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-800 transition-colors">
@@ -787,129 +887,23 @@ export function RepuestosTable({
       {/* Tabla de repuestos - Vista Desktop */}
       <div className="flex-1 overflow-auto hidden lg:block">
         <table className="w-full">
-          <thead className="bg-gray-50 sticky top-0">
+          <thead className="sticky top-0">
             <tr>
-              {isColumnVisible('codigoSAP') && (
-                <th 
-                  className="px-4 py-4 text-left font-semibold text-gray-600 text-sm uppercase tracking-wide cursor-pointer hover:bg-gray-100 select-none"
-                  onClick={() => handleSort('codigoSAP')}
-                >
-                  <div className="flex items-center gap-1">
-                    Código SAP
-                    <SortIcon column="codigoSAP" />
-                  </div>
-                </th>
-              )}
-              {isColumnVisible('codigoBaader') && (
-                <th 
-                  className="px-4 py-4 text-left font-semibold text-gray-600 text-sm uppercase tracking-wide cursor-pointer hover:bg-gray-100 select-none"
-                  onClick={() => handleSort('codigoBaader')}
-                >
-                  <div className="flex items-center gap-1">
-                    Código Baader
-                    <SortIcon column="codigoBaader" />
-                  </div>
-                </th>
-              )}
-              {isColumnVisible('textoBreve') && (
-                <th 
-                  className="px-4 py-4 text-left font-semibold text-gray-600 text-xs uppercase tracking-wide cursor-pointer hover:bg-gray-100 select-none"
-                  onClick={() => handleSort('textoBreve')}
-                >
-                  <div className="flex items-center gap-1">
-                    Desc. SAP
-                    <SortIcon column="textoBreve" />
-                  </div>
-                </th>
-              )}
-              {isColumnVisible('descripcion') && (
-                <th 
-                  className="px-4 py-4 text-left font-semibold text-gray-600 text-xs uppercase tracking-wide cursor-pointer hover:bg-gray-100 select-none"
-                  onClick={() => handleSort('descripcion')}
-                >
-                  <div className="flex items-center gap-1">
-                    Desc. Extendida
-                    <SortIcon column="descripcion" />
-                  </div>
-                </th>
-              )}
-              {isColumnVisible('nombreManual') && (
-                <th 
-                  className="px-4 py-4 text-left font-semibold text-gray-600 text-xs uppercase tracking-wide cursor-pointer hover:bg-gray-100 select-none"
-                  onClick={() => handleSort('nombreManual')}
-                >
-                  <div className="flex items-center gap-1">
-                    Nombre Manual
-                    <SortIcon column="nombreManual" />
-                  </div>
-                </th>
-              )}
-              {isColumnVisible('cantidadSolicitada') && (
-                <th 
-                  className="px-4 py-4 text-center font-semibold text-gray-600 text-xs uppercase tracking-wide cursor-pointer hover:bg-gray-100 select-none"
-                  onClick={() => handleSort('cantidadSolicitada')}
-                >
-                  <div className="flex items-center justify-center gap-1">
-                    Cant. Solic.
-                    <SortIcon column="cantidadSolicitada" />
-                  </div>
-                </th>
-              )}
-              {isColumnVisible('totalSolicitadoUSD') && (
-                <th className="px-4 py-4 text-right font-semibold text-gray-600 text-xs uppercase tracking-wide">
-                  Total Solic. USD
-                </th>
-              )}
-              {isColumnVisible('totalSolicitadoCLP') && (
-                <th className="px-4 py-4 text-right font-semibold text-gray-600 text-xs uppercase tracking-wide">
-                  Total Solic. CLP
-                </th>
-              )}
-              {isColumnVisible('cantidadStockBodega') && (
-                <th 
-                  className="px-4 py-4 text-center font-semibold text-gray-600 text-xs uppercase tracking-wide cursor-pointer hover:bg-gray-100 select-none"
-                  onClick={() => handleSort('cantidadStockBodega')}
-                >
-                  <div className="flex items-center justify-center gap-1">
-                    Stock
-                    <SortIcon column="cantidadStockBodega" />
-                  </div>
-                </th>
-              )}
-              {isColumnVisible('totalStockUSD') && (
-                <th className="px-4 py-4 text-right font-semibold text-gray-600 text-xs uppercase tracking-wide">
-                  Total Stock USD
-                </th>
-              )}
-              {isColumnVisible('totalStockCLP') && (
-                <th className="px-4 py-4 text-right font-semibold text-gray-600 text-xs uppercase tracking-wide">
-                  Total Stock CLP
-                </th>
-              )}
-              {isColumnVisible('valorUnitario') && (
-                <th 
-                  className="px-4 py-4 text-right font-semibold text-gray-600 text-sm uppercase tracking-wide cursor-pointer hover:bg-gray-100 select-none"
-                  onClick={() => handleSort('valorUnitario')}
-                >
-                  <div className="flex items-center justify-end gap-1">
-                    V. Unit.
-                    <SortIcon column="valorUnitario" />
-                  </div>
-                </th>
-              )}
-              {isColumnVisible('totalUSD') && (
-                <th 
-                  className="px-4 py-4 text-right font-semibold text-gray-600 text-sm uppercase tracking-wide cursor-pointer hover:bg-gray-100 select-none"
-                  onClick={() => handleSort('totalUSD')}
-                >
-                  <div className="flex items-center justify-end gap-1">
-                    Total USD
-                    <SortIcon column="totalUSD" />
-                  </div>
-                </th>
-              )}
-              {isColumnVisible('totalCLP') && <th className="px-4 py-4 text-right font-semibold text-gray-600 text-sm uppercase tracking-wide">Total CLP</th>}
-              {isColumnVisible('acciones') && <th className="px-4 py-4 text-center font-semibold text-gray-600 text-sm uppercase tracking-wide">Acciones</th>}
+              {isColumnVisible('codigoSAP') && renderColumnHeader('codigoSAP')}
+              {isColumnVisible('codigoBaader') && renderColumnHeader('codigoBaader')}
+              {isColumnVisible('textoBreve') && renderColumnHeader('textoBreve')}
+              {isColumnVisible('descripcion') && renderColumnHeader('descripcion')}
+              {isColumnVisible('nombreManual') && renderColumnHeader('nombreManual')}
+              {isColumnVisible('cantidadSolicitada') && renderColumnHeader('cantidadSolicitada')}
+              {isColumnVisible('totalSolicitadoUSD') && renderColumnHeader('totalSolicitadoUSD')}
+              {isColumnVisible('totalSolicitadoCLP') && renderColumnHeader('totalSolicitadoCLP')}
+              {isColumnVisible('cantidadStockBodega') && renderColumnHeader('cantidadStockBodega')}
+              {isColumnVisible('totalStockUSD') && renderColumnHeader('totalStockUSD')}
+              {isColumnVisible('totalStockCLP') && renderColumnHeader('totalStockCLP')}
+              {isColumnVisible('valorUnitario') && renderColumnHeader('valorUnitario')}
+              {isColumnVisible('totalUSD') && renderColumnHeader('totalUSD')}
+              {isColumnVisible('totalCLP') && renderColumnHeader('totalCLP')}
+              {isColumnVisible('acciones') && renderColumnHeader('acciones')}
             </tr>
           </thead>
           <tbody>

@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '2.6.0';
+export const APP_VERSION = '2.6.1';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '2.6.1',
+    date: '2025-12-20',
+    changes: [
+      'Colores identificables para columnas: Azul para "Solicitadas", Verde para "Stock"',
+      'Funcionalidad drag & drop para reordenar columnas en la tabla',
+      'Los encabezados ahora se pueden arrastrar para cambiar su posición',
+      'El orden de columnas se guarda automáticamente en localStorage'
+    ]
+  },
   {
     version: '2.6.0',
     date: '2025-12-20',
