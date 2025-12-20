@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '2.3.0';
+export const APP_VERSION = '2.4.0';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '2.4.0',
+    date: '2025-12-20',
+    changes: [
+      'Reportes: Modal con gráficos interactivos (Recharts)',
+      'KPIs: Resumen de totales, sin stock, con marcador',
+      'Gráficos: Distribución valor, stock vs solicitado, precios',
+      'Pestañas: Resumen, Por Valor, Stock, Precios'
+    ]
+  },
   {
     version: '2.3.0',
     date: '2025-12-20',

@@ -23,6 +23,7 @@ const PDFMarkerEditor = lazy(() => import('./pdf/PDFMarkerEditor').then(module =
 import { ImportModal } from './ImportModal';
 import { StatsPanel } from './stats/StatsPanel';
 import { ToastContainer, Button } from './ui';
+import ReportsModal from './reports/ReportsModal';
 
 import { exportToExcel, exportToPDF } from '../utils/exportUtils';
 
@@ -124,6 +125,9 @@ export function Dashboard() {
   // Modal de backup
   const [showBackupModal, setShowBackupModal] = useState(false);
   const [backupLoading, setBackupLoading] = useState(false);
+  
+  // Modal de reportes
+  const [showReportsModal, setShowReportsModal] = useState(false);
 
   // Cargar URL del manual
   useEffect(() => {
@@ -624,6 +628,16 @@ export function Dashboard() {
               Backup
             </Button>
 
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowReportsModal(true)}
+              icon={<BarChart3 className="w-4 h-4" />}
+              title="Ver reportes y análisis"
+            >
+              Reportes
+            </Button>
+
             {repuestos.length === 0 && (
               <Button
                 variant="primary"
@@ -719,6 +733,16 @@ export function Dashboard() {
               >
                 <Database className="w-5 h-5 text-gray-500 dark:text-gray-400" />
                 <span>Backup/Restore</span>
+              </button>
+              <button
+                onClick={() => {
+                  setShowReportsModal(true);
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <BarChart3 className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                <span>Reportes y Análisis</span>
               </button>
               <button
                 onClick={() => {
@@ -1232,6 +1256,13 @@ export function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* Modal de Reportes */}
+      <ReportsModal 
+        isOpen={showReportsModal}
+        onClose={() => setShowReportsModal(false)}
+        repuestos={filteredRepuestos.length > 0 ? filteredRepuestos : repuestos}
+      />
 
       {/* Toast Container */}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
