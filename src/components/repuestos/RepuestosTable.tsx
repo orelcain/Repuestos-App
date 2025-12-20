@@ -357,14 +357,14 @@ export function RepuestosTable({
   }, [filteredRepuestos, convertToClp]);
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full bg-white dark:bg-gray-800 transition-colors">
       {/* Header con búsqueda */}
-      <div className="p-4 border-b border-gray-200 space-y-3">
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700 space-y-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+          <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
             <Package className="w-6 h-6 text-primary-600" />
             Repuestos
-            <span className="text-base font-normal text-gray-500">
+            <span className="text-base font-normal text-gray-500 dark:text-gray-400">
               ({filteredRepuestos.length} de {repuestos.length})
             </span>
           </h2>
@@ -375,8 +375,8 @@ export function RepuestosTable({
                 onClick={() => setShowTagFilter(!showTagFilter)}
                 className={`flex items-center gap-2 px-3 py-2.5 border rounded-lg transition-colors ${
                   selectedTags.length > 0 
-                    ? 'border-primary-500 bg-primary-50 text-primary-700' 
-                    : 'border-gray-300 hover:bg-gray-50'
+                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300' 
+                    : 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300'
                 }`}
               >
                 <Filter className="w-4 h-4" />
@@ -384,14 +384,14 @@ export function RepuestosTable({
                   {selectedTags.length > 0 ? `${selectedTags.length} tag${selectedTags.length > 1 ? 's' : ''}` : 'Filtrar'}
                 </span>
                 {selectedTags.length > 0 && (
-                  <span className="ml-1 px-1.5 py-0.5 bg-primary-200 text-primary-800 rounded text-xs font-medium">
+                  <span className="ml-1 px-1.5 py-0.5 bg-primary-200 dark:bg-primary-800 text-primary-800 dark:text-primary-200 rounded text-xs font-medium">
                     {tagFilterMode}
                   </span>
                 )}
               </button>
               
               {showTagFilter && (
-                <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-lg shadow-xl border border-gray-200 z-20">
+                <div className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-20">
                   {/* Toggle AND/OR */}
                   <div className="p-3 border-b border-gray-100">
                     <div className="flex items-center justify-between mb-2">

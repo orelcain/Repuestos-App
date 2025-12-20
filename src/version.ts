@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '2.1.0';
+export const APP_VERSION = '2.2.0';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '2.2.0',
+    date: '2025-12-20',
+    changes: [
+      'Modo oscuro: Toggle en header y menú móvil',
+      'Detección automática de preferencia del sistema',
+      'Persistencia de tema en localStorage',
+      'Estilos dark para header, tabla y navegación'
+    ]
+  },
   {
     version: '2.1.0',
     date: '2025-12-20',

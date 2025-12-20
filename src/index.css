@@ -15,6 +15,13 @@
   font-size: 16px;
 }
 
+/* Dark mode variables */
+.dark {
+  color-scheme: dark;
+  color: #e2e8f0;
+  background-color: #0f172a;
+}
+
 /* Tamaños de fuente mejorados para legibilidad */
 body {
   font-size: 1rem;

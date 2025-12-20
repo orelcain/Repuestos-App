@@ -5,6 +5,7 @@ import { useStorage } from '../hooks/useStorage';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useToast } from '../hooks/useToast';
 import { useDolar } from '../hooks/useDolar';
+import { useTheme } from '../hooks/useTheme';
 import { Repuesto, RepuestoFormData, ImagenRepuesto, VinculoManual } from '../types';
 import { APP_VERSION } from '../version';
 
@@ -40,7 +41,9 @@ import {
   Loader2,
   Database,
   HardDriveDownload,
-  HardDriveUpload
+  HardDriveUpload,
+  Moon,
+  Sun
 } from 'lucide-react';
 
 // Componente de loading para los PDF viewers
@@ -74,6 +77,7 @@ export function Dashboard() {
   const { lastSelectedRepuestoId, setLastSelectedRepuesto } = useLocalStorage();
   const { toasts, removeToast, success, error } = useToast();
   const { valor: tipoCambio } = useDolar();
+  const { toggleTheme, isDark } = useTheme();
 
   // Estado de selección y modales
   const [selectedRepuesto, setSelectedRepuesto] = useState<Repuesto | null>(null);
@@ -559,9 +563,9 @@ export function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col transition-colors">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-4 py-3">
+      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3">
         <div className="flex items-center justify-between">
           {/* Logo y título */}
           <div className="flex items-center gap-3">
@@ -569,13 +573,13 @@ export function Dashboard() {
               <span className="text-white font-bold text-lg">B</span>
             </div>
             <div>
-              <h1 className="font-bold text-gray-800 text-lg flex items-center gap-2">
+              <h1 className="font-bold text-gray-800 dark:text-gray-100 text-lg flex items-center gap-2">
                 Baader 200
-                <span className="text-xs font-normal bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full">
+                <span className="text-xs font-normal bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 px-2 py-0.5 rounded-full">
                   v{APP_VERSION}
                 </span>
               </h1>
-              <p className="text-sm text-gray-500">Gestión de Repuestos</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Gestión de Repuestos</p>
             </div>
           </div>
 
@@ -631,9 +635,18 @@ export function Dashboard() {
               </Button>
             )}
 
-            <div className="w-px h-8 bg-gray-200" />
+            <div className="w-px h-8 bg-gray-200 dark:bg-gray-700" />
 
-            <div className="flex items-center gap-2 text-sm text-gray-600">
+            {/* Toggle tema */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors"
+              title={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+            >
+              {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+
+            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
               <span>{user?.email}</span>
               <button
                 onClick={signOut}
@@ -702,16 +715,25 @@ export function Dashboard() {
                   setShowBackupModal(true);
                   setMobileMenuOpen(false);
                 }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100"
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
               >
-                <Database className="w-5 h-5 text-gray-500" />
+                <Database className="w-5 h-5 text-gray-500 dark:text-gray-400" />
                 <span>Backup/Restore</span>
               </button>
-              <hr className="my-4" />
-              <div className="px-4 py-2 text-sm text-gray-500">{user?.email}</div>
+              <button
+                onClick={() => {
+                  toggleTheme();
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                {isDark ? <Sun className="w-5 h-5 text-yellow-500" /> : <Moon className="w-5 h-5 text-gray-500" />}
+                <span>{isDark ? 'Modo claro' : 'Modo oscuro'}</span>
+              </button>
+              <hr className="my-4 dark:border-gray-700" />
+              <div className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">{user?.email}</div>
               <button
                 onClick={signOut}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 text-red-600"
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-red-600 dark:text-red-400"
               >
                 <LogOut className="w-5 h-5" />
                 <span>Cerrar sesión</span>
@@ -724,7 +746,7 @@ export function Dashboard() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Barra de navegación principal */}
-        <div className="bg-white border-b border-gray-200 px-4">
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4">
           <div className="flex items-center gap-1">
             <button
               onClick={() => {
