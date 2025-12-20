@@ -325,18 +325,18 @@ export function RepuestosTable({
         )}
       </div>
 
-      {/* Tabla de repuestos */}
-      <div className="flex-1 overflow-auto">
+      {/* Tabla de repuestos - Vista Desktop */}
+      <div className="flex-1 overflow-auto hidden lg:block">
         <table className="w-full">
           <thead className="bg-gray-50 sticky top-0">
             <tr>
               <th className="px-4 py-4 text-left font-semibold text-gray-600 text-sm uppercase tracking-wide">Código SAP</th>
-              <th className="px-4 py-4 text-left font-semibold text-gray-600 text-sm uppercase tracking-wide hidden md:table-cell">Código Baader</th>
+              <th className="px-4 py-4 text-left font-semibold text-gray-600 text-sm uppercase tracking-wide">Código Baader</th>
               <th className="px-4 py-4 text-left font-semibold text-gray-600 text-sm uppercase tracking-wide">Descripción</th>
-              <th className="px-4 py-4 text-center font-semibold text-gray-600 text-sm uppercase tracking-wide hidden lg:table-cell">Cant. Solicitada</th>
-              <th className="px-4 py-4 text-center font-semibold text-gray-600 text-sm uppercase tracking-wide hidden lg:table-cell">Stock Bodega</th>
-              <th className="px-4 py-4 text-right font-semibold text-gray-600 text-sm uppercase tracking-wide hidden xl:table-cell">Valor Unit.</th>
-              <th className="px-4 py-4 text-right font-semibold text-gray-600 text-sm uppercase tracking-wide hidden xl:table-cell">Total USD</th>
+              <th className="px-4 py-4 text-center font-semibold text-gray-600 text-sm uppercase tracking-wide">Cant.</th>
+              <th className="px-4 py-4 text-center font-semibold text-gray-600 text-sm uppercase tracking-wide">Stock</th>
+              <th className="px-4 py-4 text-right font-semibold text-gray-600 text-sm uppercase tracking-wide">V. Unit.</th>
+              <th className="px-4 py-4 text-right font-semibold text-gray-600 text-sm uppercase tracking-wide">Total USD</th>
               <th className="px-4 py-4 text-center font-semibold text-gray-600 text-sm uppercase tracking-wide">Acciones</th>
             </tr>
           </thead>
@@ -380,7 +380,7 @@ export function RepuestosTable({
                   </td>
 
                   {/* Código Baader con botón copiar */}
-                  <td className="px-4 py-4 hidden md:table-cell">
+                  <td className="px-4 py-4">
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-sm text-primary-700 font-semibold">
                         {repuesto.codigoBaader}
@@ -450,7 +450,7 @@ export function RepuestosTable({
                   </td>
 
                   {/* Cantidad Solicitada - clickeable para ver historial */}
-                  <td className="px-4 py-4 text-center hidden lg:table-cell">
+                  <td className="px-4 py-4 text-center">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -464,7 +464,7 @@ export function RepuestosTable({
                   </td>
 
                   {/* Stock Bodega - clickeable para ver historial */}
-                  <td className="px-4 py-4 text-center hidden lg:table-cell">
+                  <td className="px-4 py-4 text-center">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -484,14 +484,14 @@ export function RepuestosTable({
                   </td>
 
                   {/* Valor unitario */}
-                  <td className="px-4 py-4 text-right hidden xl:table-cell">
+                  <td className="px-4 py-4 text-right">
                     <span className="text-base text-gray-600 font-medium">
                       ${repuesto.valorUnitario?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
                     </span>
                   </td>
 
                   {/* Total */}
-                  <td className="px-4 py-4 text-right hidden xl:table-cell">
+                  <td className="px-4 py-4 text-right">
                     <span className="text-base font-bold text-gray-800">
                       ${repuesto.total?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
                     </span>
@@ -574,6 +574,200 @@ export function RepuestosTable({
             })}
           </tbody>
         </table>
+
+        {filteredRepuestos.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-20 text-gray-500">
+            <Package className="w-16 h-16 mb-4 opacity-40" />
+            <p className="text-lg font-medium">No se encontraron repuestos</p>
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="mt-3 text-primary-600 hover:underline font-medium"
+              >
+                Limpiar búsqueda
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Vista de tarjetas para móvil/tablet */}
+      <div className="flex-1 overflow-auto lg:hidden">
+        <div className="p-3 space-y-3">
+          {paginatedRepuestos.map((repuesto) => {
+            const hasManualMarker = repuesto.vinculosManual && repuesto.vinculosManual.length > 0;
+            
+            return (
+              <div
+                key={repuesto.id}
+                onClick={() => onSelect(selectedRepuesto?.id === repuesto.id ? null : repuesto)}
+                className={`
+                  bg-white rounded-xl border-2 p-4 cursor-pointer transition-all
+                  ${selectedRepuesto?.id === repuesto.id 
+                    ? 'border-primary-500 shadow-lg' 
+                    : 'border-gray-200 hover:border-gray-300 hover:shadow'
+                  }
+                `}
+              >
+                {/* Header con códigos */}
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-medium text-gray-500">SAP:</span>
+                      <span className="font-mono text-sm bg-gray-100 px-2 py-0.5 rounded font-semibold text-gray-800">
+                        {repuesto.codigoSAP}
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCopy(repuesto.codigoSAP, `sap-m-${repuesto.id}`);
+                        }}
+                        className="p-1 rounded hover:bg-gray-200 text-gray-400"
+                      >
+                        {copiedId === `sap-m-${repuesto.id}` ? (
+                          <Check className="w-3.5 h-3.5 text-green-500" />
+                        ) : (
+                          <Copy className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-gray-500">Baader:</span>
+                      <span className="font-mono text-sm text-primary-700 font-semibold">
+                        {repuesto.codigoBaader}
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCopy(repuesto.codigoBaader, `baader-m-${repuesto.id}`);
+                        }}
+                        className="p-1 rounded hover:bg-gray-200 text-gray-400"
+                      >
+                        {copiedId === `baader-m-${repuesto.id}` ? (
+                          <Check className="w-3.5 h-3.5 text-green-500" />
+                        ) : (
+                          <Copy className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                  {!hasManualMarker && onMarkInManual && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onMarkInManual(repuesto);
+                      }}
+                      className="p-2 rounded-lg bg-amber-100 text-amber-600"
+                      title="Marcar en manual"
+                    >
+                      <MapPin className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Descripción */}
+                <p className="text-sm text-gray-700 font-medium mb-3 line-clamp-2">
+                  {repuesto.descripcion || repuesto.textoBreve}
+                </p>
+
+                {/* Tags */}
+                {repuesto.tags && repuesto.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-3">
+                    {repuesto.tags.map(tag => (
+                      <span key={tag} className="inline-flex items-center px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs font-medium">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Grid de datos numéricos */}
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <div className="bg-gray-50 rounded-lg p-2">
+                    <span className="text-xs text-gray-500 block">Cantidad</span>
+                    <span className="text-lg font-bold text-gray-800">{repuesto.cantidadSolicitada}</span>
+                  </div>
+                  <div className={`rounded-lg p-2 ${repuesto.cantidadStockBodega > 0 ? 'bg-green-50' : 'bg-gray-50'}`}>
+                    <span className="text-xs text-gray-500 block">Stock</span>
+                    <span className={`text-lg font-bold ${repuesto.cantidadStockBodega > 0 ? 'text-green-700' : 'text-gray-500'}`}>
+                      {repuesto.cantidadStockBodega}
+                    </span>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-2">
+                    <span className="text-xs text-gray-500 block">V. Unitario</span>
+                    <span className="text-sm font-semibold text-gray-700">
+                      ${repuesto.valorUnitario?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
+                    </span>
+                  </div>
+                  <div className="bg-primary-50 rounded-lg p-2">
+                    <span className="text-xs text-gray-500 block">Total USD</span>
+                    <span className="text-sm font-bold text-primary-700">
+                      ${repuesto.total?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Acciones */}
+                <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onViewManual(repuesto);
+                      }}
+                      className={`p-2 rounded-lg ${hasManualMarker ? 'bg-primary-100 text-primary-600' : 'bg-gray-100 text-gray-400'}`}
+                      title="Ver en manual"
+                    >
+                      <FileText className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onViewPhotos(repuesto);
+                      }}
+                      className={`p-2 rounded-lg ${repuesto.fotosReales?.length > 0 ? 'bg-gray-100 text-gray-600' : 'bg-gray-100 text-gray-300'}`}
+                      title="Fotos"
+                    >
+                      <Camera className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onViewHistory(repuesto);
+                      }}
+                      className="p-2 rounded-lg bg-gray-100 text-gray-500"
+                      title="Historial"
+                    >
+                      <History className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEdit(repuesto);
+                      }}
+                      className="p-2 rounded-lg bg-blue-50 text-blue-600"
+                      title="Editar"
+                    >
+                      <Edit2 className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(repuesto);
+                      }}
+                      className="p-2 rounded-lg bg-red-50 text-red-600"
+                      title="Eliminar"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
 
         {filteredRepuestos.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-gray-500">

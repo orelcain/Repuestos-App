@@ -1,8 +1,19 @@
 // Versión de la aplicación
-export const APP_VERSION = '1.5.0';
+export const APP_VERSION = '1.5.1';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '1.5.1',
+    date: '2025-12-20',
+    changes: [
+      'Vista de tarjetas para móvil/tablet en lista de repuestos',
+      'Todos los campos visibles en PWA: códigos, cantidad, stock, valores',
+      'Grid de datos numéricos compacto y legible',
+      'Acciones fáciles de tocar en dispositivos móviles',
+      'Tabla completa visible solo en pantallas grandes (desktop)'
+    ]
+  },
   {
     version: '1.5.0',
     date: '2025-12-20',
