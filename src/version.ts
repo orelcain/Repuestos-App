@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '2.2.0';
+export const APP_VERSION = '2.3.0';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '2.3.0',
+    date: '2025-12-20',
+    changes: [
+      'ImageDropzone: Drag & drop para subir imágenes',
+      'Componente Skeleton: Loading states animados',
+      'Tooltip: Info detallada al hover sobre repuestos',
+      'Animaciones: fadeIn y shimmer para mejor UX'
+    ]
+  },
   {
     version: '2.2.0',
     date: '2025-12-20',
