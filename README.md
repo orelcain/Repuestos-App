@@ -1,5 +1,7 @@
 # Baader 200 - Gestión de Repuestos
 
+🚀 **App en producción:** https://orelcain.github.io/Baader-200-Repuestos-app/
+
 Aplicación PWA para gestión visual de repuestos Baader 200 con integración Firebase.
 
 ## Características
