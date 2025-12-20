@@ -2,14 +2,16 @@ import { useState, useEffect, useCallback } from 'react';
 import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
-// Tags predefinidos por defecto (se usan si no hay datos en Firestore)
+// Tags iniciales por defecto (se usan si no hay datos en Firestore)
 const DEFAULT_TAGS = [
   'Overhaul temporada baja',
   'Urgentes este mes',
   'Críticos',
   'En espera proveedor',
   'Pedido realizado',
-  'Stock mínimo'
+  'Stock mínimo',
+  'Repuestos varios',
+  'Preventivo mensual'
 ];
 
 // Documento donde se guardan los tags globales

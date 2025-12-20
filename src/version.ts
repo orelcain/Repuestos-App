@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '2.4.0';
+export const APP_VERSION = '2.5.0';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '2.5.0',
+    date: '2025-12-20',
+    changes: [
+      'Sistema unificado de tags: todos editables/eliminables',
+      'Tags iniciales: 8 tags (6 originales + 2 nuevos)',
+      'TagManager simplificado: una sola lista de tags',
+      'Edición de tags actualiza automáticamente en repuestos'
+    ]
+  },
   {
     version: '2.4.0',
     date: '2025-12-20',

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Repuesto } from '../../types';
 import { useTags } from '../../hooks/useTags';
-import { X, Tag, Edit2, Trash2, Check, AlertTriangle, Plus, Settings, List } from 'lucide-react';
+import { X, Tag, Edit2, Trash2, Check, AlertTriangle, Plus } from 'lucide-react';
 
 interface TagManagerModalProps {
   isOpen: boolean;
@@ -11,8 +11,6 @@ interface TagManagerModalProps {
   onDeleteTag: (tagName: string) => Promise<number>;
 }
 
-type TabType = 'en-uso' | 'predefinidos';
-
 export function TagManagerModal({
   isOpen,
   onClose,
@@ -21,8 +19,6 @@ export function TagManagerModal({
   onDeleteTag
 }: TagManagerModalProps) {
   const { tags: globalTags, addTag, removeTag, renameTag: renameGlobalTag, loading: tagsLoading } = useTags();
-  
-  const [activeTab, setActiveTab] = useState<TabType>('en-uso');
   const [editingTag, setEditingTag] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [deletingTag, setDeletingTag] = useState<string | null>(null);
@@ -59,7 +55,7 @@ export function TagManagerModal({
     setEditValue('');
   };
 
-  const handleSaveEdit = async (isGlobalOnly: boolean = false) => {
+  const handleSaveEdit = async () => {
     if (!editingTag || !editValue.trim()) return;
     
     const newName = editValue.trim();
@@ -80,15 +76,16 @@ export function TagManagerModal({
 
     setLoading(true);
     try {
-      if (isGlobalOnly) {
-        // Solo renombrar en lista global (no afecta repuestos)
-        await renameGlobalTag(editingTag, newName);
-        setMessage({ type: 'success', text: 'Tag predefinido actualizado' });
-      } else {
-        // Renombrar en repuestos Y en lista global
+      // Renombrar en lista global
+      await renameGlobalTag(editingTag, newName);
+      
+      // Si el tag está en uso, también renombrar en todos los repuestos
+      const tagInUse = tagsEnUso.find(t => t.name === editingTag);
+      if (tagInUse && tagInUse.count > 0) {
         const count = await onRenameTag(editingTag, newName);
-        await renameGlobalTag(editingTag, newName);
         setMessage({ type: 'success', text: `Tag renombrado en ${count} repuesto(s)` });
+      } else {
+        setMessage({ type: 'success', text: 'Tag actualizado' });
       }
       handleCancelEdit();
     } catch (err) {
@@ -107,20 +104,21 @@ export function TagManagerModal({
     setDeletingTag(null);
   };
 
-  const handleConfirmDelete = async (isGlobalOnly: boolean = false) => {
+  const handleConfirmDelete = async () => {
     if (!deletingTag) return;
 
     setLoading(true);
     try {
-      if (isGlobalOnly) {
-        // Solo quitar de la lista global
-        await removeTag(deletingTag);
-        setMessage({ type: 'success', text: 'Tag eliminado de la lista predefinida' });
-      } else {
-        // Eliminar de repuestos Y de lista global
+      // Eliminar de lista global
+      await removeTag(deletingTag);
+      
+      // Si el tag está en uso, también eliminarlo de todos los repuestos
+      const tagInUse = tagsEnUso.find(t => t.name === deletingTag);
+      if (tagInUse && tagInUse.count > 0) {
         const count = await onDeleteTag(deletingTag);
-        await removeTag(deletingTag);
         setMessage({ type: 'success', text: `Tag eliminado de ${count} repuesto(s)` });
+      } else {
+        setMessage({ type: 'success', text: 'Tag eliminado' });
       }
       setDeletingTag(null);
     } catch (err) {
@@ -147,25 +145,7 @@ export function TagManagerModal({
       await addTag(trimmed);
       setNewTagName('');
       setShowAddForm(false);
-      setMessage({ type: 'success', text: 'Tag agregado a la lista predefinida' });
-    } catch (err) {
-      setMessage({ type: 'error', text: 'Error al agregar el tag' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Agregar tag en uso a la lista de predefinidos
-  const handleAddToPredefinidos = async (tagName: string) => {
-    if (globalTags.includes(tagName)) {
-      setMessage({ type: 'error', text: 'Este tag ya está en la lista predefinida' });
-      return;
-    }
-    
-    setLoading(true);
-    try {
-      await addTag(tagName);
-      setMessage({ type: 'success', text: 'Tag agregado a la lista predefinida' });
+      setMessage({ type: 'success', text: 'Tag agregado exitosamente' });
     } catch (err) {
       setMessage({ type: 'error', text: 'Error al agregar el tag' });
     } finally {
@@ -175,12 +155,7 @@ export function TagManagerModal({
 
   if (!isOpen) return null;
 
-  const renderTagItem = (
-    name: string, 
-    count: number | null, 
-    isGlobalOnly: boolean,
-    isInPredefinidos: boolean
-  ) => {
+  const renderTagItem = (name: string, count: number | null) => {
     if (editingTag === name) {
       return (
         <div className="flex items-center gap-2 flex-1">
@@ -191,12 +166,12 @@ export function TagManagerModal({
             className="flex-1 px-3 py-1.5 border border-primary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
             autoFocus
             onKeyDown={(e) => {
-              if (e.key === 'Enter') handleSaveEdit(isGlobalOnly);
+              if (e.key === 'Enter') handleSaveEdit();
               if (e.key === 'Escape') handleCancelEdit();
             }}
           />
           <button
-            onClick={() => handleSaveEdit(isGlobalOnly)}
+            onClick={() => handleSaveEdit()}
             disabled={loading}
             className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
             title="Guardar"
@@ -220,9 +195,12 @@ export function TagManagerModal({
         <div className="flex items-center gap-3 flex-1">
           <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
           <span className="text-sm text-gray-700">¿Eliminar "{name}"?</span>
+          {count !== null && count > 0 && (
+            <span className="text-xs text-amber-600">(se quitará de {count} repuesto{count !== 1 ? 's' : ''})</span>
+          )}
           <div className="flex items-center gap-1 ml-auto">
             <button
-              onClick={() => handleConfirmDelete(isGlobalOnly)}
+              onClick={() => handleConfirmDelete()}
               disabled={loading}
               className="px-3 py-1.5 text-sm text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
             >
@@ -250,24 +228,8 @@ export function TagManagerModal({
               {count} repuesto{count !== 1 ? 's' : ''}
             </span>
           )}
-          {isInPredefinidos && count !== null && (
-            <span className="text-xs text-primary-600 bg-primary-100 px-2 py-0.5 rounded-full">
-              predefinido
-            </span>
-          )}
         </div>
         <div className="flex items-center gap-1">
-          {/* Botón agregar a predefinidos (solo si está en uso y no está en la lista global) */}
-          {count !== null && !isInPredefinidos && (
-            <button
-              onClick={() => handleAddToPredefinidos(name)}
-              disabled={loading}
-              className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
-              title="Agregar a predefinidos"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-          )}
           <button
             onClick={() => handleStartEdit(name)}
             className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
@@ -291,53 +253,33 @@ export function TagManagerModal({
     <div 
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" 
       onMouseDown={(e) => {
-        // Solo cerrar si el click fue directamente en el overlay, no si fue arrastrado
         if (e.target === e.currentTarget && !window.getSelection()?.toString()) {
           onClose();
         }
       }}
     >
       <div 
-        className="bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 max-h-[85vh] overflow-hidden flex flex-col"
-        onClick={e => e.stopPropagation()}
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col"
+        onMouseDown={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <Tag className="w-5 h-5 text-primary-600" />
-            Gestionar Tags
-          </h3>
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-primary-100 rounded-lg">
+              <Tag className="w-5 h-5 text-primary-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-800">Gestor de Tags</h2>
+              <p className="text-xs text-gray-500">
+                {globalTags.length} tags disponibles • {tagsEnUso.reduce((sum, t) => sum + t.count, 0)} asignaciones
+              </p>
+            </div>
+          </div>
           <button 
             onClick={onClose}
             className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
           >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex border-b border-gray-200 flex-shrink-0">
-          <button
-            onClick={() => setActiveTab('en-uso')}
-            className={`flex-1 px-4 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
-              activeTab === 'en-uso'
-                ? 'text-primary-600 border-b-2 border-primary-600 bg-primary-50'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            <List className="w-4 h-4" />
-            En Uso ({tagsEnUso.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('predefinidos')}
-            className={`flex-1 px-4 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
-              activeTab === 'predefinidos'
-                ? 'text-primary-600 border-b-2 border-primary-600 bg-primary-50'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            <Settings className="w-4 h-4" />
-            Predefinidos ({globalTags.length})
+            <X className="w-5 h-5 text-gray-500" />
           </button>
         </div>
 
@@ -350,117 +292,91 @@ export function TagManagerModal({
 
         {/* Contenido */}
         <div className="flex-1 overflow-y-auto p-5">
-          {activeTab === 'en-uso' ? (
-            // Tab: Tags en uso
-            tagsEnUso.length === 0 ? (
+          <div className="space-y-4">
+            {/* Botón agregar nuevo */}
+            {showAddForm ? (
+              <div className="flex items-center gap-2 p-3 bg-primary-50 rounded-lg border border-primary-200">
+                <input
+                  type="text"
+                  value={newTagName}
+                  onChange={(e) => setNewTagName(e.target.value)}
+                  placeholder="Nombre del nuevo tag..."
+                  className="flex-1 px-3 py-1.5 border border-primary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleAddNewTag();
+                    if (e.key === 'Escape') {
+                      setShowAddForm(false);
+                      setNewTagName('');
+                    }
+                  }}
+                />
+                <button
+                  onClick={handleAddNewTag}
+                  disabled={loading || !newTagName.trim()}
+                  className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors disabled:opacity-50"
+                  title="Guardar"
+                >
+                  <Check className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => {
+                    setShowAddForm(false);
+                    setNewTagName('');
+                  }}
+                  className="p-2 text-gray-500 hover:bg-gray-200 rounded-lg transition-colors"
+                  title="Cancelar"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowAddForm(true)}
+                className="w-full flex items-center justify-center gap-2 p-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-primary-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Agregar nuevo tag
+              </button>
+            )}
+
+            {/* Lista unificada de todos los tags */}
+            {tagsLoading ? (
+              <div className="text-center py-8 text-gray-500">
+                Cargando tags...
+              </div>
+            ) : globalTags.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <Tag className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                <p>No hay tags en uso</p>
-                <p className="text-sm">Los tags se crean al asignarlos a los repuestos</p>
+                <p>No hay tags disponibles</p>
+                <p className="text-sm">Agrega tags para organizar tus repuestos</p>
               </div>
             ) : (
               <div className="space-y-2">
-                {tagsEnUso.map(({ name, count }) => (
-                  <div
-                    key={name}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
-                  >
-                    {renderTagItem(name, count, false, globalTags.includes(name))}
-                  </div>
-                ))}
+                {globalTags.map((name) => {
+                  const usageInfo = tagsEnUso.find(t => t.name === name);
+                  return (
+                    <div
+                      key={name}
+                      className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                        usageInfo 
+                          ? 'bg-blue-50 border-blue-200' 
+                          : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                      }`}
+                    >
+                      {renderTagItem(name, usageInfo?.count ?? null)}
+                    </div>
+                  );
+                })}
               </div>
-            )
-          ) : (
-            // Tab: Tags predefinidos
-            <div className="space-y-4">
-              {/* Botón agregar nuevo */}
-              {showAddForm ? (
-                <div className="flex items-center gap-2 p-3 bg-primary-50 rounded-lg border border-primary-200">
-                  <input
-                    type="text"
-                    value={newTagName}
-                    onChange={(e) => setNewTagName(e.target.value)}
-                    placeholder="Nombre del nuevo tag..."
-                    className="flex-1 px-3 py-1.5 border border-primary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
-                    autoFocus
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleAddNewTag();
-                      if (e.key === 'Escape') {
-                        setShowAddForm(false);
-                        setNewTagName('');
-                      }
-                    }}
-                  />
-                  <button
-                    onClick={handleAddNewTag}
-                    disabled={loading || !newTagName.trim()}
-                    className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors disabled:opacity-50"
-                    title="Guardar"
-                  >
-                    <Check className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowAddForm(false);
-                      setNewTagName('');
-                    }}
-                    className="p-2 text-gray-500 hover:bg-gray-200 rounded-lg transition-colors"
-                    title="Cancelar"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setShowAddForm(true)}
-                  className="w-full flex items-center justify-center gap-2 p-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-primary-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  Agregar nuevo tag predefinido
-                </button>
-              )}
-
-              {/* Lista de tags predefinidos */}
-              {tagsLoading ? (
-                <div className="text-center py-8 text-gray-500">
-                  Cargando tags...
-                </div>
-              ) : globalTags.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <Settings className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                  <p>No hay tags predefinidos</p>
-                  <p className="text-sm">Agrega tags para usarlos rápidamente</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {globalTags.map((name) => {
-                    const usageInfo = tagsEnUso.find(t => t.name === name);
-                    return (
-                      <div
-                        key={name}
-                        className={`flex items-center justify-between p-3 rounded-lg border ${
-                          usageInfo 
-                            ? 'bg-primary-50 border-primary-200' 
-                            : 'bg-gray-50 border-gray-200'
-                        }`}
-                      >
-                        {renderTagItem(name, usageInfo?.count ?? null, !usageInfo, true)}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Footer */}
         <div className="px-5 py-4 border-t border-gray-200 bg-gray-50 flex-shrink-0">
           <p className="text-xs text-gray-500">
-            {activeTab === 'en-uso' 
-              ? 'Edita o elimina tags de los repuestos. Usa + para agregar a predefinidos.'
-              : 'Administra los tags predefinidos que aparecerán para selección rápida.'
-            }
+            💡 Los tags con fondo azul están asignados a repuestos. Puedes editar o eliminar cualquier tag.
           </p>
         </div>
       </div>

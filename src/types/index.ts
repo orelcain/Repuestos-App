@@ -19,14 +19,16 @@ export interface Repuesto {
   updatedAt: Date;
 }
 
-// Tags predefinidos para filtrar repuestos
+// Tags disponibles para filtrar repuestos (gestionados desde TagManager)
 export const TAGS_PREDEFINIDOS = [
   'Overhaul temporada baja',
   'Urgentes este mes',
   'Críticos',
   'En espera proveedor',
   'Pedido realizado',
-  'Stock mínimo'
+  'Stock mínimo',
+  'Repuestos varios',
+  'Preventivo mensual'
 ] as const;
 
 // Vínculo a página/área del manual PDF con marcador visual
