@@ -1,8 +1,19 @@
 // Versión de la aplicación
-export const APP_VERSION = '1.4.9';
+export const APP_VERSION = '1.5.0';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '1.5.0',
+    date: '2025-12-20',
+    changes: [
+      'PDF mejorado: Etiquetas claras para cada campo (Cód. Baader, Cód. SAP, etc.)',
+      'Valores con decimales se muestran correctamente en el PDF',
+      'Las imágenes mantienen su proporción original (no se deforman)',
+      'Mejor disposición de datos: Cantidad, V. Unitario, Total, Stock',
+      'Cálculo automático de aspect ratio para cada imagen'
+    ]
+  },
   {
     version: '1.4.9',
     date: '2025-12-20',

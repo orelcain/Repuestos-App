@@ -2,7 +2,15 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Repuesto } from '../types';
-import { preloadImagesAsBase64 } from './imageUtils';
+import { preloadImagesWithDimensions, ImageData } from './imageUtils';
+
+// Formatear número con decimales solo si los tiene
+function formatNumber(num: number): string {
+  if (Number.isInteger(num)) {
+    return num.toLocaleString('es-CL');
+  }
+  return num.toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 
 // Exportar a Excel
 export async function exportToExcel(repuestos: Repuesto[], filename: string = 'repuestos_baader_200') {
@@ -47,9 +55,9 @@ export async function exportToPDF(
   const margin = 8;
   const contentWidth = pageWidth - 2 * margin;
 
-  // Precargar imágenes
+  // Precargar imágenes con dimensiones
   onProgress?.(5, 'Precargando imágenes...');
-  const imageMap = await preloadImagesAsBase64(repuestos);
+  const imageMap = await preloadImagesWithDimensions(repuestos);
   console.log('Imágenes cargadas:', imageMap.size);
   onProgress?.(20, 'Generando PDF...');
 
@@ -94,18 +102,20 @@ export async function exportToPDF(
     const dataX = margin + 2;
     let textY = currentY + 5;
 
-    // Código Baader
+    // Código Baader (título principal)
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(30, 64, 175);
-    doc.text(repuesto.codigoBaader || '-', dataX, textY);
+    doc.text(`Cód. Baader: ${repuesto.codigoBaader || '-'}`, dataX, textY);
 
-    // SAP
+    // Código SAP
     textY += 4;
     doc.setFontSize(6);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(80, 80, 80);
+    doc.text('Cód. SAP: ', dataX, textY);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 100, 100);
-    doc.text(`SAP: ${repuesto.codigoSAP || '-'}`, dataX, textY);
+    doc.text(repuesto.codigoSAP || '-', dataX + doc.getTextWidth('Cód. SAP: '), textY);
 
     // Descripción
     textY += 4;
@@ -114,23 +124,38 @@ export async function exportToPDF(
     const maxW = dataWidth - 4;
     const lines = doc.splitTextToSize(repuesto.textoBreve || '', maxW);
     doc.text(lines.slice(0, 2), dataX, textY);
-    textY += Math.min(lines.length, 2) * 2.5 + 1;
+    textY += Math.min(lines.length, 2) * 2.5 + 2;
 
-    // Datos compactos
-    doc.setFontSize(5.5);
+    // Cantidad
+    doc.setFontSize(6);
+    doc.setFont('helvetica', 'bold');
     doc.setTextColor(80, 80, 80);
-    doc.text(`Cant: ${repuesto.cantidadSolicitada}  |  V.U: $${repuesto.valorUnitario.toFixed(0)}`, dataX, textY);
+    doc.text('Cantidad: ', dataX, textY);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${repuesto.cantidadSolicitada}`, dataX + doc.getTextWidth('Cantidad: '), textY);
     
+    // Valor Unitario
     textY += 3;
-    doc.text(`Total: $${repuesto.total.toFixed(0)}`, dataX, textY);
+    doc.setFont('helvetica', 'bold');
+    doc.text('V. Unitario: ', dataX, textY);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`$${formatNumber(repuesto.valorUnitario)}`, dataX + doc.getTextWidth('V. Unitario: '), textY);
+    
+    // Total
+    textY += 3;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Total: ', dataX, textY);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`$${formatNumber(repuesto.total)}`, dataX + doc.getTextWidth('Total: '), textY);
     
     // Stock
+    const stockX = dataX + 28;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Stock: ', stockX, textY);
     const stockColor = repuesto.cantidadStockBodega > 0 ? [0, 130, 0] : [180, 0, 0];
-    doc.setTextColor(80, 80, 80);
-    doc.text(`  |  Stock: `, dataX + doc.getTextWidth(`Total: $${repuesto.total.toFixed(0)}`), textY);
     doc.setTextColor(stockColor[0], stockColor[1], stockColor[2]);
     doc.setFont('helvetica', 'bold');
-    doc.text(`${repuesto.cantidadStockBodega}`, dataX + doc.getTextWidth(`Total: $${repuesto.total.toFixed(0)}  |  Stock: `), textY);
+    doc.text(`${repuesto.cantidadStockBodega}`, stockX + doc.getTextWidth('Stock: '), textY);
 
     // === IMÁGENES (DERECHA) ===
     if (hasImages) {
@@ -141,40 +166,56 @@ export async function exportToPDF(
       const imgY = currentY + imgPad;
 
       if (allImages.length === 1) {
-        // Una imagen grande
-        const imgSize = Math.min(imgAreaWidth * 0.85, imgAreaHeight - 4);
-        const imgX = imgAreaX + (imgAreaWidth - imgSize) / 2;
-        const centerY = imgY + (imgAreaHeight - imgSize) / 2 - 1;
+        // Una imagen - mantener aspect ratio
+        const maxSize = Math.min(imgAreaWidth * 0.85, imgAreaHeight - 4);
+        const imgData = imageMap.get(allImages[0].url);
+        const { w, h } = calculateFitDimensions(imgData, maxSize, maxSize);
         
-        drawImageOrPlaceholder(doc, imageMap, allImages[0].url, imgX, centerY, imgSize, imgSize);
+        const imgX = imgAreaX + (imgAreaWidth - w) / 2;
+        const centerY = imgY + (imgAreaHeight - h) / 2 - 1;
+        
+        drawImageWithAspectRatio(doc, imageMap, allImages[0].url, imgX, centerY, w, h);
         
         // Etiqueta
         doc.setFontSize(4);
         doc.setTextColor(130, 130, 130);
         doc.setFont('helvetica', 'normal');
         const label = allImages[0].tipo === 'manual' ? 'Manual' : 'Real';
-        doc.text(label, imgX + imgSize / 2, centerY + imgSize + 2.5, { align: 'center' });
+        doc.text(label, imgX + w / 2, centerY + h + 2.5, { align: 'center' });
 
       } else {
-        // Dos imágenes lado a lado
-        const gap = 2;
-        const imgSize = Math.min((imgAreaWidth - gap) / 2 - 2, imgAreaHeight - 6);
-        const totalW = imgSize * 2 + gap;
+        // Dos imágenes lado a lado - mantener aspect ratio
+        const gap = 3;
+        const maxImgSize = Math.min((imgAreaWidth - gap) / 2 - 2, imgAreaHeight - 6);
+        
+        // Calcular dimensiones para cada imagen
+        const img1Data = imageMap.get(allImages[0].url);
+        const img2Data = allImages[1] ? imageMap.get(allImages[1].url) : null;
+        
+        const dims1 = calculateFitDimensions(img1Data, maxImgSize, maxImgSize);
+        const dims2 = img2Data ? calculateFitDimensions(img2Data, maxImgSize, maxImgSize) : dims1;
+        
+        const totalW = dims1.w + dims2.w + gap;
         const startX = imgAreaX + (imgAreaWidth - totalW) / 2;
-        const centerY = imgY + (imgAreaHeight - imgSize - 4) / 2;
+        const maxH = Math.max(dims1.h, dims2.h);
+        const baseY = imgY + (imgAreaHeight - maxH - 4) / 2;
 
-        for (let j = 0; j < Math.min(2, allImages.length); j++) {
-          const img = allImages[j];
-          const imgX = startX + j * (imgSize + gap);
+        // Primera imagen
+        const y1 = baseY + (maxH - dims1.h) / 2;
+        drawImageWithAspectRatio(doc, imageMap, allImages[0].url, startX, y1, dims1.w, dims1.h);
+        
+        doc.setFontSize(4);
+        doc.setTextColor(130, 130, 130);
+        doc.setFont('helvetica', 'normal');
+        doc.text(allImages[0].tipo === 'manual' ? 'Manual' : 'Real', startX + dims1.w / 2, y1 + dims1.h + 2.5, { align: 'center' });
+
+        // Segunda imagen
+        if (allImages[1]) {
+          const x2 = startX + dims1.w + gap;
+          const y2 = baseY + (maxH - dims2.h) / 2;
+          drawImageWithAspectRatio(doc, imageMap, allImages[1].url, x2, y2, dims2.w, dims2.h);
           
-          drawImageOrPlaceholder(doc, imageMap, img.url, imgX, centerY, imgSize, imgSize);
-          
-          // Etiqueta
-          doc.setFontSize(4);
-          doc.setTextColor(130, 130, 130);
-          doc.setFont('helvetica', 'normal');
-          const label = img.tipo === 'manual' ? 'Manual' : 'Real';
-          doc.text(label, imgX + imgSize / 2, centerY + imgSize + 2.5, { align: 'center' });
+          doc.text(allImages[1].tipo === 'manual' ? 'Manual' : 'Real', x2 + dims2.w / 2, y2 + dims2.h + 2.5, { align: 'center' });
         }
 
         if (allImages.length > 2) {
@@ -221,22 +262,44 @@ export async function exportToPDF(
   doc.save(`${filename}.pdf`);
 }
 
-// Dibujar imagen o placeholder
-function drawImageOrPlaceholder(
+// Calcular dimensiones manteniendo aspect ratio
+function calculateFitDimensions(
+  imgData: ImageData | undefined, 
+  maxW: number, 
+  maxH: number
+): { w: number; h: number } {
+  if (!imgData) {
+    return { w: maxW, h: maxH };
+  }
+  
+  const aspectRatio = imgData.width / imgData.height;
+  let w = maxW;
+  let h = maxW / aspectRatio;
+  
+  if (h > maxH) {
+    h = maxH;
+    w = maxH * aspectRatio;
+  }
+  
+  return { w, h };
+}
+
+// Dibujar imagen manteniendo aspect ratio
+function drawImageWithAspectRatio(
   doc: jsPDF, 
-  imageMap: Map<string, string>, 
+  imageMap: Map<string, ImageData>, 
   url: string, 
   x: number, 
   y: number, 
   w: number, 
   h: number
 ) {
-  const base64 = imageMap.get(url);
+  const imgData = imageMap.get(url);
   
-  if (base64) {
+  if (imgData) {
     try {
-      const format = base64.includes('image/png') ? 'PNG' : 'JPEG';
-      doc.addImage(base64, format, x, y, w, h);
+      const format = imgData.base64.includes('image/png') ? 'PNG' : 'JPEG';
+      doc.addImage(imgData.base64, format, x, y, w, h);
       return;
     } catch (err) {
       console.error('Error agregando imagen al PDF:', err);

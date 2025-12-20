@@ -104,8 +104,15 @@ export function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
-// Convertir imagen URL a base64 (para exportación PDF)
-export async function imageUrlToBase64(url: string): Promise<string | null> {
+// Tipo para imagen con dimensiones
+export interface ImageData {
+  base64: string;
+  width: number;
+  height: number;
+}
+
+// Convertir imagen URL a base64 con dimensiones (para exportación PDF)
+export async function imageUrlToBase64WithDimensions(url: string): Promise<ImageData | null> {
   if (!url) {
     console.warn('URL vacía proporcionada');
     return null;
@@ -125,22 +132,25 @@ export async function imageUrlToBase64(url: string): Promise<string | null> {
     img.onload = () => {
       clearTimeout(timeout);
       try {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth || img.width || 200;
-        canvas.height = img.naturalHeight || img.height || 200;
+        const width = img.naturalWidth || img.width || 200;
+        const height = img.naturalHeight || img.height || 200;
         
-        if (canvas.width === 0 || canvas.height === 0) {
+        if (width === 0 || height === 0) {
           console.warn('Imagen con dimensiones 0');
           resolve(null);
           return;
         }
+        
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
         
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.drawImage(img, 0, 0);
           // Usar JPEG para mejor compatibilidad con jsPDF
           const base64 = canvas.toDataURL('image/jpeg', 0.85);
-          resolve(base64);
+          resolve({ base64, width, height });
         } else {
           console.warn('No se pudo obtener context 2d');
           resolve(null);
@@ -155,7 +165,7 @@ export async function imageUrlToBase64(url: string): Promise<string | null> {
       clearTimeout(timeout);
       console.warn('Error cargando imagen (onerror):', err);
       // Intentar método alternativo con fetch
-      fetchImageAsBase64(url).then(resolve);
+      fetchImageAsBase64WithDimensions(url).then(resolve);
     };
     
     // NO agregar timestamp a URLs de Firebase (tienen tokens de auth)
@@ -163,8 +173,14 @@ export async function imageUrlToBase64(url: string): Promise<string | null> {
   });
 }
 
-// Método alternativo con fetch
-async function fetchImageAsBase64(url: string): Promise<string | null> {
+// Convertir imagen URL a base64 (para exportación PDF) - versión simple
+export async function imageUrlToBase64(url: string): Promise<string | null> {
+  const result = await imageUrlToBase64WithDimensions(url);
+  return result?.base64 || null;
+}
+
+// Método alternativo con fetch que devuelve dimensiones
+async function fetchImageAsBase64WithDimensions(url: string): Promise<ImageData | null> {
   try {
     const response = await fetch(url, { 
       mode: 'cors',
@@ -180,7 +196,20 @@ async function fetchImageAsBase64(url: string): Promise<string | null> {
     
     return new Promise((resolve) => {
       const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        // Cargar imagen para obtener dimensiones
+        const img = new Image();
+        img.onload = () => {
+          resolve({ 
+            base64, 
+            width: img.naturalWidth || 200, 
+            height: img.naturalHeight || 200 
+          });
+        };
+        img.onerror = () => resolve({ base64, width: 200, height: 200 });
+        img.src = base64;
+      };
       reader.onerror = () => resolve(null);
       reader.readAsDataURL(blob);
     });
@@ -190,7 +219,60 @@ async function fetchImageAsBase64(url: string): Promise<string | null> {
   }
 }
 
-// Precargar imágenes de repuestos y convertir a base64
+// Precargar imágenes de repuestos y convertir a base64 con dimensiones
+export async function preloadImagesWithDimensions(
+  repuestos: { imagenesManual: { url: string }[]; fotosReales: { url: string }[] }[]
+): Promise<Map<string, ImageData>> {
+  const imageMap = new Map<string, ImageData>();
+  const urls = new Set<string>();
+
+  // Recolectar todas las URLs únicas
+  for (const repuesto of repuestos) {
+    for (const img of repuesto.imagenesManual) {
+      if (img.url) urls.add(img.url);
+    }
+    for (const img of repuesto.fotosReales) {
+      if (img.url) urls.add(img.url);
+    }
+  }
+
+  console.log('URLs de imágenes encontradas:', urls.size);
+
+  // Convertir en paralelo (con límite)
+  const urlArray = Array.from(urls);
+  const batchSize = 3;
+  let successCount = 0;
+  let failCount = 0;
+  
+  for (let i = 0; i < urlArray.length; i += batchSize) {
+    const batch = urlArray.slice(i, i + batchSize);
+    const results = await Promise.all(
+      batch.map(async (url) => {
+        console.log('Procesando imagen:', url.substring(0, 60) + '...');
+        const data = await imageUrlToBase64WithDimensions(url);
+        if (data) {
+          console.log(`✓ Imagen OK (${data.width}x${data.height})`);
+          successCount++;
+        } else {
+          console.log('✗ Imagen falló');
+          failCount++;
+        }
+        return { url, data };
+      })
+    );
+    
+    for (const { url, data } of results) {
+      if (data) {
+        imageMap.set(url, data);
+      }
+    }
+  }
+
+  console.log(`Imágenes convertidas: ${successCount} éxito, ${failCount} fallos`);
+  return imageMap;
+}
+
+// Precargar imágenes de repuestos y convertir a base64 (versión legacy)
 export async function preloadImagesAsBase64(
   repuestos: { imagenesManual: { url: string }[]; fotosReales: { url: string }[] }[]
 ): Promise<Map<string, string>> {
