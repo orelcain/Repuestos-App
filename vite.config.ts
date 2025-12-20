@@ -22,20 +22,13 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // Ignorar Firebase Storage - no interceptar estas URLs
+        navigateFallbackDenylist: [/^https:\/\/firebasestorage\.googleapis\.com/],
         runtimeCaching: [
           {
+            // Firebase Storage - usar NetworkOnly para evitar problemas CORS
             urlPattern: /^https:\/\/firebasestorage\.googleapis\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'firebase-storage-cache',
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24 * 30
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
+            handler: 'NetworkOnly'
           }
         ],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024 // 5MB

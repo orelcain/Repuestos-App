@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '1.4.8';
+export const APP_VERSION = '1.4.9';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '1.4.9',
+    date: '2025-12-20',
+    changes: [
+      'Fix crítico: Service Worker ya no intercepta Firebase Storage',
+      'Cambio de CacheFirst a NetworkOnly para imágenes',
+      'Solucionado error CORS en exportación PDF',
+      'Las imágenes ahora cargan correctamente al exportar'
+    ]
+  },
   {
     version: '1.4.8',
     date: '2025-12-20',
