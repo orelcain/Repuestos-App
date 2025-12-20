@@ -208,6 +208,62 @@ export function useRepuestos() {
     }
   }, []);
 
+  // Renombrar un tag en todos los repuestos
+  const renameTag = useCallback(async (oldTagName: string, newTagName: string) => {
+    try {
+      const batch = writeBatch(db);
+      let updatedCount = 0;
+
+      for (const repuesto of repuestos) {
+        if (repuesto.tags?.includes(oldTagName)) {
+          const newTags = repuesto.tags.map(t => t === oldTagName ? newTagName : t);
+          batch.update(doc(db, COLLECTION_NAME, repuesto.id), { 
+            tags: newTags,
+            updatedAt: Timestamp.now()
+          });
+          updatedCount++;
+        }
+      }
+
+      if (updatedCount > 0) {
+        await batch.commit();
+      }
+
+      return updatedCount;
+    } catch (err) {
+      console.error('Error al renombrar tag:', err);
+      throw err;
+    }
+  }, [repuestos]);
+
+  // Eliminar un tag de todos los repuestos
+  const deleteTag = useCallback(async (tagName: string) => {
+    try {
+      const batch = writeBatch(db);
+      let updatedCount = 0;
+
+      for (const repuesto of repuestos) {
+        if (repuesto.tags?.includes(tagName)) {
+          const newTags = repuesto.tags.filter(t => t !== tagName);
+          batch.update(doc(db, COLLECTION_NAME, repuesto.id), { 
+            tags: newTags,
+            updatedAt: Timestamp.now()
+          });
+          updatedCount++;
+        }
+      }
+
+      if (updatedCount > 0) {
+        await batch.commit();
+      }
+
+      return updatedCount;
+    } catch (err) {
+      console.error('Error al eliminar tag:', err);
+      throw err;
+    }
+  }, [repuestos]);
+
   return {
     repuestos,
     loading,
@@ -216,6 +272,8 @@ export function useRepuestos() {
     updateRepuesto,
     deleteRepuesto,
     getHistorial,
-    importRepuestos
+    importRepuestos,
+    renameTag,
+    deleteTag
   };
 }

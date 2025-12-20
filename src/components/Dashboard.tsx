@@ -11,6 +11,7 @@ import { RepuestosTable } from './repuestos/RepuestosTable';
 import { RepuestoForm } from './repuestos/RepuestoForm';
 import { HistorialModal } from './repuestos/HistorialModal';
 import { DeleteConfirmModal } from './repuestos/DeleteConfirmModal';
+import { TagManagerModal } from './repuestos/TagManagerModal';
 import { ImageGallery } from './gallery/ImageGallery';
 import { PDFViewer } from './pdf/PDFViewer';
 import { PDFMarkerEditor } from './pdf/PDFMarkerEditor';
@@ -47,7 +48,9 @@ export function Dashboard() {
     updateRepuesto, 
     deleteRepuesto, 
     getHistorial,
-    importRepuestos 
+    importRepuestos,
+    renameTag,
+    deleteTag
   } = useRepuestos();
   const { uploadImage, getManualURL } = useStorage();
   const { lastSelectedRepuestoId, setLastSelectedRepuesto } = useLocalStorage();
@@ -75,6 +78,7 @@ export function Dashboard() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showTagManager, setShowTagManager] = useState(false);
   
   // Vista principal activa
   const [mainView, setMainView] = useState<MainView>('repuestos');
@@ -578,6 +582,7 @@ export function Dashboard() {
                   onAddNew={handleAddNew}
                   onMarkInManual={handleMarkInManual}
                   getHistorial={getHistorial}
+                  onManageTags={() => setShowTagManager(true)}
                 />
               </div>
 
@@ -719,6 +724,14 @@ export function Dashboard() {
         isOpen={showImportModal}
         onClose={() => setShowImportModal(false)}
         onImport={handleImport}
+      />
+
+      <TagManagerModal
+        isOpen={showTagManager}
+        onClose={() => setShowTagManager(false)}
+        repuestos={repuestos}
+        onRenameTag={renameTag}
+        onDeleteTag={deleteTag}
       />
 
       {/* Toast Container */}

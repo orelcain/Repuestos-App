@@ -16,7 +16,8 @@ import {
   MapPin,
   Tag,
   X,
-  Filter
+  Filter,
+  Settings
 } from 'lucide-react';
 
 interface RepuestosTableProps {
@@ -31,6 +32,7 @@ interface RepuestosTableProps {
   onAddNew: () => void;
   onMarkInManual?: (repuesto: Repuesto) => void;
   getHistorial?: (repuestoId: string) => Promise<HistorialCambio[]>;
+  onManageTags?: () => void;
 }
 
 const ITEMS_PER_PAGE = 15;
@@ -110,7 +112,8 @@ export function RepuestosTable({
   onViewHistory,
   onAddNew,
   onMarkInManual,
-  getHistorial
+  getHistorial,
+  onManageTags
 }: RepuestosTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -256,6 +259,20 @@ export function RepuestosTable({
                       </button>
                     ))}
                   </div>
+                  {onManageTags && (
+                    <div className="p-2 border-t border-gray-100">
+                      <button
+                        onClick={() => {
+                          setShowTagFilter(false);
+                          onManageTags();
+                        }}
+                        className="w-full px-3 py-2 text-left text-sm text-primary-600 hover:bg-primary-50 rounded flex items-center gap-2"
+                      >
+                        <Settings className="w-3 h-3" />
+                        Gestionar Tags
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

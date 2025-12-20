@@ -1,8 +1,19 @@
 // Versión de la aplicación
-export const APP_VERSION = '1.4.4';
+export const APP_VERSION = '1.4.5';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '1.4.5',
+    date: '2025-12-20',
+    changes: [
+      'Gestión de tags personalizados: editar y eliminar',
+      'Modal de administración de tags desde el filtro',
+      'Renombrar tags en todos los repuestos',
+      'Eliminar tags de forma masiva',
+      'Conteo de repuestos por cada tag personalizado'
+    ]
+  },
   {
     version: '1.4.4',
     date: '2025-12-20',

@@ -200,6 +200,41 @@ export function PDFMarkerEditor({
     setCurrentPage(pdfSearchResults[prevIndex].pageNum);
   };
 
+  // Dibujar marcador - SIN BORDE por defecto (declarado antes de renderPage)
+  const drawMarker = useCallback((marker: { x: number; y: number; width: number; height: number }) => {
+    if (!overlayRef.current) return;
+    const ctx = overlayRef.current.getContext('2d');
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height);
+
+    // Solo relleno de color, sin borde (se ve mejor)
+    ctx.fillStyle = color;
+
+    if (forma === 'rectangulo') {
+      ctx.fillRect(marker.x, marker.y, marker.width, marker.height);
+      if (showBorder) {
+        ctx.strokeStyle = colorBorder;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(marker.x, marker.y, marker.width, marker.height);
+      }
+    } else {
+      const centerX = marker.x + marker.width / 2;
+      const centerY = marker.y + marker.height / 2;
+      const radiusX = Math.abs(marker.width) / 2;
+      const radiusY = Math.abs(marker.height) / 2;
+
+      ctx.beginPath();
+      ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, 2 * Math.PI);
+      ctx.fill();
+      if (showBorder) {
+        ctx.strokeStyle = colorBorder;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    }
+  }, [forma, color, colorBorder, showBorder]);
+
   // Renderizar página
   const renderPage = useCallback(async (pageNum: number) => {
     if (!pdf || !canvasRef.current) return;
@@ -266,41 +301,6 @@ export function PDFMarkerEditor({
     
     loadExistingMarker();
   }, [pdf, scale, existingMarker]);
-
-  // Dibujar marcador - SIN BORDE por defecto
-  const drawMarker = useCallback((marker: { x: number; y: number; width: number; height: number }) => {
-    if (!overlayRef.current) return;
-    const ctx = overlayRef.current.getContext('2d');
-    if (!ctx) return;
-
-    ctx.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height);
-
-    // Solo relleno de color, sin borde (se ve mejor)
-    ctx.fillStyle = color;
-
-    if (forma === 'rectangulo') {
-      ctx.fillRect(marker.x, marker.y, marker.width, marker.height);
-      if (showBorder) {
-        ctx.strokeStyle = colorBorder;
-        ctx.lineWidth = 2;
-        ctx.strokeRect(marker.x, marker.y, marker.width, marker.height);
-      }
-    } else {
-      const centerX = marker.x + marker.width / 2;
-      const centerY = marker.y + marker.height / 2;
-      const radiusX = Math.abs(marker.width) / 2;
-      const radiusY = Math.abs(marker.height) / 2;
-
-      ctx.beginPath();
-      ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, 2 * Math.PI);
-      ctx.fill();
-      if (showBorder) {
-        ctx.strokeStyle = colorBorder;
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      }
-    }
-  }, [forma, color, colorBorder, showBorder]);
 
   // Eventos de dibujo
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
