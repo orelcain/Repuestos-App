@@ -33,6 +33,7 @@ interface RepuestosTableProps {
   onMarkInManual?: (repuesto: Repuesto) => void;
   getHistorial?: (repuestoId: string) => Promise<HistorialCambio[]>;
   onManageTags?: () => void;
+  onFilteredChange?: (filtered: Repuesto[]) => void;
 }
 
 const ITEMS_PER_PAGE = 15;
@@ -113,7 +114,8 @@ export function RepuestosTable({
   onAddNew,
   onMarkInManual,
   getHistorial,
-  onManageTags
+  onManageTags,
+  onFilteredChange
 }: RepuestosTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -160,6 +162,11 @@ export function RepuestosTable({
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, selectedTag]);
+
+  // Notificar al padre cuando cambian los repuestos filtrados
+  useEffect(() => {
+    onFilteredChange?.(filteredRepuestos);
+  }, [filteredRepuestos, onFilteredChange]);
 
   // Función copiar al portapapeles
   const handleCopy = async (text: string, id: string) => {

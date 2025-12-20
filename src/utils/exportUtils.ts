@@ -59,18 +59,56 @@ export async function exportToPDF(
   onProgress?.(5, 'Precargando imágenes...');
   const imageMap = await preloadImagesWithDimensions(repuestos);
   console.log('Imágenes cargadas:', imageMap.size);
-  onProgress?.(20, 'Generando PDF...');
+  onProgress?.(15, 'Generando resumen...');
 
-  // Título
+  // === PÁGINA 1: RESUMEN AL INICIO ===
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(30, 64, 175);
+  doc.text('Repuestos Baader 200', pageWidth / 2, 20, { align: 'center' });
+  
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 100, 100);
+  doc.text(`Fecha: ${new Date().toLocaleDateString('es-CL')}`, pageWidth / 2, 28, { align: 'center' });
+
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(30, 64, 175);
-  doc.text('Repuestos Baader 200', pageWidth / 2, 12, { align: 'center' });
+  doc.text('Resumen', pageWidth / 2, 42, { align: 'center' });
+
+  autoTable(doc, {
+    startY: 50,
+    head: [['Concepto', 'Valor']],
+    body: [
+      ['Total Repuestos', repuestos.length.toString()],
+      ['Total Cantidad Solicitada', repuestos.reduce((s, r) => s + r.cantidadSolicitada, 0).toString()],
+      ['Total Stock Bodega', repuestos.reduce((s, r) => s + r.cantidadStockBodega, 0).toString()],
+      ['Valor Total (USD)', `$${repuestos.reduce((s, r) => s + r.total, 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`],
+      ['Con Imágenes Manual', repuestos.filter(r => r.imagenesManual.length > 0).length.toString()],
+      ['Con Fotos Reales', repuestos.filter(r => r.fotosReales.length > 0).length.toString()],
+    ],
+    theme: 'striped',
+    headStyles: { fillColor: [30, 64, 175] },
+    margin: { left: margin, right: margin },
+    styles: { fontSize: 10 }
+  });
+
+  onProgress?.(20, 'Generando detalle...');
+
+  // === PÁGINAS SIGUIENTES: DETALLE DE REPUESTOS ===
+  doc.addPage();
+  
+  // Título de página de detalle
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(30, 64, 175);
+  doc.text('Detalle de Repuestos', pageWidth / 2, 12, { align: 'center' });
   
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 100, 100);
-  doc.text(`${new Date().toLocaleDateString('es-CL')} | ${repuestos.length} repuestos`, pageWidth / 2, 17, { align: 'center' });
+  doc.text(`${repuestos.length} repuestos`, pageWidth / 2, 17, { align: 'center' });
 
   let currentY = 22;
 
@@ -227,36 +265,11 @@ export async function exportToPDF(
     }
 
     // Progreso
-    const progress = 20 + Math.round((i / repuestos.length) * 70);
+    const progress = 20 + Math.round((i / repuestos.length) * 75);
     onProgress?.(progress, `Procesando ${i + 1} de ${repuestos.length}...`);
 
     currentY += blockHeight + 2;
   }
-
-  onProgress?.(95, 'Generando resumen...');
-
-  // Resumen
-  doc.addPage();
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(30, 64, 175);
-  doc.text('Resumen', pageWidth / 2, 20, { align: 'center' });
-
-  autoTable(doc, {
-    startY: 30,
-    head: [['Concepto', 'Valor']],
-    body: [
-      ['Total Repuestos', repuestos.length.toString()],
-      ['Total Cantidad', repuestos.reduce((s, r) => s + r.cantidadSolicitada, 0).toString()],
-      ['Total en Stock', repuestos.reduce((s, r) => s + r.cantidadStockBodega, 0).toString()],
-      ['Valor Total (USD)', `$${repuestos.reduce((s, r) => s + r.total, 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`],
-      ['Con Imágenes Manual', repuestos.filter(r => r.imagenesManual.length > 0).length.toString()],
-      ['Con Fotos Reales', repuestos.filter(r => r.fotosReales.length > 0).length.toString()],
-    ],
-    theme: 'striped',
-    headStyles: { fillColor: [30, 64, 175] },
-    margin: { left: margin, right: margin }
-  });
 
   onProgress?.(100, 'Guardando PDF...');
   doc.save(`${filename}.pdf`);

@@ -82,6 +82,9 @@ export function Dashboard() {
   
   // Vista principal activa
   const [mainView, setMainView] = useState<MainView>('repuestos');
+  
+  // Repuestos filtrados (para exportación)
+  const [filteredRepuestos, setFilteredRepuestos] = useState<Repuesto[]>([]);
 
   // Cargar URL del manual
   useEffect(() => {
@@ -345,15 +348,17 @@ export function Dashboard() {
     success(`Captura de página ${pageNumber} guardada`);
   }, [selectedRepuesto, updateRepuesto, success]);
 
-  // Exportaciones
+  // Exportaciones - usan repuestos filtrados
   const handleExportExcel = () => {
-    exportToExcel(repuestos);
-    success('Excel exportado correctamente');
+    const toExport = filteredRepuestos.length > 0 ? filteredRepuestos : repuestos;
+    exportToExcel(toExport);
+    success(`Excel exportado con ${toExport.length} repuestos`);
   };
 
   const handleExportPDF = () => {
-    exportToPDF(repuestos);
-    success('PDF exportado correctamente');
+    const toExport = filteredRepuestos.length > 0 ? filteredRepuestos : repuestos;
+    exportToPDF(toExport);
+    success(`PDF exportado con ${toExport.length} repuestos`);
   };
 
   // Importar repuestos desde Excel
@@ -583,6 +588,7 @@ export function Dashboard() {
                   onMarkInManual={handleMarkInManual}
                   getHistorial={getHistorial}
                   onManageTags={() => setShowTagManager(true)}
+                  onFilteredChange={setFilteredRepuestos}
                 />
               </div>
 
