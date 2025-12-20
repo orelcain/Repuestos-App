@@ -1,4 +1,5 @@
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Repuesto } from '../types';
@@ -12,35 +13,277 @@ function formatNumber(num: number): string {
   return num.toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-// Exportar a Excel
+// Colores para Excel
+const COLORS = {
+  primary: 'FF1E40AF',      // Azul primario
+  primaryLight: 'FFDBEAFE', // Azul claro
+  success: 'FF22C55E',      // Verde
+  successLight: 'FFDCFCE7', // Verde claro
+  danger: 'FFEF4444',       // Rojo
+  dangerLight: 'FFFEE2E2',  // Rojo claro
+  warning: 'FFF59E0B',      // Amarillo
+  gray: 'FF6B7280',         // Gris
+  grayLight: 'FFF3F4F6',    // Gris claro
+  white: 'FFFFFFFF',
+  black: 'FF000000'
+};
+
+// Exportar a Excel con ExcelJS
 export async function exportToExcel(repuestos: Repuesto[], filename: string = 'repuestos_baader_200') {
-  const data = repuestos.map(r => ({
-    'Código SAP': r.codigoSAP,
-    'Código Baader': r.codigoBaader,
-    'Descripción': r.textoBreve,
-    'Cantidad Solicitada': r.cantidadSolicitada,
-    'Valor Unitario (USD)': r.valorUnitario,
-    'Total (USD)': r.total,
-    'Stock Bodega': r.cantidadStockBodega,
-    'Última Act. Inventario': r.fechaUltimaActualizacionInventario 
-      ? new Date(r.fechaUltimaActualizacionInventario).toLocaleDateString('es-CL')
-      : '',
-    'Imágenes Manual': r.imagenesManual.length,
-    'Fotos Reales': r.fotosReales.length
-  }));
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'Baader 200 App';
+  workbook.created = new Date();
 
-  const worksheet = XLSX.utils.json_to_sheet(data);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Repuestos');
+  // === HOJA 1: DETALLE DE REPUESTOS ===
+  const wsDetalle = workbook.addWorksheet('Detalle Repuestos', {
+    views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }] // Congelar primera fila
+  });
 
-  const colWidths = [
-    { wch: 12 }, { wch: 15 }, { wch: 40 }, { wch: 10 },
-    { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 15 },
-    { wch: 10 }, { wch: 10 },
+  // Definir columnas
+  wsDetalle.columns = [
+    { header: 'Código SAP', key: 'codigoSAP', width: 14 },
+    { header: 'Código Baader', key: 'codigoBaader', width: 16 },
+    { header: 'Descripción', key: 'descripcion', width: 45 },
+    { header: 'Cant. Solicitada', key: 'cantidadSolicitada', width: 14 },
+    { header: 'Stock Bodega', key: 'stockBodega', width: 13 },
+    { header: 'V. Unitario (USD)', key: 'valorUnitario', width: 15 },
+    { header: 'Total (USD)', key: 'total', width: 14 },
+    { header: 'Tags', key: 'tags', width: 25 },
+    { header: 'Últ. Act. Inventario', key: 'ultimaAct', width: 16 },
+    { header: 'Img Manual', key: 'imgManual', width: 10 },
+    { header: 'Fotos Reales', key: 'fotosReales', width: 11 }
   ];
-  worksheet['!cols'] = colWidths;
 
-  XLSX.writeFile(workbook, `${filename}.xlsx`);
+  // Estilo del header
+  const headerRow = wsDetalle.getRow(1);
+  headerRow.font = { bold: true, color: { argb: COLORS.white } };
+  headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.primary } };
+  headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+  headerRow.height = 25;
+
+  // Agregar datos
+  repuestos.forEach((r, index) => {
+    const row = wsDetalle.addRow({
+      codigoSAP: r.codigoSAP,
+      codigoBaader: r.codigoBaader,
+      descripcion: r.textoBreve,
+      cantidadSolicitada: r.cantidadSolicitada,
+      stockBodega: r.cantidadStockBodega,
+      valorUnitario: r.valorUnitario,
+      total: r.total,
+      tags: r.tags?.join(', ') || '',
+      ultimaAct: r.fechaUltimaActualizacionInventario 
+        ? new Date(r.fechaUltimaActualizacionInventario).toLocaleDateString('es-CL')
+        : '',
+      imgManual: r.imagenesManual.length,
+      fotosReales: r.fotosReales.length
+    });
+
+    // Alternar colores de fila
+    if (index % 2 === 1) {
+      row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.grayLight } };
+    }
+
+    // Formato condicional: Stock en rojo si es 0
+    const stockCell = row.getCell('stockBodega');
+    if (r.cantidadStockBodega === 0) {
+      stockCell.font = { bold: true, color: { argb: COLORS.danger } };
+      stockCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.dangerLight } };
+    } else {
+      stockCell.font = { bold: true, color: { argb: COLORS.success } };
+    }
+
+    // Formato de moneda
+    row.getCell('valorUnitario').numFmt = '"$"#,##0.00';
+    row.getCell('total').numFmt = '"$"#,##0.00';
+  });
+
+  // Fila de totales
+  const totalRow = wsDetalle.addRow({
+    codigoSAP: '',
+    codigoBaader: '',
+    descripcion: 'TOTALES',
+    cantidadSolicitada: { formula: `SUM(D2:D${repuestos.length + 1})` },
+    stockBodega: { formula: `SUM(E2:E${repuestos.length + 1})` },
+    valorUnitario: '',
+    total: { formula: `SUM(G2:G${repuestos.length + 1})` },
+    tags: '',
+    ultimaAct: '',
+    imgManual: { formula: `SUM(J2:J${repuestos.length + 1})` },
+    fotosReales: { formula: `SUM(K2:K${repuestos.length + 1})` }
+  });
+  totalRow.font = { bold: true };
+  totalRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.primaryLight } };
+  totalRow.getCell('total').numFmt = '"$"#,##0.00';
+
+  // Agregar filtros automáticos
+  wsDetalle.autoFilter = {
+    from: { row: 1, column: 1 },
+    to: { row: repuestos.length + 1, column: 11 }
+  };
+
+  // Bordes a todas las celdas
+  wsDetalle.eachRow((row, rowNumber) => {
+    row.eachCell((cell) => {
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+        left: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+        bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+        right: { style: 'thin', color: { argb: 'FFE5E7EB' } }
+      };
+    });
+  });
+
+  // === HOJA 2: RESUMEN ===
+  const wsResumen = workbook.addWorksheet('Resumen');
+  
+  // Título
+  wsResumen.mergeCells('A1:C1');
+  const titleCell = wsResumen.getCell('A1');
+  titleCell.value = 'Resumen de Repuestos Baader 200';
+  titleCell.font = { bold: true, size: 16, color: { argb: COLORS.primary } };
+  titleCell.alignment = { horizontal: 'center' };
+  
+  wsResumen.mergeCells('A2:C2');
+  wsResumen.getCell('A2').value = `Fecha: ${new Date().toLocaleDateString('es-CL')}`;
+  wsResumen.getCell('A2').alignment = { horizontal: 'center' };
+
+  // Estadísticas
+  const stats = [
+    ['', '', ''],
+    ['Concepto', 'Valor', 'Porcentaje'],
+    ['Total Repuestos', repuestos.length, '100%'],
+    ['Cantidad Solicitada Total', repuestos.reduce((s, r) => s + r.cantidadSolicitada, 0), ''],
+    ['Stock Bodega Total', repuestos.reduce((s, r) => s + r.cantidadStockBodega, 0), ''],
+    ['Valor Total (USD)', repuestos.reduce((s, r) => s + r.total, 0), ''],
+    ['', '', ''],
+    ['Repuestos con Stock', repuestos.filter(r => r.cantidadStockBodega > 0).length, 
+      `${Math.round(repuestos.filter(r => r.cantidadStockBodega > 0).length / repuestos.length * 100)}%`],
+    ['Repuestos sin Stock', repuestos.filter(r => r.cantidadStockBodega === 0).length,
+      `${Math.round(repuestos.filter(r => r.cantidadStockBodega === 0).length / repuestos.length * 100)}%`],
+    ['', '', ''],
+    ['Con Imágenes Manual', repuestos.filter(r => r.imagenesManual.length > 0).length,
+      `${Math.round(repuestos.filter(r => r.imagenesManual.length > 0).length / repuestos.length * 100)}%`],
+    ['Con Fotos Reales', repuestos.filter(r => r.fotosReales.length > 0).length,
+      `${Math.round(repuestos.filter(r => r.fotosReales.length > 0).length / repuestos.length * 100)}%`]
+  ];
+
+  stats.forEach((row, index) => {
+    const excelRow = wsResumen.addRow(row);
+    if (index === 1) { // Header de tabla
+      excelRow.font = { bold: true, color: { argb: COLORS.white } };
+      excelRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.primary } };
+    }
+    if (index === 5) { // Valor total
+      excelRow.getCell(2).numFmt = '"$"#,##0.00';
+      excelRow.font = { bold: true };
+      excelRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.primaryLight } };
+    }
+  });
+
+  wsResumen.getColumn(1).width = 25;
+  wsResumen.getColumn(2).width = 20;
+  wsResumen.getColumn(3).width = 12;
+
+  // === HOJA 3: SIN STOCK ===
+  const sinStock = repuestos.filter(r => r.cantidadStockBodega === 0);
+  if (sinStock.length > 0) {
+    const wsSinStock = workbook.addWorksheet('Sin Stock', {
+      views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }]
+    });
+
+    wsSinStock.columns = [
+      { header: 'Código SAP', key: 'codigoSAP', width: 14 },
+      { header: 'Código Baader', key: 'codigoBaader', width: 16 },
+      { header: 'Descripción', key: 'descripcion', width: 45 },
+      { header: 'Cant. Solicitada', key: 'cantidadSolicitada', width: 14 },
+      { header: 'V. Unitario (USD)', key: 'valorUnitario', width: 15 },
+      { header: 'Total (USD)', key: 'total', width: 14 },
+      { header: 'Tags', key: 'tags', width: 25 }
+    ];
+
+    const headerSinStock = wsSinStock.getRow(1);
+    headerSinStock.font = { bold: true, color: { argb: COLORS.white } };
+    headerSinStock.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.danger } };
+    headerSinStock.alignment = { vertical: 'middle', horizontal: 'center' };
+
+    sinStock.forEach((r, index) => {
+      const row = wsSinStock.addRow({
+        codigoSAP: r.codigoSAP,
+        codigoBaader: r.codigoBaader,
+        descripcion: r.textoBreve,
+        cantidadSolicitada: r.cantidadSolicitada,
+        valorUnitario: r.valorUnitario,
+        total: r.total,
+        tags: r.tags?.join(', ') || ''
+      });
+      row.getCell('valorUnitario').numFmt = '"$"#,##0.00';
+      row.getCell('total').numFmt = '"$"#,##0.00';
+      if (index % 2 === 1) {
+        row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.dangerLight } };
+      }
+    });
+
+    // Total
+    const totalSinStock = wsSinStock.addRow({
+      codigoSAP: '',
+      codigoBaader: '',
+      descripcion: `TOTAL (${sinStock.length} repuestos)`,
+      cantidadSolicitada: sinStock.reduce((s, r) => s + r.cantidadSolicitada, 0),
+      valorUnitario: '',
+      total: sinStock.reduce((s, r) => s + r.total, 0),
+      tags: ''
+    });
+    totalSinStock.font = { bold: true };
+    totalSinStock.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.dangerLight } };
+    totalSinStock.getCell('total').numFmt = '"$"#,##0.00';
+  }
+
+  // === HOJA 4: POR TAGS ===
+  const allTags = new Set<string>();
+  repuestos.forEach(r => r.tags?.forEach(t => allTags.add(t)));
+  
+  if (allTags.size > 0) {
+    const wsTags = workbook.addWorksheet('Por Tags');
+    
+    wsTags.columns = [
+      { header: 'Tag', key: 'tag', width: 25 },
+      { header: 'Cantidad Repuestos', key: 'cantidad', width: 18 },
+      { header: 'Cant. Solicitada', key: 'cantSolicitada', width: 15 },
+      { header: 'Stock Total', key: 'stockTotal', width: 12 },
+      { header: 'Valor Total (USD)', key: 'valorTotal', width: 16 }
+    ];
+
+    const headerTags = wsTags.getRow(1);
+    headerTags.font = { bold: true, color: { argb: COLORS.white } };
+    headerTags.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.primary } };
+    headerTags.alignment = { vertical: 'middle', horizontal: 'center' };
+
+    Array.from(allTags).sort().forEach((tag, index) => {
+      const tagged = repuestos.filter(r => r.tags?.includes(tag));
+      const row = wsTags.addRow({
+        tag: tag,
+        cantidad: tagged.length,
+        cantSolicitada: tagged.reduce((s, r) => s + r.cantidadSolicitada, 0),
+        stockTotal: tagged.reduce((s, r) => s + r.cantidadStockBodega, 0),
+        valorTotal: tagged.reduce((s, r) => s + r.total, 0)
+      });
+      row.getCell('valorTotal').numFmt = '"$"#,##0.00';
+      if (index % 2 === 1) {
+        row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.grayLight } };
+      }
+    });
+
+    wsTags.autoFilter = {
+      from: { row: 1, column: 1 },
+      to: { row: allTags.size + 1, column: 5 }
+    };
+  }
+
+  // Guardar archivo
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  saveAs(blob, `${filename}.xlsx`);
 }
 
 // Opciones de exportación PDF
@@ -509,25 +752,38 @@ function drawImageWithAspectRatio(
   doc.text('Sin img', x + w / 2, y + h / 2 + 1, { align: 'center' });
 }
 
-// Parsear Excel de entrada
+// Parsear Excel de entrada usando ExcelJS
 export async function parseExcelFile(file: File): Promise<Record<string, unknown>[]> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    
-    reader.onload = (e) => {
-      try {
-        const data = e.target?.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
-        resolve(jsonData as Record<string, unknown>[]);
-      } catch (err) {
-        reject(err);
-      }
-    };
-    
-    reader.onerror = () => reject(new Error('Error al leer el archivo'));
-    reader.readAsBinaryString(file);
+  const data = await file.arrayBuffer();
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(data);
+  
+  const worksheet = workbook.worksheets[0];
+  if (!worksheet) {
+    throw new Error('No se encontró ninguna hoja en el archivo');
+  }
+
+  // Obtener headers de la primera fila
+  const headers: string[] = [];
+  worksheet.getRow(1).eachCell((cell, colNumber) => {
+    headers[colNumber] = String(cell.value || '').trim();
   });
+
+  // Parsear filas
+  const result: Record<string, unknown>[] = [];
+  worksheet.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) return; // Skip header
+
+    const rowData: Record<string, unknown> = {};
+    row.eachCell((cell, colNumber) => {
+      const header = headers[colNumber];
+      if (header) {
+        rowData[header] = cell.value;
+      }
+    });
+    
+    result.push(rowData);
+  });
+
+  return result;
 }

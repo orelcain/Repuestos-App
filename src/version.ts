@@ -1,8 +1,20 @@
 // Versión de la aplicación
-export const APP_VERSION = '1.5.5';
+export const APP_VERSION = '1.5.6';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '1.5.6',
+    date: '2025-12-20',
+    changes: [
+      'Excel: Migración a ExcelJS con estilos avanzados',
+      'Excel: 4 hojas (Detalle, Resumen, Sin Stock, Por Tags)',
+      'Excel: Colores condicionales (rojo sin stock, verde con stock)',
+      'Excel: Filtros automáticos en todas las hojas',
+      'Excel: Fórmulas de totales con =SUM()',
+      'Excel: Formato de moneda USD en valores'
+    ]
+  },
   {
     version: '1.5.5',
     date: '2025-12-20',

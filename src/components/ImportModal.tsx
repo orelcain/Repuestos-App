@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { Modal, Button } from './ui';
 import { Upload, FileSpreadsheet, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { RepuestoFormData } from '../types';
 
 interface ImportModalProps {
@@ -33,21 +33,46 @@ export function ImportModal({ isOpen, onClose, onImport }: ImportModalProps) {
 
     try {
       const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data);
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet) as Record<string, unknown>[];
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(data);
+      
+      const worksheet = workbook.worksheets[0];
+      if (!worksheet) {
+        throw new Error('No se encontró ninguna hoja en el archivo');
+      }
 
-      // Mapear columnas del Excel a nuestro formato
-      // Ajustar estos nombres según las columnas reales del Excel
-      const parsed: ParsedRow[] = jsonData.map((row) => ({
-        codigoSAP: String(row['Código SAP'] || row['CODIGO SAP'] || row['Material'] || ''),
-        textoBreve: String(row['Texto Breve'] || row['TEXTO BREVE'] || row['Descripción'] || row['Descripcion'] || ''),
-        codigoBaader: String(row['Código Baader'] || row['CODIGO BAADER'] || row['Código proveedor'] || row['N° Parte'] || ''),
-        cantidadSolicitada: Number(row['Cantidad'] || row['Cant.'] || row['Cantidad Solicitada'] || 0),
-        valorUnitario: Number(row['Valor Unitario'] || row['Precio'] || row['Valor Unit.'] || row['USD'] || 0),
-        cantidadStockBodega: Number(row['Stock'] || row['Stock Bodega'] || 0)
-      })).filter(row => row.codigoSAP || row.codigoBaader);
+      // Obtener headers de la primera fila
+      const headers: string[] = [];
+      worksheet.getRow(1).eachCell((cell, colNumber) => {
+        headers[colNumber] = String(cell.value || '').trim();
+      });
+
+      // Parsear filas
+      const parsed: ParsedRow[] = [];
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return; // Skip header
+
+        const rowData: Record<string, unknown> = {};
+        row.eachCell((cell, colNumber) => {
+          const header = headers[colNumber];
+          if (header) {
+            rowData[header] = cell.value;
+          }
+        });
+
+        const parsedRow: ParsedRow = {
+          codigoSAP: String(rowData['Código SAP'] || rowData['CODIGO SAP'] || rowData['Material'] || ''),
+          textoBreve: String(rowData['Texto Breve'] || rowData['TEXTO BREVE'] || rowData['Descripción'] || rowData['Descripcion'] || ''),
+          codigoBaader: String(rowData['Código Baader'] || rowData['CODIGO BAADER'] || rowData['Código proveedor'] || rowData['N° Parte'] || ''),
+          cantidadSolicitada: Number(rowData['Cantidad'] || rowData['Cant.'] || rowData['Cantidad Solicitada'] || 0),
+          valorUnitario: Number(rowData['Valor Unitario'] || rowData['Precio'] || rowData['Valor Unit.'] || rowData['USD'] || 0),
+          cantidadStockBodega: Number(rowData['Stock'] || rowData['Stock Bodega'] || 0)
+        };
+
+        if (parsedRow.codigoSAP || parsedRow.codigoBaader) {
+          parsed.push(parsedRow);
+        }
+      });
 
       setPreview(parsed);
       setFile(file);
