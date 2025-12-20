@@ -144,6 +144,53 @@ export function Dashboard() {
     setLastSelectedRepuesto(selectedRepuesto?.id || null);
   }, [selectedRepuesto, setLastSelectedRepuesto]);
 
+  // Atajos de teclado globales
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // No activar si hay un modal abierto o focus en input
+      const activeElement = document.activeElement;
+      const isInputFocused = activeElement?.tagName === 'INPUT' || activeElement?.tagName === 'TEXTAREA';
+      
+      if (isInputFocused) return;
+      
+      // Ctrl/Cmd + N: Nuevo repuesto
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault();
+        handleAddNew();
+      }
+      
+      // Ctrl/Cmd + E: Exportar Excel
+      if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+        e.preventDefault();
+        handleExportExcel();
+      }
+      
+      // Ctrl/Cmd + P: Exportar PDF
+      if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+        e.preventDefault();
+        handleExportPDF();
+      }
+      
+      // Ctrl/Cmd + M: Ver manual
+      if ((e.ctrlKey || e.metaKey) && e.key === 'm') {
+        e.preventDefault();
+        setRightPanelMode(rightPanelMode === 'pdf' ? 'hidden' : 'pdf');
+      }
+      
+      // Escape: Cerrar modal/panel
+      if (e.key === 'Escape') {
+        if (showForm) setShowForm(false);
+        else if (showExcelExportModal) setShowExcelExportModal(false);
+        else if (showPDFExportModal) setShowPDFExportModal(false);
+        else if (showBackupModal) setShowBackupModal(false);
+        else if (rightPanelMode !== 'hidden') setRightPanelMode('hidden');
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [rightPanelMode, showForm, showExcelExportModal, showPDFExportModal, showBackupModal]);
+
   // Handlers de selección
   const handleSelectRepuesto = (repuesto: Repuesto | null) => {
     setSelectedRepuesto(repuesto);

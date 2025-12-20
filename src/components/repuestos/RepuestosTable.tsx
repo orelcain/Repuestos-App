@@ -28,7 +28,10 @@ import {
   AlertTriangle,
   SlidersHorizontal,
   DollarSign,
-  BookMarked
+  BookMarked,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 
 interface RepuestosTableProps {
@@ -141,6 +144,10 @@ export function RepuestosTable({
   const [precioMax, setPrecioMax] = useState<string>('');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   
+  // Estado para ordenamiento
+  const [sortColumn, setSortColumn] = useState<string>('codigoSAP');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  
   // Hook para configuración de columnas
   const { columns, toggleColumn, resetColumns, isColumnVisible } = useTableColumns();
   
@@ -205,8 +212,85 @@ export function RepuestosTable({
       });
     }
     
+    // Ordenar resultados
+    result = [...result].sort((a, b) => {
+      let valueA: string | number = '';
+      let valueB: string | number = '';
+      
+      switch (sortColumn) {
+        case 'codigoSAP':
+          valueA = a.codigoSAP || '';
+          valueB = b.codigoSAP || '';
+          break;
+        case 'codigoBaader':
+          valueA = a.codigoBaader || '';
+          valueB = b.codigoBaader || '';
+          break;
+        case 'textoBreve':
+          valueA = a.textoBreve || '';
+          valueB = b.textoBreve || '';
+          break;
+        case 'descripcion':
+          valueA = a.descripcion || '';
+          valueB = b.descripcion || '';
+          break;
+        case 'nombreManual':
+          valueA = a.nombreManual || '';
+          valueB = b.nombreManual || '';
+          break;
+        case 'cantidadSolicitada':
+          valueA = a.cantidadSolicitada || 0;
+          valueB = b.cantidadSolicitada || 0;
+          break;
+        case 'cantidadStockBodega':
+          valueA = a.cantidadStockBodega || 0;
+          valueB = b.cantidadStockBodega || 0;
+          break;
+        case 'valorUnitario':
+          valueA = a.valorUnitario || 0;
+          valueB = b.valorUnitario || 0;
+          break;
+        case 'totalUSD':
+          valueA = a.total || 0;
+          valueB = b.total || 0;
+          break;
+        default:
+          valueA = a.codigoSAP || '';
+          valueB = b.codigoSAP || '';
+      }
+      
+      // Comparar
+      if (typeof valueA === 'string' && typeof valueB === 'string') {
+        const comparison = valueA.localeCompare(valueB, 'es', { numeric: true });
+        return sortDirection === 'asc' ? comparison : -comparison;
+      } else {
+        const comparison = (valueA as number) - (valueB as number);
+        return sortDirection === 'asc' ? comparison : -comparison;
+      }
+    });
+    
     return result;
-  }, [repuestos, searchTerm, selectedTags, tagFilterMode, filterSinStock, filterConManual, precioMin, precioMax]);
+  }, [repuestos, searchTerm, selectedTags, tagFilterMode, filterSinStock, filterConManual, precioMin, precioMax, sortColumn, sortDirection]);
+
+  // Función para manejar click en header de columna
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  // Componente de icono de ordenamiento
+  const SortIcon = ({ column }: { column: string }) => {
+    if (sortColumn !== column) {
+      return <ArrowUpDown className="w-3 h-3 text-gray-300" />;
+    }
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="w-3 h-3 text-primary-600" />
+      : <ArrowDown className="w-3 h-3 text-primary-600" />;
+  };
 
   // Paginación
   const totalPages = Math.ceil(filteredRepuestos.length / ITEMS_PER_PAGE);
@@ -216,7 +300,7 @@ export function RepuestosTable({
   // Reset página al buscar o filtrar
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedTags, tagFilterMode, filterSinStock, filterConManual, precioMin, precioMax]);
+  }, [searchTerm, selectedTags, tagFilterMode, filterSinStock, filterConManual, precioMin, precioMax, sortColumn, sortDirection]);
 
   // Notificar al padre cuando cambian los repuestos filtrados
   useEffect(() => {
@@ -705,15 +789,105 @@ export function RepuestosTable({
         <table className="w-full">
           <thead className="bg-gray-50 sticky top-0">
             <tr>
-              {isColumnVisible('codigoSAP') && <th className="px-4 py-4 text-left font-semibold text-gray-600 text-sm uppercase tracking-wide">Código SAP</th>}
-              {isColumnVisible('codigoBaader') && <th className="px-4 py-4 text-left font-semibold text-gray-600 text-sm uppercase tracking-wide">Código Baader</th>}
-              {isColumnVisible('textoBreve') && <th className="px-4 py-4 text-left font-semibold text-gray-600 text-xs uppercase tracking-wide">Desc. SAP</th>}
-              {isColumnVisible('descripcion') && <th className="px-4 py-4 text-left font-semibold text-gray-600 text-xs uppercase tracking-wide">Desc. Extendida</th>}
-              {isColumnVisible('nombreManual') && <th className="px-4 py-4 text-left font-semibold text-gray-600 text-xs uppercase tracking-wide">Nombre Manual</th>}
-              {isColumnVisible('cantidadSolicitada') && <th className="px-4 py-4 text-center font-semibold text-gray-600 text-xs uppercase tracking-wide">Cant. Solicitada</th>}
-              {isColumnVisible('cantidadStockBodega') && <th className="px-4 py-4 text-center font-semibold text-gray-600 text-xs uppercase tracking-wide">Stock Bodega</th>}
-              {isColumnVisible('valorUnitario') && <th className="px-4 py-4 text-right font-semibold text-gray-600 text-sm uppercase tracking-wide">V. Unit.</th>}
-              {isColumnVisible('totalUSD') && <th className="px-4 py-4 text-right font-semibold text-gray-600 text-sm uppercase tracking-wide">Total USD</th>}
+              {isColumnVisible('codigoSAP') && (
+                <th 
+                  className="px-4 py-4 text-left font-semibold text-gray-600 text-sm uppercase tracking-wide cursor-pointer hover:bg-gray-100 select-none"
+                  onClick={() => handleSort('codigoSAP')}
+                >
+                  <div className="flex items-center gap-1">
+                    Código SAP
+                    <SortIcon column="codigoSAP" />
+                  </div>
+                </th>
+              )}
+              {isColumnVisible('codigoBaader') && (
+                <th 
+                  className="px-4 py-4 text-left font-semibold text-gray-600 text-sm uppercase tracking-wide cursor-pointer hover:bg-gray-100 select-none"
+                  onClick={() => handleSort('codigoBaader')}
+                >
+                  <div className="flex items-center gap-1">
+                    Código Baader
+                    <SortIcon column="codigoBaader" />
+                  </div>
+                </th>
+              )}
+              {isColumnVisible('textoBreve') && (
+                <th 
+                  className="px-4 py-4 text-left font-semibold text-gray-600 text-xs uppercase tracking-wide cursor-pointer hover:bg-gray-100 select-none"
+                  onClick={() => handleSort('textoBreve')}
+                >
+                  <div className="flex items-center gap-1">
+                    Desc. SAP
+                    <SortIcon column="textoBreve" />
+                  </div>
+                </th>
+              )}
+              {isColumnVisible('descripcion') && (
+                <th 
+                  className="px-4 py-4 text-left font-semibold text-gray-600 text-xs uppercase tracking-wide cursor-pointer hover:bg-gray-100 select-none"
+                  onClick={() => handleSort('descripcion')}
+                >
+                  <div className="flex items-center gap-1">
+                    Desc. Extendida
+                    <SortIcon column="descripcion" />
+                  </div>
+                </th>
+              )}
+              {isColumnVisible('nombreManual') && (
+                <th 
+                  className="px-4 py-4 text-left font-semibold text-gray-600 text-xs uppercase tracking-wide cursor-pointer hover:bg-gray-100 select-none"
+                  onClick={() => handleSort('nombreManual')}
+                >
+                  <div className="flex items-center gap-1">
+                    Nombre Manual
+                    <SortIcon column="nombreManual" />
+                  </div>
+                </th>
+              )}
+              {isColumnVisible('cantidadSolicitada') && (
+                <th 
+                  className="px-4 py-4 text-center font-semibold text-gray-600 text-xs uppercase tracking-wide cursor-pointer hover:bg-gray-100 select-none"
+                  onClick={() => handleSort('cantidadSolicitada')}
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    Cant. Solic.
+                    <SortIcon column="cantidadSolicitada" />
+                  </div>
+                </th>
+              )}
+              {isColumnVisible('cantidadStockBodega') && (
+                <th 
+                  className="px-4 py-4 text-center font-semibold text-gray-600 text-xs uppercase tracking-wide cursor-pointer hover:bg-gray-100 select-none"
+                  onClick={() => handleSort('cantidadStockBodega')}
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    Stock
+                    <SortIcon column="cantidadStockBodega" />
+                  </div>
+                </th>
+              )}
+              {isColumnVisible('valorUnitario') && (
+                <th 
+                  className="px-4 py-4 text-right font-semibold text-gray-600 text-sm uppercase tracking-wide cursor-pointer hover:bg-gray-100 select-none"
+                  onClick={() => handleSort('valorUnitario')}
+                >
+                  <div className="flex items-center justify-end gap-1">
+                    V. Unit.
+                    <SortIcon column="valorUnitario" />
+                  </div>
+                </th>
+              )}
+              {isColumnVisible('totalUSD') && (
+                <th 
+                  className="px-4 py-4 text-right font-semibold text-gray-600 text-sm uppercase tracking-wide cursor-pointer hover:bg-gray-100 select-none"
+                  onClick={() => handleSort('totalUSD')}
+                >
+                  <div className="flex items-center justify-end gap-1">
+                    Total USD
+                    <SortIcon column="totalUSD" />
+                  </div>
+                </th>
+              )}
               {isColumnVisible('totalCLP') && <th className="px-4 py-4 text-right font-semibold text-gray-600 text-sm uppercase tracking-wide">Total CLP</th>}
               {isColumnVisible('acciones') && <th className="px-4 py-4 text-center font-semibold text-gray-600 text-sm uppercase tracking-wide">Acciones</th>}
             </tr>
