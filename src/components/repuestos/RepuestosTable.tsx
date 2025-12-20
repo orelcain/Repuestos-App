@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Repuesto, HistorialCambio } from '../../types';
+import { useDolar } from '../../hooks/useDolar';
 import { 
   Search, 
   Plus, 
@@ -17,7 +18,8 @@ import {
   Tag,
   X,
   Filter,
-  Settings
+  Settings,
+  RefreshCw
 } from 'lucide-react';
 
 interface RepuestosTableProps {
@@ -120,7 +122,8 @@ export function RepuestosTable({
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [tagFilterMode, setTagFilterMode] = useState<'AND' | 'OR'>('OR');
   const [showTagFilter, setShowTagFilter] = useState(false);
   
   // Estado para historial de campo
@@ -146,13 +149,23 @@ export function RepuestosTable({
       );
     }
     
-    // Filtrar por tag
-    if (selectedTag) {
-      result = result.filter(r => r.tags?.includes(selectedTag));
+    // Filtrar por tags (multi-tag con AND/OR)
+    if (selectedTags.length > 0) {
+      if (tagFilterMode === 'AND') {
+        // AND: debe tener TODOS los tags seleccionados
+        result = result.filter(r => 
+          selectedTags.every(tag => r.tags?.includes(tag))
+        );
+      } else {
+        // OR: debe tener AL MENOS UNO de los tags seleccionados
+        result = result.filter(r => 
+          selectedTags.some(tag => r.tags?.includes(tag))
+        );
+      }
     }
     
     return result;
-  }, [repuestos, searchTerm, selectedTag]);
+  }, [repuestos, searchTerm, selectedTags, tagFilterMode]);
 
   // Paginación
   const totalPages = Math.ceil(filteredRepuestos.length / ITEMS_PER_PAGE);
@@ -162,7 +175,7 @@ export function RepuestosTable({
   // Reset página al buscar o filtrar
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedTag]);
+  }, [searchTerm, selectedTags, tagFilterMode]);
 
   // Notificar al padre cuando cambian los repuestos filtrados
   useEffect(() => {
@@ -206,6 +219,18 @@ export function RepuestosTable({
     return Array.from(tags);
   }, [repuestos]);
 
+  // Hook para tipo de cambio
+  const { valor: tipoCambio, loading: dolarLoading, formatClp, convertToClp } = useDolar();
+
+  // Calcular totales de repuestos filtrados
+  const totales = useMemo(() => {
+    const totalSolicitado = filteredRepuestos.reduce((sum, r) => sum + (r.cantidadSolicitada || 0), 0);
+    const totalBodega = filteredRepuestos.reduce((sum, r) => sum + (r.cantidadStockBodega || 0), 0);
+    const totalUSD = filteredRepuestos.reduce((sum, r) => sum + (r.total || 0), 0);
+    const totalCLP = convertToClp(totalUSD);
+    return { totalSolicitado, totalBodega, totalUSD, totalCLP };
+  }, [filteredRepuestos, convertToClp]);
+
   return (
     <div className="flex flex-col h-full bg-white">
       {/* Header con búsqueda */}
@@ -219,53 +244,119 @@ export function RepuestosTable({
             </span>
           </h2>
           <div className="flex items-center gap-2">
-            {/* Filtro por tag */}
+            {/* Filtro por tags (multi-selección) */}
             <div className="relative">
               <button
                 onClick={() => setShowTagFilter(!showTagFilter)}
                 className={`flex items-center gap-2 px-3 py-2.5 border rounded-lg transition-colors ${
-                  selectedTag 
+                  selectedTags.length > 0 
                     ? 'border-primary-500 bg-primary-50 text-primary-700' 
                     : 'border-gray-300 hover:bg-gray-50'
                 }`}
               >
                 <Filter className="w-4 h-4" />
                 <span className="hidden sm:inline text-sm">
-                  {selectedTag || 'Filtrar'}
+                  {selectedTags.length > 0 ? `${selectedTags.length} tag${selectedTags.length > 1 ? 's' : ''}` : 'Filtrar'}
                 </span>
+                {selectedTags.length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 bg-primary-200 text-primary-800 rounded text-xs font-medium">
+                    {tagFilterMode}
+                  </span>
+                )}
               </button>
               
               {showTagFilter && (
-                <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-20">
+                <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-lg shadow-xl border border-gray-200 z-20">
+                  {/* Toggle AND/OR */}
+                  <div className="p-3 border-b border-gray-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium text-gray-500 uppercase">Modo de filtrado</span>
+                      <div className="flex bg-gray-100 rounded-lg p-0.5">
+                        <button
+                          onClick={() => setTagFilterMode('OR')}
+                          className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                            tagFilterMode === 'OR' 
+                              ? 'bg-white text-primary-700 shadow-sm' 
+                              : 'text-gray-500 hover:text-gray-700'
+                          }`}
+                          title="Muestra repuestos que tengan CUALQUIERA de los tags"
+                        >
+                          OR
+                        </button>
+                        <button
+                          onClick={() => setTagFilterMode('AND')}
+                          className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                            tagFilterMode === 'AND' 
+                              ? 'bg-white text-primary-700 shadow-sm' 
+                              : 'text-gray-500 hover:text-gray-700'
+                          }`}
+                          title="Muestra solo repuestos que tengan TODOS los tags"
+                        >
+                          AND
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-400">
+                      {tagFilterMode === 'OR' 
+                        ? 'Muestra si tiene cualquier tag seleccionado' 
+                        : 'Muestra solo si tiene todos los tags'}
+                    </p>
+                  </div>
+
+                  {/* Botón limpiar */}
                   <div className="p-2 border-b border-gray-100">
                     <button
                       onClick={() => {
-                        setSelectedTag(null);
-                        setShowTagFilter(false);
+                        setSelectedTags([]);
                       }}
-                      className="w-full px-3 py-2 text-left text-sm text-gray-600 hover:bg-gray-50 rounded"
+                      className={`w-full px-3 py-2 text-left text-sm rounded flex items-center justify-between ${
+                        selectedTags.length === 0 
+                          ? 'bg-gray-50 text-gray-400' 
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                      disabled={selectedTags.length === 0}
                     >
-                      Todos los repuestos
+                      <span>Todos los repuestos</span>
+                      {selectedTags.length > 0 && (
+                        <X className="w-4 h-4 text-gray-400" />
+                      )}
                     </button>
                   </div>
+
+                  {/* Lista de tags con checkboxes */}
                   <div className="p-2 max-h-60 overflow-y-auto">
-                    {tagsEnUso.map(tag => (
-                      <button
-                        key={tag}
-                        onClick={() => {
-                          setSelectedTag(tag);
-                          setShowTagFilter(false);
-                        }}
-                        className={`w-full px-3 py-2 text-left text-sm rounded flex items-center gap-2 ${
-                          selectedTag === tag 
-                            ? 'bg-primary-100 text-primary-700' 
-                            : 'hover:bg-gray-50'
-                        }`}
-                      >
-                        <Tag className="w-3 h-3" />
-                        {tag}
-                      </button>
-                    ))}
+                    {tagsEnUso.map(tag => {
+                      const isSelected = selectedTags.includes(tag);
+                      const count = repuestos.filter(r => r.tags?.includes(tag)).length;
+                      return (
+                        <button
+                          key={tag}
+                          onClick={() => {
+                            if (isSelected) {
+                              setSelectedTags(selectedTags.filter(t => t !== tag));
+                            } else {
+                              setSelectedTags([...selectedTags, tag]);
+                            }
+                          }}
+                          className={`w-full px-3 py-2 text-left text-sm rounded flex items-center gap-2 ${
+                            isSelected 
+                              ? 'bg-primary-50 text-primary-700' 
+                              : 'hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className={`w-4 h-4 rounded border flex items-center justify-center ${
+                            isSelected 
+                              ? 'bg-primary-600 border-primary-600' 
+                              : 'border-gray-300'
+                          }`}>
+                            {isSelected && <Check className="w-3 h-3 text-white" />}
+                          </div>
+                          <Tag className="w-3 h-3 flex-shrink-0" />
+                          <span className="flex-1 truncate">{tag}</span>
+                          <span className="text-xs text-gray-400">({count})</span>
+                        </button>
+                      );
+                    })}
                   </div>
                   {onManageTags && (
                     <div className="p-2 border-t border-gray-100">
@@ -295,6 +386,49 @@ export function RepuestosTable({
           </div>
         </div>
 
+        {/* Panel de Totales */}
+        <div className="flex flex-wrap items-center gap-3 px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200">
+          {/* Cantidades */}
+          <div className="flex items-center gap-4 pr-4 border-r border-gray-300">
+            <div className="text-center">
+              <div className="text-xs text-gray-500 uppercase">Solicitado</div>
+              <div className="text-lg font-bold text-blue-600">{totales.totalSolicitado.toLocaleString()}</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xs text-gray-500 uppercase">En Bodega</div>
+              <div className={`text-lg font-bold ${totales.totalBodega > 0 ? 'text-green-600' : 'text-gray-400'}`}>
+                {totales.totalBodega.toLocaleString()}
+              </div>
+            </div>
+          </div>
+          
+          {/* Totales monetarios */}
+          <div className="flex items-center gap-4">
+            <div className="text-center">
+              <div className="text-xs text-gray-500 uppercase">Total USD</div>
+              <div className="text-lg font-bold text-gray-800">
+                ${totales.totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              </div>
+            </div>
+            {tipoCambio > 0 && (
+              <div className="text-center">
+                <div className="text-xs text-gray-500 uppercase flex items-center gap-1 justify-center">
+                  Total CLP
+                  <span className="text-[10px] text-gray-400">(@{tipoCambio.toFixed(0)})</span>
+                </div>
+                <div className="text-lg font-bold text-green-700">
+                  {formatClp(totales.totalCLP)}
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Indicador de tipo de cambio */}
+          {dolarLoading && (
+            <RefreshCw className="w-4 h-4 text-gray-400 animate-spin ml-auto" />
+          )}
+        </div>
+
         {/* Barra de búsqueda */}
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -307,25 +441,33 @@ export function RepuestosTable({
           />
         </div>
 
-        {/* Tag activo */}
-        {selectedTag && (
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500">Filtrado por:</span>
-            <span className="inline-flex items-center gap-1 px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium">
-              <Tag className="w-3 h-3" />
-              {selectedTag}
-              <button
-                onClick={() => setSelectedTag(null)}
-                className="ml-1 hover:text-primary-900"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </span>
+        {/* Tags activos */}
+        {selectedTags.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm text-gray-500">Filtrado por ({tagFilterMode}):</span>
+            {selectedTags.map(tag => (
+              <span key={tag} className="inline-flex items-center gap-1 px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium">
+                <Tag className="w-3 h-3" />
+                {tag}
+                <button
+                  onClick={() => setSelectedTags(selectedTags.filter(t => t !== tag))}
+                  className="ml-1 hover:text-primary-900"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </span>
+            ))}
+            <button
+              onClick={() => setSelectedTags([])}
+              className="text-xs text-gray-500 hover:text-gray-700 underline"
+            >
+              Limpiar filtros
+            </button>
           </div>
         )}
 
         {/* Indicador de repuestos sin marcador */}
-        {sinMarcadorCount > 0 && !selectedTag && (
+        {sinMarcadorCount > 0 && selectedTags.length === 0 && (
           <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
             <MapPin className="w-5 h-5" />
             <span>{sinMarcadorCount} repuestos sin ubicación en el manual</span>
@@ -347,6 +489,7 @@ export function RepuestosTable({
               <th className="px-4 py-4 text-center font-semibold text-gray-600 text-xs uppercase tracking-wide">Stock Bodega</th>
               <th className="px-4 py-4 text-right font-semibold text-gray-600 text-sm uppercase tracking-wide">V. Unit.</th>
               <th className="px-4 py-4 text-right font-semibold text-gray-600 text-sm uppercase tracking-wide">Total USD</th>
+              <th className="px-4 py-4 text-right font-semibold text-gray-600 text-sm uppercase tracking-wide">Total CLP</th>
               <th className="px-4 py-4 text-center font-semibold text-gray-600 text-sm uppercase tracking-wide">Acciones</th>
             </tr>
           </thead>
@@ -559,11 +702,24 @@ export function RepuestosTable({
                     </span>
                   </td>
 
-                  {/* Total */}
+                  {/* Total USD */}
                   <td className="px-4 py-4 text-right">
                     <span className="text-base font-bold text-gray-800">
                       ${repuesto.total?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
                     </span>
+                  </td>
+
+                  {/* Total CLP */}
+                  <td className="px-4 py-4 text-right">
+                    {dolarLoading ? (
+                      <span className="text-xs text-gray-400">...</span>
+                    ) : tipoCambio > 0 ? (
+                      <span className="text-sm font-medium text-green-700">
+                        {formatClp(convertToClp(repuesto.total || 0))}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-400">-</span>
+                    )}
                   </td>
 
                   {/* Acciones */}
