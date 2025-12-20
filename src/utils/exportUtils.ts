@@ -72,26 +72,192 @@ export async function exportToPDF(
   doc.setTextColor(100, 100, 100);
   doc.text(`Fecha: ${new Date().toLocaleDateString('es-CL')}`, pageWidth / 2, 28, { align: 'center' });
 
-  doc.setFontSize(14);
+  // === SECCIÓN DE GRÁFICOS ===
+  const totalCantSolicitada = repuestos.reduce((s, r) => s + r.cantidadSolicitada, 0);
+  const totalStockBodega = repuestos.reduce((s, r) => s + r.cantidadStockBodega, 0);
+  const totalValor = repuestos.reduce((s, r) => s + r.total, 0);
+  const conImagenManual = repuestos.filter(r => r.imagenesManual.length > 0).length;
+  const conFotoReal = repuestos.filter(r => r.fotosReales.length > 0).length;
+  const sinImagenes = repuestos.length - Math.max(conImagenManual, conFotoReal);
+  const conStock = repuestos.filter(r => r.cantidadStockBodega > 0).length;
+  const sinStock = repuestos.length - conStock;
+
+  // --- Gráfico de barras: Cantidad vs Stock ---
+  const barChartX = margin + 5;
+  const barChartY = 38;
+  const barWidth = 35;
+  const maxBarHeight = 40;
+  
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(60, 60, 60);
+  doc.text('Cantidad vs Stock', barChartX + barWidth, barChartY - 3, { align: 'center' });
+  
+  const maxQty = Math.max(totalCantSolicitada, totalStockBodega, 1);
+  const bar1Height = (totalCantSolicitada / maxQty) * maxBarHeight;
+  const bar2Height = (totalStockBodega / maxQty) * maxBarHeight;
+  
+  // Barra Cantidad Solicitada
+  doc.setFillColor(59, 130, 246); // Azul
+  doc.roundedRect(barChartX, barChartY + maxBarHeight - bar1Height, 15, bar1Height, 1, 1, 'F');
+  doc.setFontSize(7);
+  doc.setTextColor(59, 130, 246);
+  doc.text(totalCantSolicitada.toString(), barChartX + 7.5, barChartY + maxBarHeight - bar1Height - 2, { align: 'center' });
+  
+  // Barra Stock Bodega
+  doc.setFillColor(34, 197, 94); // Verde
+  doc.roundedRect(barChartX + 20, barChartY + maxBarHeight - bar2Height, 15, bar2Height, 1, 1, 'F');
+  doc.setTextColor(34, 197, 94);
+  doc.text(totalStockBodega.toString(), barChartX + 27.5, barChartY + maxBarHeight - bar2Height - 2, { align: 'center' });
+  
+  // Leyenda
+  doc.setFontSize(6);
+  doc.setTextColor(80, 80, 80);
+  doc.text('Solicitada', barChartX + 7.5, barChartY + maxBarHeight + 5, { align: 'center' });
+  doc.text('Stock', barChartX + 27.5, barChartY + maxBarHeight + 5, { align: 'center' });
+
+  // --- Gráfico circular: Imágenes ---
+  const pieX = pageWidth / 2;
+  const pieY = barChartY + 20;
+  const pieRadius = 18;
+  
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(60, 60, 60);
+  doc.text('Documentación', pieX, barChartY - 3, { align: 'center' });
+  
+  // Dibujar pie chart
+  const totalImg = repuestos.length;
+  if (totalImg > 0) {
+    const soloManual = conImagenManual - repuestos.filter(r => r.imagenesManual.length > 0 && r.fotosReales.length > 0).length;
+    const soloReal = conFotoReal - repuestos.filter(r => r.imagenesManual.length > 0 && r.fotosReales.length > 0).length;
+    const ambas = repuestos.filter(r => r.imagenesManual.length > 0 && r.fotosReales.length > 0).length;
+    const ninguna = repuestos.length - conImagenManual - soloReal;
+    
+    let startAngle = -Math.PI / 2;
+    const segments = [
+      { value: ambas, color: [34, 197, 94], label: 'Ambas' },
+      { value: soloManual, color: [59, 130, 246], label: 'Manual' },
+      { value: soloReal, color: [168, 85, 247], label: 'Real' },
+      { value: Math.max(0, ninguna), color: [209, 213, 219], label: 'Sin img' }
+    ].filter(s => s.value > 0);
+    
+    segments.forEach(seg => {
+      const sliceAngle = (seg.value / totalImg) * 2 * Math.PI;
+      const endAngle = startAngle + sliceAngle;
+      
+      // Dibujar sector
+      doc.setFillColor(seg.color[0], seg.color[1], seg.color[2]);
+      
+      // Usar path para dibujar el sector
+      const steps = 30;
+      const points: [number, number][] = [[pieX, pieY]];
+      for (let j = 0; j <= steps; j++) {
+        const angle = startAngle + (sliceAngle * j / steps);
+        points.push([pieX + Math.cos(angle) * pieRadius, pieY + Math.sin(angle) * pieRadius]);
+      }
+      points.push([pieX, pieY]);
+      
+      // Dibujar polígono
+      doc.setDrawColor(255, 255, 255);
+      doc.setLineWidth(0.5);
+      let pathStr = `${points[0][0]} ${points[0][1]} m`;
+      for (let k = 1; k < points.length; k++) {
+        pathStr += ` ${points[k][0]} ${points[k][1]} l`;
+      }
+      
+      // Aproximar con triángulos pequeños
+      for (let j = 0; j < steps; j++) {
+        const a1 = startAngle + (sliceAngle * j / steps);
+        const a2 = startAngle + (sliceAngle * (j + 1) / steps);
+        doc.triangle(
+          pieX, pieY,
+          pieX + Math.cos(a1) * pieRadius, pieY + Math.sin(a1) * pieRadius,
+          pieX + Math.cos(a2) * pieRadius, pieY + Math.sin(a2) * pieRadius,
+          'F'
+        );
+      }
+      
+      startAngle = endAngle;
+    });
+    
+    // Leyenda del pie
+    let legendY = barChartY + maxBarHeight + 3;
+    doc.setFontSize(6);
+    segments.forEach((seg, idx) => {
+      const legendX = pieX - 20 + (idx % 2) * 25;
+      const ly = legendY + Math.floor(idx / 2) * 6;
+      doc.setFillColor(seg.color[0], seg.color[1], seg.color[2]);
+      doc.rect(legendX, ly - 2, 3, 3, 'F');
+      doc.setTextColor(80, 80, 80);
+      doc.text(`${seg.label}: ${seg.value}`, legendX + 4, ly, { align: 'left' });
+    });
+  }
+
+  // --- Indicadores de Stock ---
+  const indicatorX = pageWidth - margin - 45;
+  
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(60, 60, 60);
+  doc.text('Disponibilidad', indicatorX + 20, barChartY - 3, { align: 'center' });
+  
+  // Barra de progreso de stock
+  const stockPercent = repuestos.length > 0 ? (conStock / repuestos.length) * 100 : 0;
+  const barBaseY = barChartY + 5;
+  
+  // Fondo
+  doc.setFillColor(229, 231, 235);
+  doc.roundedRect(indicatorX, barBaseY, 40, 8, 2, 2, 'F');
+  
+  // Barra de progreso
+  doc.setFillColor(34, 197, 94);
+  doc.roundedRect(indicatorX, barBaseY, 40 * (stockPercent / 100), 8, 2, 2, 'F');
+  
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(255, 255, 255);
+  if (stockPercent > 20) {
+    doc.text(`${Math.round(stockPercent)}%`, indicatorX + 20, barBaseY + 5.5, { align: 'center' });
+  }
+  
+  doc.setFontSize(6);
+  doc.setTextColor(34, 197, 94);
+  doc.text(`${conStock} con stock`, indicatorX + 20, barBaseY + 14, { align: 'center' });
+  doc.setTextColor(239, 68, 68);
+  doc.text(`${sinStock} sin stock`, indicatorX + 20, barBaseY + 19, { align: 'center' });
+  
+  // Valor total destacado
+  doc.setFillColor(30, 64, 175);
+  doc.roundedRect(indicatorX, barBaseY + 26, 40, 14, 2, 2, 'F');
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(255, 255, 255);
+  doc.text('VALOR TOTAL', indicatorX + 20, barBaseY + 32, { align: 'center' });
+  doc.setFontSize(8);
+  doc.text(`$${totalValor.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, indicatorX + 20, barBaseY + 38, { align: 'center' });
+
+  // === TABLA RESUMEN (más abajo) ===
+  doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(30, 64, 175);
-  doc.text('Resumen', pageWidth / 2, 42, { align: 'center' });
+  doc.text('Detalle Numérico', pageWidth / 2, barChartY + maxBarHeight + 20, { align: 'center' });
 
   autoTable(doc, {
-    startY: 50,
+    startY: barChartY + maxBarHeight + 25,
     head: [['Concepto', 'Valor']],
     body: [
       ['Total Repuestos', repuestos.length.toString()],
-      ['Total Cantidad Solicitada', repuestos.reduce((s, r) => s + r.cantidadSolicitada, 0).toString()],
-      ['Total Stock Bodega', repuestos.reduce((s, r) => s + r.cantidadStockBodega, 0).toString()],
-      ['Valor Total (USD)', `$${repuestos.reduce((s, r) => s + r.total, 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`],
-      ['Con Imágenes Manual', repuestos.filter(r => r.imagenesManual.length > 0).length.toString()],
-      ['Con Fotos Reales', repuestos.filter(r => r.fotosReales.length > 0).length.toString()],
+      ['Cant. Solicitada Total', totalCantSolicitada.toString()],
+      ['Stock Bodega Total', totalStockBodega.toString()],
+      ['Valor Total (USD)', `$${totalValor.toLocaleString('en-US', { minimumFractionDigits: 2 })}`],
+      ['Con Imágenes Manual', `${conImagenManual} (${Math.round(conImagenManual/repuestos.length*100)}%)`],
+      ['Con Fotos Reales', `${conFotoReal} (${Math.round(conFotoReal/repuestos.length*100)}%)`],
     ],
     theme: 'striped',
     headStyles: { fillColor: [30, 64, 175] },
-    margin: { left: margin, right: margin },
-    styles: { fontSize: 10 }
+    margin: { left: margin + 30, right: margin + 30 },
+    styles: { fontSize: 9 }
   });
 
   onProgress?.(20, 'Generando detalle...');

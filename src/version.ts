@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '1.5.4';
+export const APP_VERSION = '1.5.5';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '1.5.5',
+    date: '2025-12-20',
+    changes: [
+      'PDF: Resumen con gráficos visuales (barras, circular, indicadores)',
+      'PDF: Exportación respeta filtro por tag activo',
+      'Tags: Todos los tags son editables y eliminables',
+      'Tags: Eliminados "Para marzo" y "Para abril"'
+    ]
+  },
   {
     version: '1.5.4',
     date: '2025-12-20',
