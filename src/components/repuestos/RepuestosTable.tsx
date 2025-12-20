@@ -333,8 +333,8 @@ export function RepuestosTable({
               <th className="px-4 py-4 text-left font-semibold text-gray-600 text-sm uppercase tracking-wide">Código SAP</th>
               <th className="px-4 py-4 text-left font-semibold text-gray-600 text-sm uppercase tracking-wide">Código Baader</th>
               <th className="px-4 py-4 text-left font-semibold text-gray-600 text-sm uppercase tracking-wide">Descripción</th>
-              <th className="px-4 py-4 text-center font-semibold text-gray-600 text-sm uppercase tracking-wide">Cant.</th>
-              <th className="px-4 py-4 text-center font-semibold text-gray-600 text-sm uppercase tracking-wide">Stock</th>
+              <th className="px-4 py-4 text-center font-semibold text-gray-600 text-xs uppercase tracking-wide">Cant. Solicitada</th>
+              <th className="px-4 py-4 text-center font-semibold text-gray-600 text-xs uppercase tracking-wide">Stock Bodega</th>
               <th className="px-4 py-4 text-right font-semibold text-gray-600 text-sm uppercase tracking-wide">V. Unit.</th>
               <th className="px-4 py-4 text-right font-semibold text-gray-600 text-sm uppercase tracking-wide">Total USD</th>
               <th className="px-4 py-4 text-center font-semibold text-gray-600 text-sm uppercase tracking-wide">Acciones</th>
@@ -684,11 +684,11 @@ export function RepuestosTable({
                 {/* Grid de datos numéricos */}
                 <div className="grid grid-cols-2 gap-2 mb-3">
                   <div className="bg-gray-50 rounded-lg p-2">
-                    <span className="text-xs text-gray-500 block">Cantidad</span>
+                    <span className="text-xs text-gray-500 block">Cant. Solicitada</span>
                     <span className="text-lg font-bold text-gray-800">{repuesto.cantidadSolicitada}</span>
                   </div>
                   <div className={`rounded-lg p-2 ${repuesto.cantidadStockBodega > 0 ? 'bg-green-50' : 'bg-gray-50'}`}>
-                    <span className="text-xs text-gray-500 block">Stock</span>
+                    <span className="text-xs text-gray-500 block">Stock Bodega</span>
                     <span className={`text-lg font-bold ${repuesto.cantidadStockBodega > 0 ? 'text-green-700' : 'text-gray-500'}`}>
                       {repuesto.cantidadStockBodega}
                     </span>
