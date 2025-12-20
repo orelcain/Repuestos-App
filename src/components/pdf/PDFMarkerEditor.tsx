@@ -77,7 +77,10 @@ export function PDFMarkerEditor({
     y: number;
     width: number;
     height: number;
-  } | null>(existingMarker?.coordenadas || null);
+  } | null>(null); // Se inicializa después de cargar el PDF
+
+  // Estado para mostrar/ocultar borde
+  const [showBorder, setShowBorder] = useState(existingMarker?.sinBorde !== true);
 
   // Estado de búsqueda de repuestos
   const [repuestoSearchTerm, setRepuestoSearchTerm] = useState('');
@@ -223,13 +226,48 @@ export function PDFMarkerEditor({
     if (currentMarker) {
       drawMarker(currentMarker);
     }
-  }, [pdf, scale, currentMarker]);
+  }, [pdf, scale, currentMarker, drawMarker]);
 
   useEffect(() => {
     renderPage(currentPage);
   }, [currentPage, renderPage]);
 
-  // Dibujar marcador
+  // Cargar marcador existente cuando el PDF esté listo y convertir coordenadas normalizadas
+  useEffect(() => {
+    if (!pdf || !existingMarker?.coordenadas || !canvasRef.current) return;
+    
+    const loadExistingMarker = async () => {
+      const page = await pdf.getPage(existingMarker.pagina);
+      const viewport = page.getViewport({ scale });
+      
+      const { x, y, width, height } = existingMarker.coordenadas!;
+      
+      // Determinar si son coordenadas normalizadas (0-1) o absolutas
+      const isNormalized = x <= 1 && y <= 1 && width <= 1 && height <= 1;
+      
+      if (isNormalized) {
+        // Convertir de normalizado a píxeles
+        setCurrentMarker({
+          x: x * viewport.width,
+          y: y * viewport.height,
+          width: width * viewport.width,
+          height: height * viewport.height
+        });
+      } else {
+        // Coordenadas antiguas (píxeles) - escalar según zoom
+        setCurrentMarker({
+          x: x * scale,
+          y: y * scale,
+          width: width * scale,
+          height: height * scale
+        });
+      }
+    };
+    
+    loadExistingMarker();
+  }, [pdf, scale, existingMarker]);
+
+  // Dibujar marcador - SIN BORDE por defecto
   const drawMarker = useCallback((marker: { x: number; y: number; width: number; height: number }) => {
     if (!overlayRef.current) return;
     const ctx = overlayRef.current.getContext('2d');
@@ -237,13 +275,16 @@ export function PDFMarkerEditor({
 
     ctx.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height);
 
+    // Solo relleno de color, sin borde (se ve mejor)
     ctx.fillStyle = color;
-    ctx.strokeStyle = colorBorder;
-    ctx.lineWidth = 3;
 
     if (forma === 'rectangulo') {
       ctx.fillRect(marker.x, marker.y, marker.width, marker.height);
-      ctx.strokeRect(marker.x, marker.y, marker.width, marker.height);
+      if (showBorder) {
+        ctx.strokeStyle = colorBorder;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(marker.x, marker.y, marker.width, marker.height);
+      }
     } else {
       const centerX = marker.x + marker.width / 2;
       const centerY = marker.y + marker.height / 2;
@@ -253,9 +294,13 @@ export function PDFMarkerEditor({
       ctx.beginPath();
       ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, 2 * Math.PI);
       ctx.fill();
-      ctx.stroke();
+      if (showBorder) {
+        ctx.strokeStyle = colorBorder;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
     }
-  }, [forma, color, colorBorder]);
+  }, [forma, color, colorBorder, showBorder]);
 
   // Eventos de dibujo
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -392,15 +437,29 @@ export function PDFMarkerEditor({
     }
   };
 
-  // Guardar marcador
+  // Guardar marcador con coordenadas NORMALIZADAS (0-1)
   const handleSave = () => {
-    if (!currentMarker) return;
+    if (!currentMarker || !canvasRef.current) return;
+    
+    // Obtener dimensiones del canvas actual
+    const canvasWidth = canvasRef.current.width;
+    const canvasHeight = canvasRef.current.height;
+    
+    // Convertir coordenadas de píxeles a coordenadas normalizadas (0-1)
+    const normalizedCoords = {
+      x: currentMarker.x / canvasWidth,
+      y: currentMarker.y / canvasHeight,
+      width: currentMarker.width / canvasWidth,
+      height: currentMarker.height / canvasHeight
+    };
+    
     onSave({
       pagina: currentPage,
-      coordenadas: currentMarker,
+      coordenadas: normalizedCoords,
       forma,
       color,
-      descripcion: `Marcador en página ${currentPage}`
+      descripcion: `Marcador en página ${currentPage}`,
+      sinBorde: !showBorder
     });
   };
 
@@ -642,6 +701,22 @@ export function PDFMarkerEditor({
             />
           ))}
         </div>
+
+        {/* Toggle borde */}
+        <button
+          onClick={() => {
+            setShowBorder(!showBorder);
+            if (currentMarker) setTimeout(() => drawMarker(currentMarker), 0);
+          }}
+          className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+            showBorder 
+              ? 'bg-gray-600 text-white hover:bg-gray-500' 
+              : 'bg-primary-600 text-white hover:bg-primary-700'
+          }`}
+          title={showBorder ? 'Ocultar borde' : 'Sin borde (solo relleno)'}
+        >
+          {showBorder ? '⬜ Con borde' : '🟦 Sin borde'}
+        </button>
 
         {/* Zoom */}
         <div className="flex items-center gap-2">

@@ -34,15 +34,18 @@ export const TAGS_PREDEFINIDOS = [
 export interface VinculoManual {
   id: string;
   pagina: number;
+  // Coordenadas normalizadas (0-1) relativas al tamaño original de la página
   coordenadas?: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
+    x: number;      // Porcentaje desde la izquierda (0-1)
+    y: number;      // Porcentaje desde arriba (0-1)
+    width: number;  // Porcentaje del ancho de la página (0-1)
+    height: number; // Porcentaje del alto de la página (0-1)
   };
   forma: 'circulo' | 'rectangulo';
   color: string;
   descripcion: string;
+  // Opción para mostrar sin borde
+  sinBorde?: boolean;
 }
 
 // Imagen asociada al repuesto

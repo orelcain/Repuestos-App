@@ -1,8 +1,20 @@
 // Versión de la aplicación
-export const APP_VERSION = '1.4.2';
+export const APP_VERSION = '1.4.3';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '1.4.3',
+    date: '2025-12-19',
+    changes: [
+      'Marcadores fijos: no se mueven con zoom ni pantalla completa',
+      'Coordenadas normalizadas para marcadores escalables',
+      'Opción para mostrar/ocultar borde en marcadores',
+      'Marcadores sin borde por defecto (solo relleno)',
+      'Edición de marcadores existentes mejorada',
+      'Compatibilidad con marcadores antiguos'
+    ]
+  },
   {
     version: '1.4.2',
     date: '2025-12-19',

@@ -171,26 +171,51 @@ export function PDFViewer({
           ctx.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height);
           
           const { x, y, width, height } = marker.coordenadas;
+          
+          // Determinar si las coordenadas son normalizadas (0-1) o absolutas
+          // Si x,y,width,height son todos <= 1, son normalizadas
+          const isNormalized = x <= 1 && y <= 1 && width <= 1 && height <= 1;
+          
+          let pixelX, pixelY, pixelWidth, pixelHeight;
+          
+          if (isNormalized) {
+            // Convertir coordenadas normalizadas a píxeles según el viewport actual
+            pixelX = x * viewport.width;
+            pixelY = y * viewport.height;
+            pixelWidth = width * viewport.width;
+            pixelHeight = height * viewport.height;
+          } else {
+            // Coordenadas absolutas antiguas - escalar según el zoom
+            pixelX = x * scale;
+            pixelY = y * scale;
+            pixelWidth = width * scale;
+            pixelHeight = height * scale;
+          }
+          
+          // Solo relleno de color, sin borde (se ve mejor)
           ctx.fillStyle = marker.color || 'rgba(239, 68, 68, 0.4)';
-          ctx.strokeStyle = marker.color?.replace('0.4', '1') || '#ef4444';
-          ctx.lineWidth = 3;
 
           if (marker.forma === 'circulo') {
-            const centerX = x + width / 2;
-            const centerY = y + height / 2;
+            const centerX = pixelX + pixelWidth / 2;
+            const centerY = pixelY + pixelHeight / 2;
             ctx.beginPath();
-            ctx.ellipse(centerX, centerY, width / 2, height / 2, 0, 0, 2 * Math.PI);
+            ctx.ellipse(centerX, centerY, pixelWidth / 2, pixelHeight / 2, 0, 0, 2 * Math.PI);
             ctx.fill();
-            ctx.stroke();
+            // Solo dibujar borde si no está desactivado
+            if (!marker.sinBorde) {
+              ctx.strokeStyle = marker.color?.replace('0.4', '0.8') || '#ef4444';
+              ctx.lineWidth = 2;
+              ctx.stroke();
+            }
           } else {
-            ctx.fillRect(x, y, width, height);
-            ctx.strokeRect(x, y, width, height);
+            ctx.fillRect(pixelX, pixelY, pixelWidth, pixelHeight);
+            // Solo dibujar borde si no está desactivado
+            if (!marker.sinBorde) {
+              ctx.strokeStyle = marker.color?.replace('0.4', '0.8') || '#ef4444';
+              ctx.lineWidth = 2;
+              ctx.strokeRect(pixelX, pixelY, pixelWidth, pixelHeight);
+            }
           }
-
-          // Animación de pulso
-          ctx.globalAlpha = 0.6;
-          ctx.lineWidth = 6;
-          ctx.stroke();
         }
       } else if (overlayRef.current) {
         const ctx = overlayRef.current.getContext('2d');
