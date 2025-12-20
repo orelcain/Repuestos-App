@@ -358,6 +358,7 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
                 <option value={10}>Top 10</option>
                 <option value={20}>Top 20</option>
                 <option value={50}>Top 50</option>
+                <option value={9999}>Todos</option>
               </select>
             </div>
           </div>

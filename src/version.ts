@@ -1,8 +1,21 @@
 // Versión de la aplicación
-export const APP_VERSION = '1.4.0';
+export const APP_VERSION = '1.4.1';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '1.4.1',
+    date: '2025-12-19',
+    changes: [
+      'Top "Todos" en estadísticas para ver lista completa',
+      'Buscador de texto en visor PDF principal',
+      'Buscar códigos Baader y texto dentro del manual',
+      'Navegación entre resultados con flechas',
+      'Lista de resultados con contexto del texto',
+      'Atajo Ctrl+F para abrir búsqueda',
+      'Cerrar búsqueda con Escape'
+    ]
+  },
   {
     version: '1.4.0',
     date: '2025-01-14',

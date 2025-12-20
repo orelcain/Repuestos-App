@@ -9,7 +9,10 @@ import {
   Maximize2,
   Minimize2,
   Camera,
-  Loader2
+  Loader2,
+  X,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 import { VinculoManual } from '../../types';
 
@@ -43,6 +46,13 @@ export function PDFViewer({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [captureMode, setCaptureMode] = useState(false);
+  
+  // Estados para búsqueda de texto en PDF
+  const [textSearchQuery, setTextSearchQuery] = useState('');
+  const [textSearchResults, setTextSearchResults] = useState<{pageNum: number; text: string}[]>([]);
+  const [currentResultIndex, setCurrentResultIndex] = useState(-1);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchPanel, setShowSearchPanel] = useState(false);
 
   // Cargar PDF
   useEffect(() => {
@@ -63,6 +73,22 @@ export function PDFViewer({
         setLoading(false);
       });
   }, [pdfUrl]);
+
+  // Atajo de teclado Ctrl+F para buscar
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        setShowSearchPanel(true);
+      }
+      if (e.key === 'Escape' && showSearchPanel) {
+        setShowSearchPanel(false);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showSearchPanel]);
 
   // Navegar a página específica
   useEffect(() => {
@@ -227,6 +253,69 @@ export function PDFViewer({
     }
   };
 
+  // Búsqueda de texto dentro del PDF (como Acrobat)
+  const searchTextInPDF = useCallback(async () => {
+    if (!pdf || !textSearchQuery.trim()) return;
+    
+    setIsSearching(true);
+    setTextSearchResults([]);
+    setCurrentResultIndex(-1);
+    
+    const results: {pageNum: number; text: string}[] = [];
+    const searchLower = textSearchQuery.toLowerCase();
+
+    try {
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items
+          .filter((item): item is { str: string } & typeof item => 'str' in item)
+          .map(item => item.str)
+          .join(' ');
+
+        if (pageText.toLowerCase().includes(searchLower)) {
+          // Extraer contexto alrededor del texto encontrado
+          const index = pageText.toLowerCase().indexOf(searchLower);
+          const start = Math.max(0, index - 40);
+          const end = Math.min(pageText.length, index + textSearchQuery.length + 40);
+          const contextText = (start > 0 ? '...' : '') + pageText.substring(start, end) + (end < pageText.length ? '...' : '');
+          
+          results.push({
+            pageNum,
+            text: contextText
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Error buscando en PDF:', err);
+    }
+
+    setTextSearchResults(results);
+    setCurrentResultIndex(results.length > 0 ? 0 : -1);
+    
+    // Navegar al primer resultado
+    if (results.length > 0) {
+      setCurrentPage(results[0].pageNum);
+    }
+    
+    setIsSearching(false);
+  }, [pdf, textSearchQuery]);
+
+  // Navegar entre resultados de búsqueda
+  const goToNextResult = () => {
+    if (textSearchResults.length === 0) return;
+    const nextIndex = (currentResultIndex + 1) % textSearchResults.length;
+    setCurrentResultIndex(nextIndex);
+    setCurrentPage(textSearchResults[nextIndex].pageNum);
+  };
+
+  const goToPrevResult = () => {
+    if (textSearchResults.length === 0) return;
+    const prevIndex = currentResultIndex <= 0 ? textSearchResults.length - 1 : currentResultIndex - 1;
+    setCurrentResultIndex(prevIndex);
+    setCurrentPage(textSearchResults[prevIndex].pageNum);
+  };
+
   // Capturar imagen de área actual
   const handleCapture = () => {
     if (!canvasRef.current || !onCapture) return;
@@ -347,6 +436,17 @@ export function PDFViewer({
 
           <div className="w-px h-6 bg-gray-700 mx-2" />
 
+          {/* Botón buscar texto en PDF */}
+          <button
+            onClick={() => setShowSearchPanel(!showSearchPanel)}
+            className={`p-2 rounded transition-colors ${
+              showSearchPanel ? 'bg-primary-600' : 'hover:bg-gray-700'
+            }`}
+            title="Buscar texto en PDF (Ctrl+F)"
+          >
+            <Search className="w-5 h-5" />
+          </button>
+
           {onCapture && (
             <button
               onClick={() => setCaptureMode(!captureMode)}
@@ -372,6 +472,108 @@ export function PDFViewer({
           </button>
         </div>
       </div>
+
+      {/* Panel de búsqueda de texto en PDF */}
+      {showSearchPanel && (
+        <div className="px-4 py-3 bg-gray-800 border-b border-gray-700">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="flex-1 flex items-center gap-2">
+              <input
+                type="text"
+                value={textSearchQuery}
+                onChange={(e) => setTextSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && searchTextInPDF()}
+                placeholder="Buscar texto en el PDF (ej: 1-0201-0261)"
+                className="flex-1 px-3 py-2 text-sm bg-gray-700 rounded border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                autoFocus
+              />
+              <button
+                onClick={searchTextInPDF}
+                disabled={isSearching || !textSearchQuery.trim()}
+                className="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isSearching ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Search className="w-4 h-4" />
+                )}
+                Buscar
+              </button>
+              <button
+                onClick={() => {
+                  setShowSearchPanel(false);
+                  setTextSearchQuery('');
+                  setTextSearchResults([]);
+                  setCurrentResultIndex(-1);
+                }}
+                className="p-2 text-gray-400 hover:text-white rounded hover:bg-gray-700"
+                title="Cerrar búsqueda"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+          
+          {/* Resultados de búsqueda */}
+          {textSearchResults.length > 0 && (
+            <div className="flex items-center justify-between bg-gray-700 rounded px-3 py-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-white">
+                  {currentResultIndex + 1} de {textSearchResults.length} resultados
+                </span>
+                <span className="text-xs text-gray-400">
+                  - Página {textSearchResults[currentResultIndex]?.pageNum}
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={goToPrevResult}
+                  className="p-1.5 rounded hover:bg-gray-600 text-white"
+                  title="Resultado anterior"
+                >
+                  <ChevronUp className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={goToNextResult}
+                  className="p-1.5 rounded hover:bg-gray-600 text-white"
+                  title="Siguiente resultado"
+                >
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+          
+          {textSearchResults.length === 0 && textSearchQuery && !isSearching && (
+            <div className="text-sm text-yellow-400 mt-1">
+              No se encontró "{textSearchQuery}" en el PDF
+            </div>
+          )}
+          
+          {/* Lista de resultados con contexto */}
+          {textSearchResults.length > 0 && (
+            <div className="mt-2 max-h-32 overflow-y-auto space-y-1">
+              {textSearchResults.map((result, index) => (
+                <button
+                  key={`${result.pageNum}-${index}`}
+                  onClick={() => {
+                    setCurrentResultIndex(index);
+                    setCurrentPage(result.pageNum);
+                  }}
+                  className={`w-full text-left px-3 py-2 rounded text-sm ${
+                    index === currentResultIndex 
+                      ? 'bg-primary-600 text-white' 
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                >
+                  <span className="font-medium">Pág. {result.pageNum}:</span>
+                  <span className="ml-2 text-xs opacity-80">{result.text}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Capture Mode Bar */}
       {captureMode && (
