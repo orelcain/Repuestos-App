@@ -648,8 +648,8 @@ export function PDFViewer({
       ref={containerRef}
       className="h-full flex flex-col bg-gray-800"
     >
-      {/* Toolbar */}
-      <div className="flex items-center justify-between px-4 py-2 bg-gray-900 text-white">
+      {/* Toolbar - Versión Desktop */}
+      <div className="hidden lg:flex items-center justify-between px-4 py-2 bg-gray-900 text-white">
         <div className="flex items-center gap-2">
           {/* Navegación */}
           <button
@@ -750,6 +750,73 @@ export function PDFViewer({
               <Maximize2 className="w-5 h-5" />
             )}
           </button>
+        </div>
+      </div>
+
+      {/* Toolbar - Versión Móvil/PWA */}
+      <div className="lg:hidden flex flex-col bg-gray-900 text-white">
+        {/* Primera fila: navegación y fullscreen */}
+        <div className="flex items-center justify-between px-2 py-2 border-b border-gray-700">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={goToPrevPage}
+              disabled={currentPage <= 1}
+              className="p-2 rounded hover:bg-gray-700 disabled:opacity-50"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            
+            <span className="text-sm font-medium px-2">
+              {currentPage} / {totalPages}
+            </span>
+            
+            <button
+              onClick={goToNextPage}
+              disabled={currentPage >= totalPages}
+              className="p-2 rounded hover:bg-gray-700 disabled:opacity-50"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="flex items-center gap-1">
+            {/* Zoom */}
+            <button
+              onClick={zoomOut}
+              className="p-2 rounded hover:bg-gray-700"
+            >
+              <ZoomOut className="w-5 h-5" />
+            </button>
+            
+            <span className="text-xs w-10 text-center">{Math.round(scale * 100)}%</span>
+            
+            <button
+              onClick={zoomIn}
+              className="p-2 rounded hover:bg-gray-700"
+            >
+              <ZoomIn className="w-5 h-5" />
+            </button>
+
+            {/* Separador */}
+            <div className="w-px h-6 bg-gray-700 mx-1" />
+
+            {/* Fullscreen - PROMINENTE */}
+            <button
+              onClick={toggleFullscreen}
+              className={`p-2.5 rounded-lg transition-colors ${
+                isFullscreen 
+                  ? 'bg-primary-600 text-white' 
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+              title={isFullscreen ? 'Salir' : 'Pantalla completa'}
+            >
+              {isFullscreen ? (
+                <Minimize2 className="w-5 h-5" />
+              ) : (
+                <Maximize2 className="w-5 h-5" />
+              )}
+            </button>
+          </div>
         </div>
       </div>
 

@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '1.5.2';
+export const APP_VERSION = '1.5.3';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '1.5.3',
+    date: '2025-12-20',
+    changes: [
+      'PWA: Toolbar móvil rediseñado y compacto',
+      'PWA: Botón fullscreen ahora visible y destacado (azul)',
+      'PWA: Zoom y navegación accesibles en una sola fila',
+      'Desktop: Toolbar completo mantenido'
+    ]
+  },
   {
     version: '1.5.2',
     date: '2025-12-20',
