@@ -22,8 +22,6 @@ export interface Repuesto {
 export const TAGS_PREDEFINIDOS = [
   'Overhaul temporada baja',
   'Urgentes este mes',
-  'Para marzo',
-  'Para abril',
   'Críticos',
   'En espera proveedor',
   'Pedido realizado',

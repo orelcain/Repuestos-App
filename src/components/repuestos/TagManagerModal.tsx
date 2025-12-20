@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Repuesto, TAGS_PREDEFINIDOS } from '../../types';
+import { Repuesto } from '../../types';
 import { X, Tag, Edit2, Trash2, Check, AlertTriangle } from 'lucide-react';
 
 interface TagManagerModalProps {
@@ -23,15 +23,13 @@ export function TagManagerModal({
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Obtener todos los tags personalizados (no predefinidos) con su conteo
-  const customTags = useMemo(() => {
+  // Obtener todos los tags en uso con su conteo
+  const allTags = useMemo(() => {
     const tagCounts = new Map<string, number>();
     
     repuestos.forEach(r => {
       r.tags?.forEach(tag => {
-        if (!TAGS_PREDEFINIDOS.includes(tag as any)) {
-          tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
-        }
+        tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
       });
     });
 
@@ -62,12 +60,7 @@ export function TagManagerModal({
       return;
     }
 
-    if (TAGS_PREDEFINIDOS.includes(newName as any)) {
-      setMessage({ type: 'error', text: 'No se puede usar un nombre de tag predefinido' });
-      return;
-    }
-
-    const existingTag = customTags.find(t => t.name.toLowerCase() === newName.toLowerCase() && t.name !== editingTag);
+    const existingTag = allTags.find(t => t.name.toLowerCase() === newName.toLowerCase() && t.name !== editingTag);
     if (existingTag) {
       setMessage({ type: 'error', text: 'Ya existe un tag con ese nombre' });
       return;
@@ -121,7 +114,7 @@ export function TagManagerModal({
         <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
             <Tag className="w-5 h-5 text-primary-600" />
-            Gestionar Tags Personalizados
+            Gestionar Tags
           </h3>
           <button 
             onClick={onClose}
@@ -140,15 +133,15 @@ export function TagManagerModal({
 
         {/* Contenido */}
         <div className="p-5 max-h-96 overflow-y-auto">
-          {customTags.length === 0 ? (
+          {allTags.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <Tag className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-              <p>No hay tags personalizados</p>
+              <p>No hay tags en uso</p>
               <p className="text-sm">Los tags se crean al asignarlos a los repuestos</p>
             </div>
           ) : (
             <div className="space-y-2">
-              {customTags.map(({ name, count }) => (
+              {allTags.map(({ name, count }) => (
                 <div
                   key={name}
                   className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
@@ -243,7 +236,7 @@ export function TagManagerModal({
         {/* Footer */}
         <div className="px-5 py-4 border-t border-gray-200 bg-gray-50">
           <p className="text-xs text-gray-500">
-            Solo se muestran tags personalizados. Los tags predefinidos no se pueden editar ni eliminar.
+            Puedes editar o eliminar cualquier tag. Al eliminar un tag, se quitará de todos los repuestos que lo tengan.
           </p>
         </div>
       </div>
