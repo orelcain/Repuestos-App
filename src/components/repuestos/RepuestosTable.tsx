@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Repuesto } from '../../types';
+import { Repuesto, TAGS_PREDEFINIDOS, HistorialCambio } from '../../types';
 import { 
   Search, 
   Plus, 
@@ -8,13 +8,15 @@ import {
   History, 
   Edit2, 
   Trash2,
-  AlertCircle,
   Package,
   Copy,
   Check,
   ChevronLeft,
   ChevronRight,
-  MapPin
+  MapPin,
+  Tag,
+  X,
+  Filter
 } from 'lucide-react';
 
 interface RepuestosTableProps {
@@ -24,15 +26,78 @@ interface RepuestosTableProps {
   onEdit: (repuesto: Repuesto) => void;
   onDelete: (repuesto: Repuesto) => void;
   onViewManual: (repuesto: Repuesto) => void;
-  onViewImages: (repuesto: Repuesto) => void;
   onViewPhotos: (repuesto: Repuesto) => void;
   onViewHistory: (repuesto: Repuesto) => void;
   onAddNew: () => void;
-  onAddManualImage: (repuesto: Repuesto) => void;
   onMarkInManual?: (repuesto: Repuesto) => void;
+  getHistorial?: (repuestoId: string) => Promise<HistorialCambio[]>;
 }
 
 const ITEMS_PER_PAGE = 15;
+
+// Modal para ver historial de cambios de un campo específico
+function HistorialCampoModal({ 
+  isOpen, 
+  onClose, 
+  campo, 
+  historial 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  campo: string; 
+  historial: HistorialCambio[];
+}) {
+  if (!isOpen) return null;
+
+  const historialFiltrado = historial.filter(h => h.campo === campo);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 max-h-[80vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-800">
+            Historial de {campo === 'cantidadSolicitada' ? 'Cantidad Solicitada' : 'Stock Bodega'}
+          </h3>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="p-5 max-h-96 overflow-y-auto">
+          {historialFiltrado.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">Sin cambios registrados</p>
+          ) : (
+            <div className="space-y-3">
+              {historialFiltrado.map((h, i) => (
+                <div key={i} className="p-4 bg-gray-50 rounded-lg border border-gray-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-600">
+                      {new Date(h.fecha).toLocaleDateString('es-CL', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric'
+                      })}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      {new Date(h.fecha).toLocaleTimeString('es-CL', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-base">
+                    <span className="text-red-500 line-through">{h.valorAnterior ?? 0}</span>
+                    <span className="text-gray-400">→</span>
+                    <span className="text-green-600 font-semibold">{h.valorNuevo ?? 0}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function RepuestosTable({
   repuestos,
@@ -44,37 +109,54 @@ export function RepuestosTable({
   onViewPhotos,
   onViewHistory,
   onAddNew,
-  onMarkInManual
+  onMarkInManual,
+  getHistorial
 }: RepuestosTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [showTagFilter, setShowTagFilter] = useState(false);
+  
+  // Estado para historial de campo
+  const [historialModal, setHistorialModal] = useState<{
+    isOpen: boolean;
+    campo: string;
+    historial: HistorialCambio[];
+  }>({ isOpen: false, campo: '', historial: [] });
 
-  // Filtrar repuestos según término de búsqueda
+  // Filtrar repuestos
   const filteredRepuestos = useMemo(() => {
-    if (!searchTerm.trim()) return repuestos;
+    let result = repuestos;
     
-    const term = searchTerm.toLowerCase();
-    return repuestos.filter(r => 
-      r.codigoSAP?.toLowerCase().includes(term) ||
-      r.textoBreve?.toLowerCase().includes(term) ||
-      r.descripcion?.toLowerCase().includes(term) ||
-      r.codigoBaader?.toLowerCase().includes(term)
-    );
-  }, [repuestos, searchTerm]);
+    // Filtrar por búsqueda
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(r => 
+        r.codigoSAP?.toLowerCase().includes(term) ||
+        r.textoBreve?.toLowerCase().includes(term) ||
+        r.descripcion?.toLowerCase().includes(term) ||
+        r.codigoBaader?.toLowerCase().includes(term)
+      );
+    }
+    
+    // Filtrar por tag
+    if (selectedTag) {
+      result = result.filter(r => r.tags?.includes(selectedTag));
+    }
+    
+    return result;
+  }, [repuestos, searchTerm, selectedTag]);
 
   // Paginación
   const totalPages = Math.ceil(filteredRepuestos.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedRepuestos = filteredRepuestos.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-  // Reset página al buscar
+  // Reset página al buscar o filtrar
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
-
-  // Contar repuestos sin marcador en manual
-  const sinMarcadorCount = repuestos.filter(r => !r.vinculosManual || r.vinculosManual.length === 0).length;
+  }, [searchTerm, selectedTag]);
 
   // Función copiar al portapapeles
   const handleCopy = async (text: string, id: string) => {
@@ -87,43 +169,140 @@ export function RepuestosTable({
     }
   };
 
+  // Ver historial de un campo
+  const handleViewFieldHistory = async (repuesto: Repuesto, campo: string) => {
+    if (!getHistorial) return;
+    
+    try {
+      const historial = await getHistorial(repuesto.id);
+      setHistorialModal({
+        isOpen: true,
+        campo,
+        historial
+      });
+    } catch (err) {
+      console.error('Error al cargar historial:', err);
+    }
+  };
+
+  // Contar repuestos sin marcador
+  const sinMarcadorCount = repuestos.filter(r => !r.vinculosManual || r.vinculosManual.length === 0).length;
+
+  // Tags únicos en los repuestos
+  const tagsEnUso = useMemo(() => {
+    const tags = new Set<string>();
+    repuestos.forEach(r => r.tags?.forEach(t => tags.add(t)));
+    return Array.from(tags);
+  }, [repuestos]);
+
   return (
     <div className="flex flex-col h-full bg-white">
       {/* Header con búsqueda */}
       <div className="p-4 border-b border-gray-200 space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
             <Package className="w-6 h-6 text-primary-600" />
             Repuestos
             <span className="text-base font-normal text-gray-500">
               ({filteredRepuestos.length} de {repuestos.length})
             </span>
           </h2>
-          <button
-            onClick={onAddNew}
-            className="flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white text-base rounded-lg hover:bg-primary-700 transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-            <span className="hidden sm:inline">Agregar</span>
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Filtro por tag */}
+            <div className="relative">
+              <button
+                onClick={() => setShowTagFilter(!showTagFilter)}
+                className={`flex items-center gap-2 px-3 py-2.5 border rounded-lg transition-colors ${
+                  selectedTag 
+                    ? 'border-primary-500 bg-primary-50 text-primary-700' 
+                    : 'border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                <Filter className="w-4 h-4" />
+                <span className="hidden sm:inline text-sm">
+                  {selectedTag || 'Filtrar'}
+                </span>
+              </button>
+              
+              {showTagFilter && (
+                <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-20">
+                  <div className="p-2 border-b border-gray-100">
+                    <button
+                      onClick={() => {
+                        setSelectedTag(null);
+                        setShowTagFilter(false);
+                      }}
+                      className="w-full px-3 py-2 text-left text-sm text-gray-600 hover:bg-gray-50 rounded"
+                    >
+                      Todos los repuestos
+                    </button>
+                  </div>
+                  <div className="p-2 max-h-60 overflow-y-auto">
+                    {[...TAGS_PREDEFINIDOS, ...tagsEnUso.filter(t => !TAGS_PREDEFINIDOS.includes(t as any))].map(tag => (
+                      <button
+                        key={tag}
+                        onClick={() => {
+                          setSelectedTag(tag);
+                          setShowTagFilter(false);
+                        }}
+                        className={`w-full px-3 py-2 text-left text-sm rounded flex items-center gap-2 ${
+                          selectedTag === tag 
+                            ? 'bg-primary-100 text-primary-700' 
+                            : 'hover:bg-gray-50'
+                        }`}
+                      >
+                        <Tag className="w-3 h-3" />
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <button
+              onClick={onAddNew}
+              className="flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white text-base font-medium rounded-lg hover:bg-primary-700 transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+              <span className="hidden sm:inline">Agregar</span>
+            </button>
+          </div>
         </div>
 
         {/* Barra de búsqueda */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Buscar por código SAP, Baader o descripción..."
-            className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
           />
         </div>
 
+        {/* Tag activo */}
+        {selectedTag && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">Filtrado por:</span>
+            <span className="inline-flex items-center gap-1 px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium">
+              <Tag className="w-3 h-3" />
+              {selectedTag}
+              <button
+                onClick={() => setSelectedTag(null)}
+                className="ml-1 hover:text-primary-900"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </span>
+          </div>
+        )}
+
         {/* Indicador de repuestos sin marcador */}
-        {sinMarcadorCount > 0 && (
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-base text-amber-700">
-            <AlertCircle className="w-5 h-5" />
+        {sinMarcadorCount > 0 && !selectedTag && (
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
+            <MapPin className="w-5 h-5" />
             <span>{sinMarcadorCount} repuestos sin ubicación en el manual</span>
           </div>
         )}
@@ -134,14 +313,14 @@ export function RepuestosTable({
         <table className="w-full">
           <thead className="bg-gray-50 sticky top-0">
             <tr>
-              <th className="px-4 py-3.5 text-left font-semibold text-gray-700 text-sm">Código SAP</th>
-              <th className="px-4 py-3.5 text-left font-semibold text-gray-700 text-sm hidden md:table-cell">Código Baader</th>
-              <th className="px-4 py-3.5 text-left font-semibold text-gray-700 text-sm">Descripción</th>
-              <th className="px-4 py-3.5 text-center font-semibold text-gray-700 text-sm hidden lg:table-cell">Cant.</th>
-              <th className="px-4 py-3.5 text-center font-semibold text-gray-700 text-sm hidden lg:table-cell">Stock</th>
-              <th className="px-4 py-3.5 text-right font-semibold text-gray-700 text-sm hidden xl:table-cell">Valor Unit.</th>
-              <th className="px-4 py-3.5 text-right font-semibold text-gray-700 text-sm hidden xl:table-cell">Total USD</th>
-              <th className="px-4 py-3.5 text-center font-semibold text-gray-700 text-sm">Acciones</th>
+              <th className="px-4 py-4 text-left font-semibold text-gray-600 text-sm uppercase tracking-wide">Código SAP</th>
+              <th className="px-4 py-4 text-left font-semibold text-gray-600 text-sm uppercase tracking-wide hidden md:table-cell">Código Baader</th>
+              <th className="px-4 py-4 text-left font-semibold text-gray-600 text-sm uppercase tracking-wide">Descripción</th>
+              <th className="px-4 py-4 text-center font-semibold text-gray-600 text-sm uppercase tracking-wide hidden lg:table-cell">Cant. Solicitada</th>
+              <th className="px-4 py-4 text-center font-semibold text-gray-600 text-sm uppercase tracking-wide hidden lg:table-cell">Stock Bodega</th>
+              <th className="px-4 py-4 text-right font-semibold text-gray-600 text-sm uppercase tracking-wide hidden xl:table-cell">Valor Unit.</th>
+              <th className="px-4 py-4 text-right font-semibold text-gray-600 text-sm uppercase tracking-wide hidden xl:table-cell">Total USD</th>
+              <th className="px-4 py-4 text-center font-semibold text-gray-600 text-sm uppercase tracking-wide">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -161,9 +340,9 @@ export function RepuestosTable({
                   `}
                 >
                   {/* Código SAP con botón copiar */}
-                  <td className="px-4 py-3.5">
+                  <td className="px-4 py-4">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm bg-gray-100 px-2.5 py-1.5 rounded font-medium">
+                      <span className="font-mono text-sm bg-gray-100 px-3 py-1.5 rounded-lg font-semibold text-gray-800">
                         {repuesto.codigoSAP}
                       </span>
                       <button
@@ -171,7 +350,7 @@ export function RepuestosTable({
                           e.stopPropagation();
                           handleCopy(repuesto.codigoSAP, `sap-${repuesto.id}`);
                         }}
-                        className="p-1.5 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
+                        className="p-1.5 rounded-lg hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
                         title="Copiar código SAP"
                       >
                         {copiedId === `sap-${repuesto.id}` ? (
@@ -184,9 +363,9 @@ export function RepuestosTable({
                   </td>
 
                   {/* Código Baader con botón copiar */}
-                  <td className="px-4 py-3.5 hidden md:table-cell">
+                  <td className="px-4 py-4 hidden md:table-cell">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm text-primary-700 font-medium">
+                      <span className="font-mono text-sm text-primary-700 font-semibold">
                         {repuesto.codigoBaader}
                       </span>
                       <button
@@ -194,7 +373,7 @@ export function RepuestosTable({
                           e.stopPropagation();
                           handleCopy(repuesto.codigoBaader, `baader-${repuesto.id}`);
                         }}
-                        className="p-1.5 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
+                        className="p-1.5 rounded-lg hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
                         title="Copiar código Baader"
                       >
                         {copiedId === `baader-${repuesto.id}` ? (
@@ -206,80 +385,103 @@ export function RepuestosTable({
                     </div>
                   </td>
 
-                  {/* Descripción con botón copiar */}
-                  <td className="px-4 py-3.5">
-                    <div className="flex items-center gap-2">
-                      <div className="flex flex-col">
-                        <span className="text-base text-gray-800 font-medium truncate max-w-[250px]" title={repuesto.descripcion || repuesto.textoBreve}>
+                  {/* Descripción con botón copiar y tags */}
+                  <td className="px-4 py-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base text-gray-800 font-medium truncate max-w-[200px] lg:max-w-[300px]" title={repuesto.descripcion || repuesto.textoBreve}>
                           {repuesto.descripcion || repuesto.textoBreve}
                         </span>
-                        {repuesto.descripcion && repuesto.textoBreve && repuesto.descripcion !== repuesto.textoBreve && (
-                          <span className="text-sm text-gray-500 truncate max-w-[250px]">{repuesto.textoBreve}</span>
-                        )}
-                      </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCopy(repuesto.descripcion || repuesto.textoBreve, `desc-${repuesto.id}`);
-                        }}
-                        className="flex-shrink-0 p-1.5 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
-                        title="Copiar descripción"
-                      >
-                        {copiedId === `desc-${repuesto.id}` ? (
-                          <Check className="w-4 h-4 text-green-500" />
-                        ) : (
-                          <Copy className="w-4 h-4" />
-                        )}
-                      </button>
-                      {!hasManualMarker && onMarkInManual && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            onMarkInManual(repuesto);
+                            handleCopy(repuesto.descripcion || repuesto.textoBreve, `desc-${repuesto.id}`);
                           }}
-                          className="flex-shrink-0 p-1.5 rounded bg-amber-100 text-amber-600 hover:bg-amber-200 transition-colors"
-                          title="Marcar ubicación en manual"
+                          className="flex-shrink-0 p-1.5 rounded-lg hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
+                          title="Copiar descripción"
                         >
-                          <MapPin className="w-4 h-4" />
+                          {copiedId === `desc-${repuesto.id}` ? (
+                            <Check className="w-4 h-4 text-green-500" />
+                          ) : (
+                            <Copy className="w-4 h-4" />
+                          )}
                         </button>
+                        {!hasManualMarker && onMarkInManual && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onMarkInManual(repuesto);
+                            }}
+                            className="flex-shrink-0 p-1.5 rounded-lg bg-amber-100 text-amber-600 hover:bg-amber-200 transition-colors"
+                            title="Marcar ubicación en manual"
+                          >
+                            <MapPin className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                      {/* Tags del repuesto */}
+                      {repuesto.tags && repuesto.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {repuesto.tags.map(tag => (
+                            <span key={tag} className="inline-flex items-center px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs font-medium">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
                       )}
                     </div>
                   </td>
 
-                  {/* Cantidad */}
-                  <td className="px-4 py-3.5 text-center hidden lg:table-cell">
-                    <span className="text-base font-medium">{repuesto.cantidadSolicitada}</span>
+                  {/* Cantidad Solicitada - clickeable para ver historial */}
+                  <td className="px-4 py-4 text-center hidden lg:table-cell">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleViewFieldHistory(repuesto, 'cantidadSolicitada');
+                      }}
+                      className="text-base font-semibold px-3 py-1.5 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                      title="Ver historial de cambios"
+                    >
+                      {repuesto.cantidadSolicitada}
+                    </button>
                   </td>
 
-                  {/* Stock */}
-                  <td className="px-4 py-3.5 text-center hidden lg:table-cell">
-                    <span className={`
-                      px-3 py-1.5 rounded text-sm font-semibold
-                      ${repuesto.cantidadStockBodega > 0 
-                        ? 'bg-green-100 text-green-700' 
-                        : 'bg-gray-100 text-gray-500'
-                      }
-                    `}>
+                  {/* Stock Bodega - clickeable para ver historial */}
+                  <td className="px-4 py-4 text-center hidden lg:table-cell">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleViewFieldHistory(repuesto, 'cantidadStockBodega');
+                      }}
+                      className={`
+                        px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors
+                        ${repuesto.cantidadStockBodega > 0 
+                          ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                          : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                        }
+                      `}
+                      title="Ver historial de cambios"
+                    >
                       {repuesto.cantidadStockBodega}
-                    </span>
+                    </button>
                   </td>
 
                   {/* Valor unitario */}
-                  <td className="px-4 py-3.5 text-right hidden xl:table-cell">
-                    <span className="text-base text-gray-600">
+                  <td className="px-4 py-4 text-right hidden xl:table-cell">
+                    <span className="text-base text-gray-600 font-medium">
                       ${repuesto.valorUnitario?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
                     </span>
                   </td>
 
                   {/* Total */}
-                  <td className="px-4 py-3.5 text-right hidden xl:table-cell">
-                    <span className="text-base font-semibold text-gray-800">
+                  <td className="px-4 py-4 text-right hidden xl:table-cell">
+                    <span className="text-base font-bold text-gray-800">
                       ${repuesto.total?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
                     </span>
                   </td>
 
                   {/* Acciones */}
-                  <td className="px-4 py-3.5">
+                  <td className="px-4 py-4">
                     <div className="flex items-center justify-center gap-1">
                       {/* Ver en manual */}
                       <button
@@ -287,12 +489,12 @@ export function RepuestosTable({
                           e.stopPropagation();
                           onViewManual(repuesto);
                         }}
-                        className={`p-2 rounded transition-colors ${
+                        className={`p-2 rounded-lg transition-colors ${
                           hasManualMarker
-                            ? 'hover:bg-primary-100 text-primary-600 hover:text-primary-700'
-                            : 'hover:bg-gray-100 text-gray-400 hover:text-gray-600'
+                            ? 'hover:bg-primary-100 text-primary-600'
+                            : 'hover:bg-gray-100 text-gray-400'
                         }`}
-                        title={hasManualMarker ? 'Ver en manual (tiene marcador)' : 'Ir al manual'}
+                        title={hasManualMarker ? 'Ver en manual' : 'Ir al manual'}
                       >
                         <FileText className="w-5 h-5" />
                       </button>
@@ -303,12 +505,12 @@ export function RepuestosTable({
                           e.stopPropagation();
                           onViewPhotos(repuesto);
                         }}
-                        className={`p-2 rounded transition-colors ${
+                        className={`p-2 rounded-lg transition-colors ${
                           repuesto.fotosReales?.length > 0
-                            ? 'hover:bg-gray-100 text-gray-600 hover:text-primary-600'
-                            : 'hover:bg-gray-100 text-gray-300 hover:text-gray-500'
+                            ? 'hover:bg-gray-100 text-gray-600'
+                            : 'hover:bg-gray-100 text-gray-300'
                         }`}
-                        title={repuesto.fotosReales?.length > 0 ? 'Ver fotos reales' : 'Agregar foto real'}
+                        title="Fotos reales"
                       >
                         <Camera className="w-5 h-5" />
                       </button>
@@ -319,8 +521,8 @@ export function RepuestosTable({
                           e.stopPropagation();
                           onViewHistory(repuesto);
                         }}
-                        className="p-2 rounded hover:bg-gray-100 text-gray-500 hover:text-primary-600 transition-colors"
-                        title="Ver historial"
+                        className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+                        title="Ver historial completo"
                       >
                         <History className="w-5 h-5" />
                       </button>
@@ -331,7 +533,7 @@ export function RepuestosTable({
                           e.stopPropagation();
                           onEdit(repuesto);
                         }}
-                        className="p-2 rounded hover:bg-gray-100 text-gray-500 hover:text-blue-600 transition-colors"
+                        className="p-2 rounded-lg hover:bg-blue-50 text-gray-500 hover:text-blue-600 transition-colors"
                         title="Editar"
                       >
                         <Edit2 className="w-5 h-5" />
@@ -343,7 +545,7 @@ export function RepuestosTable({
                           e.stopPropagation();
                           onDelete(repuesto);
                         }}
-                        className="p-2 rounded hover:bg-gray-100 text-gray-500 hover:text-red-600 transition-colors"
+                        className="p-2 rounded-lg hover:bg-red-50 text-gray-500 hover:text-red-600 transition-colors"
                         title="Eliminar"
                       >
                         <Trash2 className="w-5 h-5" />
@@ -357,13 +559,13 @@ export function RepuestosTable({
         </table>
 
         {filteredRepuestos.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 text-gray-500">
-            <Package className="w-16 h-16 mb-4 opacity-50" />
-            <p className="text-lg">No se encontraron repuestos</p>
+          <div className="flex flex-col items-center justify-center py-20 text-gray-500">
+            <Package className="w-16 h-16 mb-4 opacity-40" />
+            <p className="text-lg font-medium">No se encontraron repuestos</p>
             {searchTerm && (
               <button
                 onClick={() => setSearchTerm('')}
-                className="mt-3 text-base text-primary-600 hover:underline"
+                className="mt-3 text-primary-600 hover:underline font-medium"
               >
                 Limpiar búsqueda
               </button>
@@ -375,7 +577,7 @@ export function RepuestosTable({
       {/* Paginación */}
       {totalPages > 1 && (
         <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between bg-gray-50">
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 font-medium">
             Mostrando {startIndex + 1}-{Math.min(startIndex + ITEMS_PER_PAGE, filteredRepuestos.length)} de {filteredRepuestos.length}
           </div>
           <div className="flex items-center gap-2">
@@ -404,7 +606,7 @@ export function RepuestosTable({
                   <button
                     key={pageNum}
                     onClick={() => setCurrentPage(pageNum)}
-                    className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${
+                    className={`w-10 h-10 rounded-lg text-sm font-semibold transition-colors ${
                       currentPage === pageNum
                         ? 'bg-primary-600 text-white'
                         : 'hover:bg-white border border-gray-300'
@@ -426,6 +628,14 @@ export function RepuestosTable({
           </div>
         </div>
       )}
+
+      {/* Modal de historial de campo */}
+      <HistorialCampoModal
+        isOpen={historialModal.isOpen}
+        onClose={() => setHistorialModal({ ...historialModal, isOpen: false })}
+        campo={historialModal.campo}
+        historial={historialModal.historial}
+      />
     </div>
   );
 }

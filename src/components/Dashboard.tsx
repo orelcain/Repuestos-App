@@ -489,12 +489,11 @@ export function Dashboard() {
             onEdit={handleEdit}
             onDelete={handleDelete}
             onViewManual={handleViewManual}
-            onViewImages={handleViewImages}
             onViewPhotos={handleViewPhotos}
             onViewHistory={handleViewHistory}
             onAddNew={handleAddNew}
-            onAddManualImage={handleAddManualImage}
             onMarkInManual={handleMarkInManual}
+            getHistorial={getHistorial}
           />
         </div>
 
@@ -581,6 +580,11 @@ export function Dashboard() {
                   onCancel={() => {
                     setRightPanelMode('pdf');
                     setMarkerRepuesto(null);
+                  }}
+                  repuestos={repuestos}
+                  onSelectRepuesto={(r) => {
+                    setMarkerRepuesto(r);
+                    setSelectedRepuesto(r);
                   }}
                 />
               ) : (

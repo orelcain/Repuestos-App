@@ -10,12 +10,25 @@ export interface Repuesto {
   total: number;
   cantidadStockBodega: number;
   fechaUltimaActualizacionInventario: Date | null;
+  tags: string[];
   vinculosManual: VinculoManual[];
   imagenesManual: ImagenRepuesto[];
   fotosReales: ImagenRepuesto[];
   createdAt: Date;
   updatedAt: Date;
 }
+
+// Tags predefinidos para filtrar repuestos
+export const TAGS_PREDEFINIDOS = [
+  'Overhaul temporada baja',
+  'Urgentes este mes',
+  'Para marzo',
+  'Para abril',
+  'Críticos',
+  'En espera proveedor',
+  'Pedido realizado',
+  'Stock mínimo'
+] as const;
 
 // Vínculo a página/área del manual PDF con marcador visual
 export interface VinculoManual {
