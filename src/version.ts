@@ -1,8 +1,17 @@
 // Versión de la aplicación
-export const APP_VERSION = '1.5.3';
+export const APP_VERSION = '1.5.4';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '1.5.4',
+    date: '2025-12-20',
+    changes: [
+      'PWA: Fullscreen CSS para compatibilidad con iOS Safari',
+      'PWA: Agregado botón de búsqueda en toolbar móvil',
+      'PWA: El botón fullscreen ahora funciona en todos los dispositivos'
+    ]
+  },
   {
     version: '1.5.3',
     date: '2025-12-20',

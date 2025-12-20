@@ -567,46 +567,54 @@ export function PDFViewer({
     setCaptureMode(false);
   };
 
-  // Fullscreen - mejorado para móvil
+  // Fullscreen - usando CSS para compatibilidad con iOS
   const toggleFullscreen = () => {
-    if (!containerRef.current) return;
-    
-    if (!document.fullscreenElement) {
-      // Intentar diferentes APIs de fullscreen para compatibilidad
-      const elem = containerRef.current as HTMLElement & {
-        webkitRequestFullscreen?: () => Promise<void>;
-        msRequestFullscreen?: () => void;
-      };
-      
-      if (elem.requestFullscreen) {
-        elem.requestFullscreen();
-      } else if (elem.webkitRequestFullscreen) {
-        elem.webkitRequestFullscreen();
-      } else if (elem.msRequestFullscreen) {
-        elem.msRequestFullscreen();
-      }
-      setIsFullscreen(true);
+    // En móvil usamos fullscreen CSS, en desktop intentamos la API nativa
+    if (isMobile) {
+      // En móvil, simplemente toggle el estado para usar CSS fullscreen
+      setIsFullscreen(prev => !prev);
     } else {
-      const doc = document as Document & {
-        webkitExitFullscreen?: () => Promise<void>;
-        msExitFullscreen?: () => void;
-      };
+      // En desktop, usar la API nativa
+      if (!containerRef.current) return;
       
-      if (doc.exitFullscreen) {
-        doc.exitFullscreen();
-      } else if (doc.webkitExitFullscreen) {
-        doc.webkitExitFullscreen();
-      } else if (doc.msExitFullscreen) {
-        doc.msExitFullscreen();
+      if (!document.fullscreenElement) {
+        const elem = containerRef.current as HTMLElement & {
+          webkitRequestFullscreen?: () => Promise<void>;
+          msRequestFullscreen?: () => void;
+        };
+        
+        if (elem.requestFullscreen) {
+          elem.requestFullscreen();
+        } else if (elem.webkitRequestFullscreen) {
+          elem.webkitRequestFullscreen();
+        } else if (elem.msRequestFullscreen) {
+          elem.msRequestFullscreen();
+        }
+        setIsFullscreen(true);
+      } else {
+        const doc = document as Document & {
+          webkitExitFullscreen?: () => Promise<void>;
+          msExitFullscreen?: () => void;
+        };
+        
+        if (doc.exitFullscreen) {
+          doc.exitFullscreen();
+        } else if (doc.webkitExitFullscreen) {
+          doc.webkitExitFullscreen();
+        } else if (doc.msExitFullscreen) {
+          doc.msExitFullscreen();
+        }
+        setIsFullscreen(false);
       }
-      setIsFullscreen(false);
     }
   };
   
-  // Escuchar cambios de fullscreen
+  // Escuchar cambios de fullscreen (solo para desktop)
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      if (!isMobile) {
+        setIsFullscreen(!!document.fullscreenElement);
+      }
     };
     
     document.addEventListener('fullscreenchange', handleFullscreenChange);
@@ -616,7 +624,7 @@ export function PDFViewer({
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
     };
-  }, []);
+  }, [isMobile]);
 
   if (!pdfUrl) {
     return (
@@ -646,7 +654,11 @@ export function PDFViewer({
   return (
     <div 
       ref={containerRef}
-      className="h-full flex flex-col bg-gray-800"
+      className={`h-full flex flex-col bg-gray-800 ${
+        isFullscreen && isMobile 
+          ? 'fixed inset-0 z-[9999] w-screen h-screen' 
+          : ''
+      }`}
     >
       {/* Toolbar - Versión Desktop */}
       <div className="hidden lg:flex items-center justify-between px-4 py-2 bg-gray-900 text-white">
@@ -799,6 +811,17 @@ export function PDFViewer({
 
             {/* Separador */}
             <div className="w-px h-6 bg-gray-700 mx-1" />
+
+            {/* Búsqueda */}
+            <button
+              onClick={() => setShowSearchPanel(!showSearchPanel)}
+              className={`p-2 rounded transition-colors ${
+                showSearchPanel ? 'bg-primary-600 text-white' : 'hover:bg-gray-700'
+              }`}
+              title="Buscar en PDF"
+            >
+              <Search className="w-5 h-5" />
+            </button>
 
             {/* Fullscreen - PROMINENTE */}
             <button
