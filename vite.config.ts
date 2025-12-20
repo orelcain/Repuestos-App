@@ -16,7 +16,8 @@ export default defineConfig({
         background_color: '#f8fafc',
         display: 'standalone',
         orientation: 'any',
-        start_url: '/',
+        start_url: '/Baader-200-Repuestos-app/',
+        scope: '/Baader-200-Repuestos-app/',
         icons: [
           {
             src: 'pwa-192x192.png',
