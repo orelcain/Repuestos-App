@@ -37,7 +37,10 @@ import {
   Upload,
   BarChart3,
   Package,
-  Loader2
+  Loader2,
+  Database,
+  HardDriveDownload,
+  HardDriveUpload
 } from 'lucide-react';
 
 // Componente de loading para los PDF viewers
@@ -113,6 +116,10 @@ export function Dashboard() {
   const [excelIncluirSinStock, setExcelIncluirSinStock] = useState(true);
   const [excelIncluirPorTags, setExcelIncluirPorTags] = useState(true);
   const [excelIncluirEstilos, setExcelIncluirEstilos] = useState(true);
+  
+  // Modal de backup
+  const [showBackupModal, setShowBackupModal] = useState(false);
+  const [backupLoading, setBackupLoading] = useState(false);
 
   // Cargar URL del manual
   useEffect(() => {
@@ -417,6 +424,82 @@ export function Dashboard() {
     }
   };
 
+  // Backup: Exportar todos los datos a JSON
+  const handleBackupExport = () => {
+    setBackupLoading(true);
+    try {
+      const backupData = {
+        version: APP_VERSION,
+        fecha: new Date().toISOString(),
+        totalRepuestos: repuestos.length,
+        repuestos: repuestos.map(r => ({
+          ...r,
+          // Excluir campos internos de Firebase
+          id: r.id
+        }))
+      };
+      
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `baader200_backup_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      success(`Backup exportado: ${repuestos.length} repuestos`);
+      setShowBackupModal(false);
+    } catch (err) {
+      error('Error al crear backup');
+    } finally {
+      setBackupLoading(false);
+    }
+  };
+
+  // Restore: Importar datos desde JSON
+  const handleBackupImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setBackupLoading(true);
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      
+      if (!data.repuestos || !Array.isArray(data.repuestos)) {
+        throw new Error('Formato de backup inválido');
+      }
+      
+      // Convertir a RepuestoFormData (sin id para crear nuevos)
+      const repuestosToImport: RepuestoFormData[] = data.repuestos.map((r: Repuesto) => ({
+        codigoSAP: r.codigoSAP || '',
+        codigoBaader: r.codigoBaader || '',
+        textoBreve: r.textoBreve || '',
+        descripcion: r.descripcion || '',
+        nombreManual: r.nombreManual || '',
+        cantidadSolicitada: r.cantidadSolicitada || 0,
+        cantidadStockBodega: r.cantidadStockBodega || 0,
+        valorUnitario: r.valorUnitario || 0,
+        tags: r.tags || [],
+        vinculosManual: r.vinculosManual || [],
+        imagenesManual: r.imagenesManual || [],
+        fotosReales: r.fotosReales || []
+      }));
+      
+      await importRepuestos(repuestosToImport);
+      success(`Backup restaurado: ${repuestosToImport.length} repuestos importados`);
+      setShowBackupModal(false);
+    } catch (err) {
+      error('Error al restaurar backup: archivo inválido');
+    } finally {
+      setBackupLoading(false);
+      // Limpiar input
+      e.target.value = '';
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -478,6 +561,16 @@ export function Dashboard() {
               icon={<Download className="w-4 h-4" />}
             >
               PDF
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowBackupModal(true)}
+              icon={<Database className="w-4 h-4" />}
+              title="Backup/Restore datos"
+            >
+              Backup
             </Button>
 
             {repuestos.length === 0 && (
@@ -556,6 +649,16 @@ export function Dashboard() {
               >
                 <Download className="w-5 h-5 text-gray-500" />
                 <span>Exportar PDF</span>
+              </button>
+              <button
+                onClick={() => {
+                  setShowBackupModal(true);
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100"
+              >
+                <Database className="w-5 h-5 text-gray-500" />
+                <span>Backup/Restore</span>
               </button>
               <hr className="my-4" />
               <div className="px-4 py-2 text-sm text-gray-500">{user?.email}</div>
@@ -975,6 +1078,87 @@ export function Dashboard() {
                 <Download className="w-4 h-4" />
                 Exportar Excel
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Backup/Restore */}
+      {showBackupModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowBackupModal(false)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                <Database className="w-5 h-5 text-primary-600" />
+                Backup / Restore
+              </h3>
+              <button onClick={() => setShowBackupModal(false)} className="p-2 rounded-lg hover:bg-gray-100">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-5 space-y-4">
+              {/* Exportar Backup */}
+              <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
+                <div className="flex items-start gap-3">
+                  <HardDriveDownload className="w-8 h-8 text-blue-600 flex-shrink-0" />
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-blue-800">Exportar Backup</h4>
+                    <p className="text-sm text-blue-600 mt-1">
+                      Descarga todos los datos en formato JSON ({repuestos.length} repuestos)
+                    </p>
+                    <button
+                      onClick={handleBackupExport}
+                      disabled={backupLoading}
+                      className="mt-3 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+                    >
+                      {backupLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Download className="w-4 h-4" />
+                      )}
+                      Descargar Backup
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Importar Backup */}
+              <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
+                <div className="flex items-start gap-3">
+                  <HardDriveUpload className="w-8 h-8 text-amber-600 flex-shrink-0" />
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-amber-800">Restaurar Backup</h4>
+                    <p className="text-sm text-amber-600 mt-1">
+                      Importar datos desde un archivo JSON de backup
+                    </p>
+                    <p className="text-xs text-amber-500 mt-1">
+                      ⚠️ Se agregarán nuevos repuestos (no reemplaza existentes)
+                    </p>
+                    <label className="mt-3 px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 transition-colors inline-flex items-center gap-2 cursor-pointer disabled:opacity-50">
+                      <input
+                        type="file"
+                        accept=".json"
+                        onChange={handleBackupImport}
+                        disabled={backupLoading}
+                        className="hidden"
+                      />
+                      {backupLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Upload className="w-4 h-4" />
+                      )}
+                      Seleccionar archivo
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="px-5 py-3 border-t border-gray-200 bg-gray-50">
+              <p className="text-xs text-gray-500 text-center">
+                Versión actual: {APP_VERSION} • {repuestos.length} repuestos en la base de datos
+              </p>
             </div>
           </div>
         </div>

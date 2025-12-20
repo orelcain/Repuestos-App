@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '1.9.0';
+export const APP_VERSION = '2.0.0';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '2.0.0',
+    date: '2025-12-20',
+    changes: [
+      'Backup: Exportar todos los datos a JSON',
+      'Restore: Importar datos desde backup JSON',
+      'Modal de backup/restore con interfaz amigable',
+      'Información de versión y total de repuestos'
+    ]
+  },
   {
     version: '1.9.0',
     date: '2025-12-20',
