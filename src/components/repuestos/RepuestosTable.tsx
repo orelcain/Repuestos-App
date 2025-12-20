@@ -24,7 +24,11 @@ import {
   Columns,
   Eye,
   EyeOff,
-  RotateCcw
+  RotateCcw,
+  AlertTriangle,
+  SlidersHorizontal,
+  DollarSign,
+  BookMarked
 } from 'lucide-react';
 
 interface RepuestosTableProps {
@@ -131,6 +135,11 @@ export function RepuestosTable({
   const [tagFilterMode, setTagFilterMode] = useState<'AND' | 'OR'>('OR');
   const [showTagFilter, setShowTagFilter] = useState(false);
   const [showColumnConfig, setShowColumnConfig] = useState(false);
+  const [filterSinStock, setFilterSinStock] = useState(false);
+  const [filterConManual, setFilterConManual] = useState<boolean | null>(null); // null=todos, true=con marcador, false=sin marcador
+  const [precioMin, setPrecioMin] = useState<string>('');
+  const [precioMax, setPrecioMax] = useState<string>('');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   
   // Hook para configuración de columnas
   const { columns, toggleColumn, resetColumns, isColumnVisible } = useTableColumns();
@@ -173,8 +182,31 @@ export function RepuestosTable({
       }
     }
     
+    // Filtrar sin stock
+    if (filterSinStock) {
+      result = result.filter(r => !r.cantidadStockBodega || r.cantidadStockBodega === 0);
+    }
+    
+    // Filtrar por marcador en manual
+    if (filterConManual !== null) {
+      result = result.filter(r => {
+        const tieneMarcador = r.vinculosManual && r.vinculosManual.length > 0;
+        return filterConManual ? tieneMarcador : !tieneMarcador;
+      });
+    }
+    
+    // Filtrar por rango de precio
+    const minPrice = parseFloat(precioMin) || 0;
+    const maxPrice = parseFloat(precioMax) || Infinity;
+    if (minPrice > 0 || maxPrice < Infinity) {
+      result = result.filter(r => {
+        const total = r.total || 0;
+        return total >= minPrice && total <= maxPrice;
+      });
+    }
+    
     return result;
-  }, [repuestos, searchTerm, selectedTags, tagFilterMode]);
+  }, [repuestos, searchTerm, selectedTags, tagFilterMode, filterSinStock, filterConManual, precioMin, precioMax]);
 
   // Paginación
   const totalPages = Math.ceil(filteredRepuestos.length / ITEMS_PER_PAGE);
@@ -184,7 +216,7 @@ export function RepuestosTable({
   // Reset página al buscar o filtrar
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedTags, tagFilterMode]);
+  }, [searchTerm, selectedTags, tagFilterMode, filterSinStock, filterConManual, precioMin, precioMax]);
 
   // Notificar al padre cuando cambian los repuestos filtrados
   useEffect(() => {
@@ -385,6 +417,20 @@ export function RepuestosTable({
               )}
             </div>
 
+            {/* Filtro rápido: Sin Stock */}
+            <button
+              onClick={() => setFilterSinStock(!filterSinStock)}
+              className={`flex items-center gap-2 px-3 py-2.5 border rounded-lg transition-colors ${
+                filterSinStock
+                  ? 'border-red-500 bg-red-50 text-red-700' 
+                  : 'border-gray-300 hover:bg-gray-50 text-gray-600'
+              }`}
+              title={filterSinStock ? 'Mostrando sin stock' : 'Filtrar sin stock'}
+            >
+              <AlertTriangle className="w-4 h-4" />
+              <span className="hidden sm:inline text-sm">Sin Stock</span>
+            </button>
+
             {/* Configuración de columnas */}
             <div className="relative hidden lg:block">
               <button
@@ -465,6 +511,18 @@ export function RepuestosTable({
                 {totales.totalBodega.toLocaleString()}
               </div>
             </div>
+            <button
+              onClick={() => setFilterSinStock(!filterSinStock)}
+              className={`text-center cursor-pointer rounded-lg px-2 py-1 transition-colors ${
+                filterSinStock ? 'bg-red-100' : 'hover:bg-red-50'
+              }`}
+              title="Click para filtrar"
+            >
+              <div className="text-xs text-red-500 uppercase">Sin Stock</div>
+              <div className="text-lg font-bold text-red-600">
+                {filteredRepuestos.filter(r => !r.cantidadStockBodega || r.cantidadStockBodega === 0).length}
+              </div>
+            </button>
           </div>
           
           {/* Totales monetarios */}
@@ -494,17 +552,119 @@ export function RepuestosTable({
           )}
         </div>
 
-        {/* Barra de búsqueda */}
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar por código SAP, Baader o descripción..."
-            className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-          />
+        {/* Barra de búsqueda con botón de filtros avanzados */}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Buscar por código SAP, Baader o descripción..."
+              className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            />
+          </div>
+          <button
+            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+            className={`flex items-center gap-2 px-4 py-3 border rounded-xl transition-colors ${
+              showAdvancedFilters || filterConManual !== null || precioMin || precioMax
+                ? 'border-primary-500 bg-primary-50 text-primary-700' 
+                : 'border-gray-300 hover:bg-gray-50'
+            }`}
+            title="Filtros avanzados"
+          >
+            <SlidersHorizontal className="w-5 h-5" />
+          </button>
         </div>
+
+        {/* Panel de filtros avanzados */}
+        {showAdvancedFilters && (
+          <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <SlidersHorizontal className="w-4 h-4" />
+                Filtros Avanzados
+              </h4>
+              <button
+                onClick={() => {
+                  setFilterConManual(null);
+                  setPrecioMin('');
+                  setPrecioMax('');
+                }}
+                className="text-xs text-gray-500 hover:text-gray-700"
+              >
+                Limpiar filtros
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Filtro por marcador en manual */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-2">
+                  <BookMarked className="w-3 h-3 inline mr-1" />
+                  Marcador en Manual
+                </label>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setFilterConManual(null)}
+                    className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-colors ${
+                      filterConManual === null
+                        ? 'bg-primary-100 border-primary-500 text-primary-700'
+                        : 'bg-white border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    Todos
+                  </button>
+                  <button
+                    onClick={() => setFilterConManual(true)}
+                    className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-colors ${
+                      filterConManual === true
+                        ? 'bg-green-100 border-green-500 text-green-700'
+                        : 'bg-white border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    Con marcador
+                  </button>
+                  <button
+                    onClick={() => setFilterConManual(false)}
+                    className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-colors ${
+                      filterConManual === false
+                        ? 'bg-orange-100 border-orange-500 text-orange-700'
+                        : 'bg-white border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    Sin marcador
+                  </button>
+                </div>
+              </div>
+              
+              {/* Filtro por rango de precio */}
+              <div className="sm:col-span-2 lg:col-span-2">
+                <label className="block text-xs font-medium text-gray-600 mb-2">
+                  <DollarSign className="w-3 h-3 inline mr-1" />
+                  Rango de Precio (USD)
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    value={precioMin}
+                    onChange={(e) => setPrecioMin(e.target.value)}
+                    placeholder="Mínimo"
+                    className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                  <span className="text-gray-400">-</span>
+                  <input
+                    type="number"
+                    value={precioMax}
+                    onChange={(e) => setPrecioMax(e.target.value)}
+                    placeholder="Máximo"
+                    className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Tags activos */}
         {selectedTags.length > 0 && (

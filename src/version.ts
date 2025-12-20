@@ -1,8 +1,19 @@
 // Versión de la aplicación
-export const APP_VERSION = '1.8.0';
+export const APP_VERSION = '1.9.0';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '1.9.0',
+    date: '2025-12-20',
+    changes: [
+      'Filtro rápido: Sin stock (botón y contador clickeable)',
+      'Búsqueda avanzada: Panel colapsable con filtros',
+      'Filtro por marcador en manual (todos/con/sin)',
+      'Filtro por rango de precio USD (mínimo-máximo)',
+      'Indicadores mejorados en panel de totales'
+    ]
+  },
   {
     version: '1.8.0',
     date: '2025-01-13',
