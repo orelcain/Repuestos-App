@@ -47,15 +47,27 @@ export function PDFViewer({
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   
+  // Detectar si es móvil/PWA
+  const isMobile = typeof window !== 'undefined' && (
+    window.matchMedia('(max-width: 1024px)').matches || 
+    'ontouchstart' in window ||
+    navigator.maxTouchPoints > 0
+  );
+  
   const [pdf, setPdf] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
-  const [scale, setScale] = useState(1.0);
+  // Zoom inicial: 50% en móvil, 100% en desktop
+  const [scale, setScale] = useState(isMobile ? 0.5 : 1.0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [captureMode, setCaptureMode] = useState(false);
+  
+  // Estados para pinch-to-zoom
+  const lastTouchDistance = useRef<number | null>(null);
+  const initialScale = useRef<number>(isMobile ? 0.5 : 1.0);
   
   // Estados para búsqueda de texto en PDF
   const [textSearchQuery, setTextSearchQuery] = useState('');
@@ -326,7 +338,41 @@ export function PDFViewer({
 
   // Zoom
   const zoomIn = () => setScale(prev => Math.min(prev + 0.25, 3));
-  const zoomOut = () => setScale(prev => Math.max(prev - 0.25, 0.5));
+  const zoomOut = () => setScale(prev => Math.max(prev - 0.25, 0.25));
+  
+  // Pinch-to-zoom handlers
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
+      const distance = Math.hypot(
+        touch2.clientX - touch1.clientX,
+        touch2.clientY - touch1.clientY
+      );
+      lastTouchDistance.current = distance;
+      initialScale.current = scale;
+    }
+  }, [scale]);
+  
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2 && lastTouchDistance.current !== null) {
+      e.preventDefault();
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
+      const distance = Math.hypot(
+        touch2.clientX - touch1.clientX,
+        touch2.clientY - touch1.clientY
+      );
+      
+      const scaleChange = distance / lastTouchDistance.current;
+      const newScale = Math.min(Math.max(initialScale.current * scaleChange, 0.25), 3);
+      setScale(newScale);
+    }
+  }, []);
+  
+  const handleTouchEnd = useCallback(() => {
+    lastTouchDistance.current = null;
+  }, []);
 
   // Búsqueda por página
   const handleSearch = () => {
@@ -521,18 +567,56 @@ export function PDFViewer({
     setCaptureMode(false);
   };
 
-  // Fullscreen
+  // Fullscreen - mejorado para móvil
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
     
     if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen();
+      // Intentar diferentes APIs de fullscreen para compatibilidad
+      const elem = containerRef.current as HTMLElement & {
+        webkitRequestFullscreen?: () => Promise<void>;
+        msRequestFullscreen?: () => void;
+      };
+      
+      if (elem.requestFullscreen) {
+        elem.requestFullscreen();
+      } else if (elem.webkitRequestFullscreen) {
+        elem.webkitRequestFullscreen();
+      } else if (elem.msRequestFullscreen) {
+        elem.msRequestFullscreen();
+      }
       setIsFullscreen(true);
     } else {
-      document.exitFullscreen();
+      const doc = document as Document & {
+        webkitExitFullscreen?: () => Promise<void>;
+        msExitFullscreen?: () => void;
+      };
+      
+      if (doc.exitFullscreen) {
+        doc.exitFullscreen();
+      } else if (doc.webkitExitFullscreen) {
+        doc.webkitExitFullscreen();
+      } else if (doc.msExitFullscreen) {
+        doc.msExitFullscreen();
+      }
       setIsFullscreen(false);
     }
   };
+  
+  // Escuchar cambios de fullscreen
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
 
   if (!pdfUrl) {
     return (
@@ -909,7 +993,11 @@ export function PDFViewer({
       {/* Canvas Container */}
       <div 
         ref={scrollContainerRef}
-        className="flex-1 overflow-auto pdf-container flex items-start justify-center p-4"
+        className="flex-1 overflow-auto pdf-container flex items-start justify-center p-4 touch-pan-x touch-pan-y"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        style={{ touchAction: 'pan-x pan-y' }}
       >
         <div className="relative">
           <canvas
@@ -924,9 +1012,13 @@ export function PDFViewer({
         </div>
       </div>
 
-      {/* Indicador de navegación por scroll */}
+      {/* Indicador de navegación - diferente para móvil */}
       <div className="px-4 py-1 bg-gray-900 text-gray-400 text-xs text-center">
-        💡 Usa la rueda del ratón para navegar entre páginas
+        {isMobile ? (
+          <span>📱 Pellizca para zoom • Desliza para navegar</span>
+        ) : (
+          <span>💡 Usa la rueda del ratón para navegar entre páginas</span>
+        )}
       </div>
     </div>
   );

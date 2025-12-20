@@ -1,8 +1,19 @@
 // Versión de la aplicación
-export const APP_VERSION = '1.5.1';
+export const APP_VERSION = '1.5.2';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '1.5.2',
+    date: '2025-12-20',
+    changes: [
+      'PWA: Zoom inicial 50% para marcadores en posición correcta',
+      'PWA: Pinch-to-zoom (pellizcar para hacer zoom)',
+      'PWA: Fullscreen mejorado con compatibilidad para Safari/iOS',
+      'PWA: Indicador de gestos táctiles',
+      'Desktop: Mantiene zoom 100% por defecto'
+    ]
+  },
   {
     version: '1.5.1',
     date: '2025-12-20',
