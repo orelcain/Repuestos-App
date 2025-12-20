@@ -85,6 +85,10 @@ export function Dashboard() {
   
   // Repuestos filtrados (para exportación)
   const [filteredRepuestos, setFilteredRepuestos] = useState<Repuesto[]>([]);
+  
+  // Modal de exportación PDF
+  const [showPDFExportModal, setShowPDFExportModal] = useState(false);
+  const [pdfIncludeCharts, setPdfIncludeCharts] = useState(true);
 
   // Cargar URL del manual
   useEffect(() => {
@@ -356,9 +360,14 @@ export function Dashboard() {
   };
 
   const handleExportPDF = () => {
+    setShowPDFExportModal(true);
+  };
+  
+  const confirmExportPDF = () => {
     const toExport = filteredRepuestos.length > 0 ? filteredRepuestos : repuestos;
-    exportToPDF(toExport);
+    exportToPDF(toExport, { includeCharts: pdfIncludeCharts });
     success(`PDF exportado con ${toExport.length} repuestos`);
+    setShowPDFExportModal(false);
   };
 
   // Importar repuestos desde Excel
@@ -739,6 +748,64 @@ export function Dashboard() {
         onRenameTag={renameTag}
         onDeleteTag={deleteTag}
       />
+
+      {/* Modal de exportación PDF */}
+      {showPDFExportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowPDFExportModal(false)}>
+          <div 
+            className="bg-white rounded-xl shadow-2xl max-w-sm w-full mx-4 overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                <Download className="w-5 h-5 text-primary-600" />
+                Exportar PDF
+              </h3>
+              <button 
+                onClick={() => setShowPDFExportModal(false)}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-5">
+              <p className="text-sm text-gray-600 mb-4">
+                Se exportarán {filteredRepuestos.length > 0 ? filteredRepuestos.length : repuestos.length} repuestos
+              </p>
+              
+              <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={pdfIncludeCharts}
+                  onChange={(e) => setPdfIncludeCharts(e.target.checked)}
+                  className="w-5 h-5 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
+                />
+                <div>
+                  <span className="font-medium text-gray-800">Incluir gráficos</span>
+                  <p className="text-xs text-gray-500">Barras, circular e indicadores en el resumen</p>
+                </div>
+              </label>
+            </div>
+            
+            <div className="px-5 py-4 border-t border-gray-200 bg-gray-50 flex gap-3 justify-end">
+              <button
+                onClick={() => setShowPDFExportModal(false)}
+                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmExportPDF}
+                className="px-4 py-2 text-sm text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                Exportar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Toast Container */}
       <ToastContainer toasts={toasts} onRemove={removeToast} />

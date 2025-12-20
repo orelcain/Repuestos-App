@@ -43,12 +43,20 @@ export async function exportToExcel(repuestos: Repuesto[], filename: string = 'r
   XLSX.writeFile(workbook, `${filename}.xlsx`);
 }
 
+// Opciones de exportación PDF
+export interface PDFExportOptions {
+  includeCharts?: boolean;
+  filename?: string;
+}
+
 // Exportar a PDF con imágenes
 export async function exportToPDF(
   repuestos: Repuesto[], 
-  filename: string = 'repuestos_baader_200',
+  options: PDFExportOptions = {},
   onProgress?: (progress: number, message: string) => void
 ) {
+  const { includeCharts = true, filename = 'repuestos_baader_200' } = options;
+  
   const doc = new jsPDF('p', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -72,21 +80,24 @@ export async function exportToPDF(
   doc.setTextColor(100, 100, 100);
   doc.text(`Fecha: ${new Date().toLocaleDateString('es-CL')}`, pageWidth / 2, 28, { align: 'center' });
 
-  // === SECCIÓN DE GRÁFICOS ===
+  // Calcular estadísticas
   const totalCantSolicitada = repuestos.reduce((s, r) => s + r.cantidadSolicitada, 0);
   const totalStockBodega = repuestos.reduce((s, r) => s + r.cantidadStockBodega, 0);
   const totalValor = repuestos.reduce((s, r) => s + r.total, 0);
   const conImagenManual = repuestos.filter(r => r.imagenesManual.length > 0).length;
   const conFotoReal = repuestos.filter(r => r.fotosReales.length > 0).length;
-  const sinImagenes = repuestos.length - Math.max(conImagenManual, conFotoReal);
   const conStock = repuestos.filter(r => r.cantidadStockBodega > 0).length;
   const sinStock = repuestos.length - conStock;
 
-  // --- Gráfico de barras: Cantidad vs Stock ---
-  const barChartX = margin + 5;
-  const barChartY = 38;
-  const barWidth = 35;
-  const maxBarHeight = 40;
+  // Variable para controlar posición de la tabla
+  let tableStartY = 38;
+
+  if (includeCharts) {
+    // === SECCIÓN DE GRÁFICOS ===
+    const barChartX = margin + 5;
+    const barChartY = 38;
+    const barWidth = 35;
+    const maxBarHeight = 40;
   
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
@@ -237,14 +248,18 @@ export async function exportToPDF(
   doc.setFontSize(8);
   doc.text(`$${totalValor.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, indicatorX + 20, barBaseY + 38, { align: 'center' });
 
-  // === TABLA RESUMEN (más abajo) ===
+    // Actualizar posición para tabla
+    tableStartY = barChartY + maxBarHeight + 20;
+  } // Fin de includeCharts
+
+  // === TABLA RESUMEN ===
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(30, 64, 175);
-  doc.text('Detalle Numérico', pageWidth / 2, barChartY + maxBarHeight + 20, { align: 'center' });
+  doc.text('Resumen', pageWidth / 2, tableStartY, { align: 'center' });
 
   autoTable(doc, {
-    startY: barChartY + maxBarHeight + 25,
+    startY: tableStartY + 5,
     head: [['Concepto', 'Valor']],
     body: [
       ['Total Repuestos', repuestos.length.toString()],
