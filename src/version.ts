@@ -1,8 +1,21 @@
 // Versión de la aplicación
-export const APP_VERSION = '1.4.6';
+export const APP_VERSION = '1.4.7';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '1.4.7',
+    date: '2025-12-20',
+    changes: [
+      'Rediseño completo del layout de exportación PDF',
+      'Datos a la izquierda, imágenes a la derecha',
+      'Imágenes más grandes y visibles en el PDF',
+      'Etiquetas "Manual" o "Real" bajo cada imagen',
+      'Bloques compactos: 35mm sin fotos, 50mm con fotos',
+      'Mejor aprovechamiento del espacio en cada página',
+      'Tags del repuesto visibles en el PDF'
+    ]
+  },
   {
     version: '1.4.6',
     date: '2025-12-20',
