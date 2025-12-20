@@ -180,10 +180,11 @@ const repuestosData = [
 ];
 
 async function importRepuestos() {
-  console.log('Iniciando importación de repuestos...');
+  console.log('Iniciando importación de repuestos a colección repuestosBaader200...');
   console.log(`Total de repuestos a importar: ${repuestosData.length}`);
 
-  const repuestosRef = collection(db, 'repuestos');
+  // Usar colección específica para Baader 200
+  const repuestosRef = collection(db, 'repuestosBaader200');
 
   // Verificar si ya hay datos
   const existingDocs = await getDocs(repuestosRef);

@@ -15,6 +15,9 @@ import {
 import { db } from '../config/firebase';
 import { Repuesto, HistorialCambio, RepuestoFormData } from '../types';
 
+// Colección específica para Baader 200 (separada de otras apps)
+const COLLECTION_NAME = 'repuestosBaader200';
+
 export function useRepuestos() {
   const [repuestos, setRepuestos] = useState<Repuesto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,7 +25,7 @@ export function useRepuestos() {
 
   // Escuchar cambios en tiempo real
   useEffect(() => {
-    const q = query(collection(db, 'repuestos'), orderBy('codigoSAP'));
+    const q = query(collection(db, COLLECTION_NAME), orderBy('codigoSAP'));
     
     const unsubscribe = onSnapshot(q, 
       (snapshot) => {
@@ -54,7 +57,7 @@ export function useRepuestos() {
     valorNuevo: string | number | null
   ) => {
     try {
-      await addDoc(collection(db, 'repuestos', repuestoId, 'historial'), {
+      await addDoc(collection(db, COLLECTION_NAME, repuestoId, 'historial'), {
         campo,
         valorAnterior,
         valorNuevo,
@@ -79,7 +82,7 @@ export function useRepuestos() {
         updatedAt: Timestamp.now()
       };
 
-      const docRef = await addDoc(collection(db, 'repuestos'), newRepuesto);
+      const docRef = await addDoc(collection(db, COLLECTION_NAME), newRepuesto);
       
       // Registrar creación en historial
       await addHistorial(docRef.id, 'creacion', null, JSON.stringify(data));
@@ -115,7 +118,7 @@ export function useRepuestos() {
         updateData.fechaUltimaActualizacionInventario = Timestamp.now();
       }
 
-      await updateDoc(doc(db, 'repuestos', id), updateData);
+      await updateDoc(doc(db, COLLECTION_NAME, id), updateData);
 
       // Registrar cambios en historial
       if (originalData) {
@@ -140,7 +143,7 @@ export function useRepuestos() {
   const deleteRepuesto = useCallback(async (id: string) => {
     try {
       // Primero eliminar el historial
-      const historialRef = collection(db, 'repuestos', id, 'historial');
+      const historialRef = collection(db, COLLECTION_NAME, id, 'historial');
       const historialSnapshot = await getDocs(historialRef);
       
       const batch = writeBatch(db);
@@ -150,7 +153,7 @@ export function useRepuestos() {
       await batch.commit();
 
       // Luego eliminar el repuesto
-      await deleteDoc(doc(db, 'repuestos', id));
+      await deleteDoc(doc(db, COLLECTION_NAME, id));
     } catch (err) {
       console.error('Error al eliminar repuesto:', err);
       throw err;
@@ -161,7 +164,7 @@ export function useRepuestos() {
   const getHistorial = useCallback(async (repuestoId: string): Promise<HistorialCambio[]> => {
     try {
       const q = query(
-        collection(db, 'repuestos', repuestoId, 'historial'),
+        collection(db, COLLECTION_NAME, repuestoId, 'historial'),
         orderBy('fecha', 'desc')
       );
       const snapshot = await getDocs(q);
@@ -184,7 +187,7 @@ export function useRepuestos() {
       const batch = writeBatch(db);
       
       for (const item of data) {
-        const docRef = doc(collection(db, 'repuestos'));
+        const docRef = doc(collection(db, COLLECTION_NAME));
         batch.set(docRef, {
           ...item,
           total: item.cantidadSolicitada * item.valorUnitario,
