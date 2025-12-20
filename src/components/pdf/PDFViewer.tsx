@@ -28,6 +28,7 @@ export function PDFViewer({
 }: PDFViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   
   const [pdf, setPdf] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -92,6 +93,74 @@ export function PDFViewer({
   useEffect(() => {
     renderPage(currentPage);
   }, [currentPage, renderPage]);
+
+  // Manejar scroll del ratón para cambiar páginas
+  useEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer || !pdf) return;
+
+    let scrollTimeout: NodeJS.Timeout | null = null;
+    let accumulatedDelta = 0;
+    const threshold = 100; // Cantidad de scroll necesario para cambiar página
+
+    const handleWheel = (e: WheelEvent) => {
+      // Verificar si el contenedor tiene scroll interno
+      const hasVerticalScroll = scrollContainer.scrollHeight > scrollContainer.clientHeight;
+      const atTop = scrollContainer.scrollTop <= 0;
+      const atBottom = scrollContainer.scrollTop + scrollContainer.clientHeight >= scrollContainer.scrollHeight - 5;
+
+      // Si hay scroll interno y no estamos en los extremos, permitir scroll normal
+      if (hasVerticalScroll && !atTop && !atBottom) {
+        return;
+      }
+
+      // Si estamos en el tope y scrolleando hacia arriba, ir a página anterior
+      if (atTop && e.deltaY < 0 && currentPage > 1) {
+        e.preventDefault();
+        accumulatedDelta += Math.abs(e.deltaY);
+        
+        if (accumulatedDelta >= threshold) {
+          setCurrentPage(prev => prev - 1);
+          accumulatedDelta = 0;
+          // Ir al final de la página anterior
+          setTimeout(() => {
+            if (scrollContainer) {
+              scrollContainer.scrollTop = scrollContainer.scrollHeight;
+            }
+          }, 100);
+        }
+      }
+      // Si estamos al final y scrolleando hacia abajo, ir a página siguiente
+      else if (atBottom && e.deltaY > 0 && currentPage < totalPages) {
+        e.preventDefault();
+        accumulatedDelta += Math.abs(e.deltaY);
+        
+        if (accumulatedDelta >= threshold) {
+          setCurrentPage(prev => prev + 1);
+          accumulatedDelta = 0;
+          // Ir al inicio de la página siguiente
+          setTimeout(() => {
+            if (scrollContainer) {
+              scrollContainer.scrollTop = 0;
+            }
+          }, 100);
+        }
+      }
+
+      // Reset del acumulador después de inactividad
+      if (scrollTimeout) clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        accumulatedDelta = 0;
+      }, 200);
+    };
+
+    scrollContainer.addEventListener('wheel', handleWheel, { passive: false });
+    
+    return () => {
+      scrollContainer.removeEventListener('wheel', handleWheel);
+      if (scrollTimeout) clearTimeout(scrollTimeout);
+    };
+  }, [pdf, currentPage, totalPages]);
 
   // Navegación
   const goToPrevPage = () => {
@@ -275,12 +344,20 @@ export function PDFViewer({
       )}
 
       {/* Canvas Container */}
-      <div className="flex-1 overflow-auto pdf-container flex items-start justify-center p-4">
+      <div 
+        ref={scrollContainerRef}
+        className="flex-1 overflow-auto pdf-container flex items-start justify-center p-4"
+      >
         <canvas
           ref={canvasRef}
           className="pdf-page bg-white shadow-lg"
           style={{ maxWidth: '100%' }}
         />
+      </div>
+
+      {/* Indicador de navegación por scroll */}
+      <div className="px-4 py-1 bg-gray-900 text-gray-400 text-xs text-center">
+        💡 Usa la rueda del ratón para navegar entre páginas
       </div>
     </div>
   );
