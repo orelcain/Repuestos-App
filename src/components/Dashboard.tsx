@@ -15,6 +15,7 @@ import { ImageGallery } from './gallery/ImageGallery';
 import { PDFViewer } from './pdf/PDFViewer';
 import { PDFMarkerEditor } from './pdf/PDFMarkerEditor';
 import { ImportModal } from './ImportModal';
+import { StatsPanel } from './stats/StatsPanel';
 import { ToastContainer, Button } from './ui';
 
 import { exportToExcel, exportToPDF } from '../utils/exportUtils';
@@ -28,11 +29,14 @@ import {
   X,
   Image,
   BookOpen,
-  Upload
+  Upload,
+  BarChart3,
+  Package
 } from 'lucide-react';
 
 type RightPanelMode = 'gallery' | 'pdf' | 'marker-editor' | 'hidden';
 type GalleryType = 'manual' | 'real';
+type MainView = 'repuestos' | 'stats';
 
 export function Dashboard() {
   const { user, signOut } = useAuth();
@@ -71,6 +75,9 @@ export function Dashboard() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  
+  // Vista principal activa
+  const [mainView, setMainView] = useState<MainView>('repuestos');
 
   // Cargar URL del manual
   useEffect(() => {
@@ -173,11 +180,13 @@ export function Dashboard() {
     }
   };
 
-  const handleViewImages = (repuesto: Repuesto) => {
+  // Esta función se usa internamente
+  const _handleViewImages = (repuesto: Repuesto) => {
     setSelectedRepuesto(repuesto);
     setRightPanelMode('gallery');
     setGalleryType('manual');
   };
+  void _handleViewImages; // Suprimir warning de variable no usada
 
   const handleViewPhotos = (repuesto: Repuesto) => {
     setSelectedRepuesto(repuesto);
@@ -185,10 +194,12 @@ export function Dashboard() {
     setGalleryType('real');
   };
 
-  const handleAddManualImage = (repuesto: Repuesto) => {
+  // Esta función se usa internamente
+  const _handleAddManualImage = (repuesto: Repuesto) => {
     setSelectedRepuesto(repuesto);
     setRightPanelMode('pdf');
   };
+  void _handleAddManualImage; // Suprimir warning de variable no usada
 
   // Handler para marcar en el manual
   const handleMarkInManual = (repuesto: Repuesto) => {
@@ -476,26 +487,68 @@ export function Dashboard() {
       )}
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Panel Izquierdo - Tabla */}
-        <div className={`
-          flex-1 min-w-0 overflow-hidden
-          ${rightPanelMode !== 'hidden' ? 'hidden md:block md:w-1/2 lg:w-3/5' : 'w-full'}
-        `}>
-          <RepuestosTable
-            repuestos={repuestos}
-            selectedRepuesto={selectedRepuesto}
-            onSelect={handleSelectRepuesto}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onViewManual={handleViewManual}
-            onViewPhotos={handleViewPhotos}
-            onViewHistory={handleViewHistory}
-            onAddNew={handleAddNew}
-            onMarkInManual={handleMarkInManual}
-            getHistorial={getHistorial}
-          />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Barra de navegación principal */}
+        <div className="bg-white border-b border-gray-200 px-4">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => {
+                setMainView('repuestos');
+                if (rightPanelMode === 'hidden') setRightPanelMode('hidden');
+              }}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                mainView === 'repuestos'
+                  ? 'text-primary-600 border-primary-600'
+                  : 'text-gray-500 border-transparent hover:text-gray-700'
+              }`}
+            >
+              <Package className="w-4 h-4" />
+              Repuestos
+            </button>
+            <button
+              onClick={() => {
+                setMainView('stats');
+                setRightPanelMode('hidden');
+              }}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                mainView === 'stats'
+                  ? 'text-primary-600 border-primary-600'
+                  : 'text-gray-500 border-transparent hover:text-gray-700'
+              }`}
+            >
+              <BarChart3 className="w-4 h-4" />
+              Estadísticas
+            </button>
+          </div>
         </div>
+
+        {/* Contenido basado en la vista activa */}
+        <div className="flex-1 flex overflow-hidden">
+          {mainView === 'stats' ? (
+            <div className="flex-1 overflow-hidden">
+              <StatsPanel repuestos={repuestos} />
+            </div>
+          ) : (
+            <>
+              {/* Panel Izquierdo - Tabla */}
+              <div className={`
+                flex-1 min-w-0 overflow-hidden
+                ${rightPanelMode !== 'hidden' ? 'hidden md:block md:w-1/2 lg:w-3/5' : 'w-full'}
+              `}>
+                <RepuestosTable
+                  repuestos={repuestos}
+                  selectedRepuesto={selectedRepuesto}
+                  onSelect={handleSelectRepuesto}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  onViewManual={handleViewManual}
+                  onViewPhotos={handleViewPhotos}
+                  onViewHistory={handleViewHistory}
+                  onAddNew={handleAddNew}
+                  onMarkInManual={handleMarkInManual}
+                  getHistorial={getHistorial}
+                />
+              </div>
 
         {/* Panel Derecho - Galería o PDF */}
         {rightPanelMode !== 'hidden' && (
@@ -582,7 +635,7 @@ export function Dashboard() {
                     setMarkerRepuesto(null);
                   }}
                   repuestos={repuestos}
-                  onSelectRepuesto={(r) => {
+                  onSelectRepuesto={(r: Repuesto) => {
                     setMarkerRepuesto(r);
                     setSelectedRepuesto(r);
                   }}
@@ -598,6 +651,9 @@ export function Dashboard() {
             </div>
           </div>
         )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* Modales */}

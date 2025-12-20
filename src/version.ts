@@ -1,8 +1,21 @@
 // Versión de la aplicación
-export const APP_VERSION = '1.2.0';
+export const APP_VERSION = '1.3.0';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '1.3.0',
+    date: '2025-01-13',
+    changes: [
+      'Nueva pestaña de Estadísticas con dashboard visual',
+      'Gráficos de distribución por tags',
+      'Top repuestos ordenables por valor, cantidad, stock',
+      'Tarjetas con totales: valor solicitado, unidades, stock',
+      'Indicadores de cobertura: con/sin stock, con imágenes',
+      'Filtros dinámicos por tag en estadísticas',
+      'Resumen rápido con métricas clave'
+    ]
+  },
   {
     version: '1.2.0',
     date: '2025-01-13',
