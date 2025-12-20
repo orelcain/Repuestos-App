@@ -1,8 +1,22 @@
 // Versión de la aplicación
-export const APP_VERSION = '1.3.0';
+export const APP_VERSION = '1.4.0';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '1.4.0',
+    date: '2025-01-14',
+    changes: [
+      'Gestión de tags en formulario de repuestos',
+      'Agregar tags predefinidos con un clic',
+      'Crear tags personalizados',
+      'Eliminar tags con botón X',
+      'Buscador de texto dentro del PDF',
+      'Buscar palabras en todas las páginas del manual',
+      'Navegación directa a resultados de búsqueda',
+      'Dos modos de búsqueda: repuestos y contenido PDF'
+    ]
+  },
   {
     version: '1.3.0',
     date: '2025-01-13',

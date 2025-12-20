@@ -11,7 +11,8 @@ import {
   X,
   Loader2,
   Palette,
-  Search
+  Search,
+  FileSearch
 } from 'lucide-react';
 import { Repuesto, VinculoManual } from '../../types';
 
@@ -24,8 +25,8 @@ interface PDFMarkerEditorProps {
   existingMarker?: VinculoManual;
   onSave: (marker: Omit<VinculoManual, 'id'>) => void;
   onCancel: () => void;
-  repuestos?: Repuesto[]; // Lista de repuestos para búsqueda
-  onSelectRepuesto?: (repuesto: Repuesto) => void; // Callback al seleccionar un repuesto
+  repuestos?: Repuesto[];
+  onSelectRepuesto?: (repuesto: Repuesto) => void;
 }
 
 const MARKER_COLORS = [
@@ -40,6 +41,11 @@ const MARKER_COLORS = [
 const MIN_SCALE = 0.3;
 const MAX_SCALE = 3.0;
 const SCALE_STEP = 0.15;
+
+interface TextSearchResult {
+  pageNum: number;
+  text: string;
+}
 
 export function PDFMarkerEditor({
   pdfUrl,
@@ -73,11 +79,20 @@ export function PDFMarkerEditor({
     height: number;
   } | null>(existingMarker?.coordenadas || null);
 
-  // Estado de búsqueda
-  const [searchTerm, setSearchTerm] = useState('');
-  const [searchResults, setSearchResults] = useState<Repuesto[]>([]);
-  const [showSearch, setShowSearch] = useState(false);
+  // Estado de búsqueda de repuestos
+  const [repuestoSearchTerm, setRepuestoSearchTerm] = useState('');
+  const [repuestoSearchResults, setRepuestoSearchResults] = useState<Repuesto[]>([]);
+  const [showRepuestoSearch, setShowRepuestoSearch] = useState(false);
   const [selectedSearchIndex, setSelectedSearchIndex] = useState(-1);
+
+  // Estado de búsqueda en PDF
+  const [pdfSearchTerm, setPdfSearchTerm] = useState('');
+  const [pdfSearchResults, setPdfSearchResults] = useState<TextSearchResult[]>([]);
+  const [pdfSearching, setPdfSearching] = useState(false);
+  const [currentPdfResultIndex, setCurrentPdfResultIndex] = useState(-1);
+
+  // Modo de búsqueda activo
+  const [searchMode, setSearchMode] = useState<'repuesto' | 'pdf'>('repuesto');
 
   // Estado de repuesto actual
   const [currentDescription, setCurrentDescription] = useState(repuestoDescripcion);
@@ -101,23 +116,86 @@ export function PDFMarkerEditor({
 
   // Búsqueda de repuestos
   useEffect(() => {
-    if (!searchTerm.trim() || repuestos.length === 0) {
-      setSearchResults([]);
+    if (!repuestoSearchTerm.trim() || repuestos.length === 0) {
+      setRepuestoSearchResults([]);
       setSelectedSearchIndex(-1);
       return;
     }
 
-    const term = searchTerm.toLowerCase();
+    const term = repuestoSearchTerm.toLowerCase();
     const results = repuestos.filter(r => 
       r.codigoSAP?.toLowerCase().includes(term) ||
       r.codigoBaader?.toLowerCase().includes(term) ||
       r.textoBreve?.toLowerCase().includes(term) ||
       r.descripcion?.toLowerCase().includes(term)
-    ).slice(0, 10); // Máximo 10 resultados
+    ).slice(0, 10);
 
-    setSearchResults(results);
+    setRepuestoSearchResults(results);
     setSelectedSearchIndex(results.length > 0 ? 0 : -1);
-  }, [searchTerm, repuestos]);
+  }, [repuestoSearchTerm, repuestos]);
+
+  // Buscar texto en PDF
+  const searchInPDF = useCallback(async (searchText: string) => {
+    if (!pdf || !searchText.trim()) {
+      setPdfSearchResults([]);
+      return;
+    }
+
+    setPdfSearching(true);
+    const results: TextSearchResult[] = [];
+    const searchLower = searchText.toLowerCase();
+
+    try {
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items
+          .filter((item): item is { str: string } & typeof item => 'str' in item)
+          .map(item => item.str)
+          .join(' ');
+
+        if (pageText.toLowerCase().includes(searchLower)) {
+          // Extraer contexto alrededor del texto encontrado
+          const index = pageText.toLowerCase().indexOf(searchLower);
+          const start = Math.max(0, index - 30);
+          const end = Math.min(pageText.length, index + searchText.length + 30);
+          const contextText = '...' + pageText.substring(start, end) + '...';
+          
+          results.push({
+            pageNum,
+            text: contextText
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Error buscando en PDF:', err);
+    }
+
+    setPdfSearchResults(results);
+    setCurrentPdfResultIndex(results.length > 0 ? 0 : -1);
+    
+    // Ir a la primera página con resultado
+    if (results.length > 0) {
+      setCurrentPage(results[0].pageNum);
+    }
+    
+    setPdfSearching(false);
+  }, [pdf]);
+
+  // Ir al siguiente/anterior resultado de búsqueda en PDF
+  const goToNextPdfResult = () => {
+    if (pdfSearchResults.length === 0) return;
+    const nextIndex = (currentPdfResultIndex + 1) % pdfSearchResults.length;
+    setCurrentPdfResultIndex(nextIndex);
+    setCurrentPage(pdfSearchResults[nextIndex].pageNum);
+  };
+
+  const goToPrevPdfResult = () => {
+    if (pdfSearchResults.length === 0) return;
+    const prevIndex = currentPdfResultIndex === 0 ? pdfSearchResults.length - 1 : currentPdfResultIndex - 1;
+    setCurrentPdfResultIndex(prevIndex);
+    setCurrentPage(pdfSearchResults[prevIndex].pageNum);
+  };
 
   // Renderizar página
   const renderPage = useCallback(async (pageNum: number) => {
@@ -132,7 +210,6 @@ export function PDFMarkerEditor({
     canvas.height = viewport.height;
     canvas.width = viewport.width;
 
-    // También ajustar el overlay
     if (overlayRef.current) {
       overlayRef.current.height = viewport.height;
       overlayRef.current.width = viewport.width;
@@ -143,7 +220,6 @@ export function PDFMarkerEditor({
       viewport: viewport
     }).promise;
 
-    // Redibujar marcador existente
     if (currentMarker) {
       drawMarker(currentMarker);
     }
@@ -159,7 +235,6 @@ export function PDFMarkerEditor({
     const ctx = overlayRef.current.getContext('2d');
     if (!ctx) return;
 
-    // Limpiar canvas overlay
     ctx.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height);
 
     ctx.fillStyle = color;
@@ -170,7 +245,6 @@ export function PDFMarkerEditor({
       ctx.fillRect(marker.x, marker.y, marker.width, marker.height);
       ctx.strokeRect(marker.x, marker.y, marker.width, marker.height);
     } else {
-      // Círculo/elipse
       const centerX = marker.x + marker.width / 2;
       const centerY = marker.y + marker.height / 2;
       const radiusX = Math.abs(marker.width) / 2;
@@ -183,33 +257,26 @@ export function PDFMarkerEditor({
     }
   }, [forma, color, colorBorder]);
 
-  // Eventos de dibujo con mouse
+  // Eventos de dibujo
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const rect = overlayRef.current?.getBoundingClientRect();
     if (!rect) return;
-
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
     setIsDrawing(true);
-    setStartPoint({ x, y });
+    setStartPoint({ x: e.clientX - rect.left, y: e.clientY - rect.top });
     setCurrentMarker(null);
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDrawing || !startPoint || !overlayRef.current) return;
-
     const rect = overlayRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-
     const marker = {
       x: Math.min(startPoint.x, x),
       y: Math.min(startPoint.y, y),
       width: Math.abs(x - startPoint.x),
       height: Math.abs(y - startPoint.y)
     };
-
     setCurrentMarker(marker);
     drawMarker(marker);
   };
@@ -219,38 +286,30 @@ export function PDFMarkerEditor({
     setStartPoint(null);
   };
 
-  // Touch events para móviles
+  // Touch events
   const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
     if (e.touches.length !== 1) return;
-    
     const touch = e.touches[0];
     const rect = overlayRef.current?.getBoundingClientRect();
     if (!rect) return;
-
-    const x = touch.clientX - rect.left;
-    const y = touch.clientY - rect.top;
-
     setIsDrawing(true);
-    setStartPoint({ x, y });
+    setStartPoint({ x: touch.clientX - rect.left, y: touch.clientY - rect.top });
     setCurrentMarker(null);
   };
 
   const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
     if (!isDrawing || !startPoint || !overlayRef.current || e.touches.length !== 1) return;
     e.preventDefault();
-
     const touch = e.touches[0];
     const rect = overlayRef.current.getBoundingClientRect();
     const x = touch.clientX - rect.left;
     const y = touch.clientY - rect.top;
-
     const marker = {
       x: Math.min(startPoint.x, x),
       y: Math.min(startPoint.y, y),
       width: Math.abs(x - startPoint.x),
       height: Math.abs(y - startPoint.y)
     };
-
     setCurrentMarker(marker);
     drawMarker(marker);
   };
@@ -260,7 +319,7 @@ export function PDFMarkerEditor({
     setStartPoint(null);
   };
 
-  // Zoom con rueda del mouse
+  // Zoom con rueda
   const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
@@ -269,19 +328,15 @@ export function PDFMarkerEditor({
     }
   };
 
-  // Zoom con pinch en touch
+  // Pinch zoom
   const lastTouchDistance = useRef<number | null>(null);
-  
   const handleContainerTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
     if (e.touches.length === 2) {
       e.preventDefault();
-      const touch1 = e.touches[0];
-      const touch2 = e.touches[1];
       const distance = Math.hypot(
-        touch2.clientX - touch1.clientX,
-        touch2.clientY - touch1.clientY
+        e.touches[1].clientX - e.touches[0].clientX,
+        e.touches[1].clientY - e.touches[0].clientY
       );
-
       if (lastTouchDistance.current !== null) {
         const delta = (distance - lastTouchDistance.current) * 0.005;
         setScale(prev => Math.min(MAX_SCALE, Math.max(MIN_SCALE, prev + delta)));
@@ -306,11 +361,10 @@ export function PDFMarkerEditor({
   // Seleccionar repuesto de búsqueda
   const handleSelectSearchResult = (repuesto: Repuesto) => {
     setCurrentDescription(repuesto.descripcion || repuesto.textoBreve);
-    setSearchTerm('');
-    setShowSearch(false);
+    setRepuestoSearchTerm('');
+    setShowRepuestoSearch(false);
     setCurrentMarker(null);
     
-    // Limpiar overlay
     if (overlayRef.current) {
       const ctx = overlayRef.current.getContext('2d');
       ctx?.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height);
@@ -321,41 +375,26 @@ export function PDFMarkerEditor({
     }
   };
 
-  // Keyboard navigation for search
-  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
-    if (!searchResults.length) return;
-
+  // Keyboard navigation
+  const handleRepuestoSearchKeyDown = (e: React.KeyboardEvent) => {
+    if (!repuestoSearchResults.length) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelectedSearchIndex(prev => 
-        prev < searchResults.length - 1 ? prev + 1 : prev
-      );
+      setSelectedSearchIndex(prev => prev < repuestoSearchResults.length - 1 ? prev + 1 : prev);
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setSelectedSearchIndex(prev => prev > 0 ? prev - 1 : prev);
     } else if (e.key === 'Enter' && selectedSearchIndex >= 0) {
       e.preventDefault();
-      handleSelectSearchResult(searchResults[selectedSearchIndex]);
+      handleSelectSearchResult(repuestoSearchResults[selectedSearchIndex]);
     } else if (e.key === 'Escape') {
-      setShowSearch(false);
-      setSearchTerm('');
-    }
-  };
-
-  // Ir a página específica
-  const handlePageInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      const value = parseInt((e.target as HTMLInputElement).value);
-      if (!isNaN(value) && value >= 1 && value <= totalPages) {
-        setCurrentPage(value);
-      }
+      setShowRepuestoSearch(false);
     }
   };
 
   // Guardar marcador
   const handleSave = () => {
     if (!currentMarker) return;
-
     onSave({
       pagina: currentPage,
       coordenadas: currentMarker,
@@ -375,41 +414,63 @@ export function PDFMarkerEditor({
 
   return (
     <div className="h-full flex flex-col bg-gray-800">
-      {/* Header con búsqueda */}
+      {/* Header */}
       <div className="px-4 py-3 bg-gray-900 text-white">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold text-lg">Marcar en Manual</h3>
-          <button
-            onClick={onCancel}
-            className="p-2 rounded hover:bg-gray-700"
-          >
+          <button onClick={onCancel} className="p-2 rounded hover:bg-gray-700">
             <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Tabs de búsqueda */}
+        <div className="flex gap-2 mb-3">
+          <button
+            onClick={() => setSearchMode('repuesto')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+              searchMode === 'repuesto' 
+                ? 'bg-primary-600 text-white' 
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            <Search className="w-4 h-4" />
+            Buscar Repuesto
+          </button>
+          <button
+            onClick={() => setSearchMode('pdf')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+              searchMode === 'pdf' 
+                ? 'bg-primary-600 text-white' 
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            <FileSearch className="w-4 h-4" />
+            Buscar en PDF
           </button>
         </div>
         
         {/* Búsqueda de repuesto */}
-        {repuestos.length > 0 && (
+        {searchMode === 'repuesto' && repuestos.length > 0 && (
           <div className="relative mb-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                value={searchTerm}
+                value={repuestoSearchTerm}
                 onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setShowSearch(true);
+                  setRepuestoSearchTerm(e.target.value);
+                  setShowRepuestoSearch(true);
                 }}
-                onFocus={() => setShowSearch(true)}
-                onKeyDown={handleSearchKeyDown}
-                placeholder="Buscar repuesto por código o descripción..."
+                onFocus={() => setShowRepuestoSearch(true)}
+                onKeyDown={handleRepuestoSearchKeyDown}
+                placeholder="Buscar por código SAP, Baader o descripción..."
                 className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             
-            {/* Resultados de búsqueda */}
-            {showSearch && searchResults.length > 0 && (
+            {showRepuestoSearch && repuestoSearchResults.length > 0 && (
               <div className="absolute top-full left-0 right-0 mt-1 bg-gray-700 border border-gray-600 rounded-lg shadow-xl max-h-60 overflow-y-auto z-50">
-                {searchResults.map((r, index) => (
+                {repuestoSearchResults.map((r, index) => (
                   <button
                     key={r.id}
                     onClick={() => handleSelectSearchResult(r)}
@@ -423,9 +484,7 @@ export function PDFMarkerEditor({
                           {r.codigoSAP}
                         </span>
                         {r.codigoBaader && (
-                          <span className="font-mono text-xs text-gray-400">
-                            {r.codigoBaader}
-                          </span>
+                          <span className="font-mono text-xs text-gray-400">{r.codigoBaader}</span>
                         )}
                       </div>
                       <p className="text-sm text-gray-300 truncate mt-1">
@@ -433,13 +492,80 @@ export function PDFMarkerEditor({
                       </p>
                     </div>
                     {r.vinculosManual?.length > 0 && (
-                      <span className="text-xs bg-green-600 px-2 py-0.5 rounded text-white">
-                        Marcado
-                      </span>
+                      <span className="text-xs bg-green-600 px-2 py-0.5 rounded text-white">Marcado</span>
                     )}
                   </button>
                 ))}
               </div>
+            )}
+          </div>
+        )}
+
+        {/* Búsqueda en PDF */}
+        {searchMode === 'pdf' && (
+          <div className="space-y-2 mb-2">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <FileSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={pdfSearchTerm}
+                  onChange={(e) => setPdfSearchTerm(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      searchInPDF(pdfSearchTerm);
+                    }
+                  }}
+                  placeholder="Buscar texto en el PDF (ej: 200.1234)..."
+                  className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+              <button
+                onClick={() => searchInPDF(pdfSearchTerm)}
+                disabled={pdfSearching || !pdfSearchTerm.trim()}
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {pdfSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                Buscar
+              </button>
+            </div>
+
+            {/* Resultados de búsqueda en PDF */}
+            {pdfSearchResults.length > 0 && (
+              <div className="bg-gray-700 rounded-lg p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-gray-300">
+                    {pdfSearchResults.length} resultado(s) encontrado(s)
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={goToPrevPdfResult}
+                      className="p-1 rounded hover:bg-gray-600"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <span className="text-sm">
+                      {currentPdfResultIndex + 1} / {pdfSearchResults.length}
+                    </span>
+                    <button
+                      onClick={goToNextPdfResult}
+                      className="p-1 rounded hover:bg-gray-600"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+                <div className="text-xs text-gray-400 bg-gray-800 rounded p-2 max-h-16 overflow-y-auto">
+                  <span className="text-primary-400">Pág. {pdfSearchResults[currentPdfResultIndex]?.pageNum}: </span>
+                  {pdfSearchResults[currentPdfResultIndex]?.text}
+                </div>
+              </div>
+            )}
+
+            {pdfSearchTerm && !pdfSearching && pdfSearchResults.length === 0 && (
+              <p className="text-sm text-amber-400">
+                No se encontró "{pdfSearchTerm}" en el PDF. Intenta con otro término.
+              </p>
             )}
           </div>
         )}
@@ -458,7 +584,6 @@ export function PDFMarkerEditor({
             onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
             disabled={currentPage <= 1}
             className="p-2 rounded hover:bg-gray-600 disabled:opacity-50"
-            title="Página anterior"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
@@ -471,7 +596,6 @@ export function PDFMarkerEditor({
                 const val = parseInt(e.target.value);
                 if (!isNaN(val)) setCurrentPage(Math.min(totalPages, Math.max(1, val)));
               }}
-              onKeyDown={handlePageInput}
               className="w-12 px-2 py-1 bg-gray-600 rounded text-center text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
               min={1}
               max={totalPages}
@@ -482,7 +606,6 @@ export function PDFMarkerEditor({
             onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
             disabled={currentPage >= totalPages}
             className="p-2 rounded hover:bg-gray-600 disabled:opacity-50"
-            title="Página siguiente"
           >
             <ChevronRight className="w-5 h-5" />
           </button>
@@ -492,19 +615,13 @@ export function PDFMarkerEditor({
         <div className="flex items-center gap-1 bg-gray-600 rounded p-1">
           <button
             onClick={() => setForma('rectangulo')}
-            className={`p-2 rounded transition-colors ${
-              forma === 'rectangulo' ? 'bg-primary-600' : 'hover:bg-gray-500'
-            }`}
-            title="Rectángulo"
+            className={`p-2 rounded ${forma === 'rectangulo' ? 'bg-primary-600' : 'hover:bg-gray-500'}`}
           >
             <Square className="w-5 h-5" />
           </button>
           <button
             onClick={() => setForma('circulo')}
-            className={`p-2 rounded transition-colors ${
-              forma === 'circulo' ? 'bg-primary-600' : 'hover:bg-gray-500'
-            }`}
-            title="Círculo/Elipse"
+            className={`p-2 rounded ${forma === 'circulo' ? 'bg-primary-600' : 'hover:bg-gray-500'}`}
           >
             <Circle className="w-5 h-5" />
           </button>
@@ -531,7 +648,6 @@ export function PDFMarkerEditor({
           <button
             onClick={() => setScale(prev => Math.max(MIN_SCALE, prev - SCALE_STEP))}
             className="p-2 rounded hover:bg-gray-600"
-            title="Alejar"
           >
             <ZoomOut className="w-5 h-5" />
           </button>
@@ -539,7 +655,6 @@ export function PDFMarkerEditor({
           <button
             onClick={() => setScale(prev => Math.min(MAX_SCALE, prev + SCALE_STEP))}
             className="p-2 rounded hover:bg-gray-600"
-            title="Acercar"
           >
             <ZoomIn className="w-5 h-5" />
           </button>
@@ -548,19 +663,14 @@ export function PDFMarkerEditor({
 
       {/* Instrucciones */}
       <div className="px-4 py-2 bg-primary-600 text-white text-sm flex items-center justify-between flex-wrap gap-2">
-        <span>
-          Dibuja un {forma === 'rectangulo' ? 'rectángulo' : 'círculo'} sobre el repuesto en el manual para marcarlo
-        </span>
-        <span className="text-primary-200 text-xs hidden sm:block">
-          💡 Ctrl+Scroll para zoom | Arrastra para dibujar
-        </span>
+        <span>Dibuja un {forma === 'rectangulo' ? 'rectángulo' : 'círculo'} sobre el repuesto</span>
+        <span className="text-primary-200 text-xs hidden sm:block">💡 Ctrl+Scroll para zoom</span>
       </div>
 
-      {/* Canvas Container - con scroll */}
+      {/* Canvas Container */}
       <div 
         ref={containerRef}
         className="flex-1 overflow-auto flex items-start justify-center p-4"
-        style={{ cursor: 'grab' }}
         onWheel={handleWheel}
         onTouchMove={handleContainerTouchMove}
         onTouchEnd={handleContainerTouchEnd}
@@ -582,12 +692,10 @@ export function PDFMarkerEditor({
         </div>
       </div>
 
-      {/* Footer con botón guardar */}
+      {/* Footer */}
       <div className="px-4 py-3 bg-gray-900 flex items-center justify-between flex-wrap gap-2">
         <p className="text-sm text-gray-400">
-          {currentMarker 
-            ? '✓ Marcador dibujado - Listo para guardar' 
-            : 'Dibuja el marcador en el PDF'}
+          {currentMarker ? '✓ Marcador dibujado - Listo para guardar' : 'Dibuja el marcador en el PDF'}
         </p>
         <div className="flex items-center gap-2">
           <button
@@ -602,7 +710,7 @@ export function PDFMarkerEditor({
             className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <Save className="w-5 h-5" />
-            Guardar Marcador
+            Guardar
           </button>
         </div>
       </div>

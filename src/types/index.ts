@@ -96,10 +96,12 @@ export interface ModalProps {
 export interface RepuestoFormData {
   codigoSAP: string;
   textoBreve: string;
+  descripcion?: string;
   codigoBaader: string;
   cantidadSolicitada: number;
   valorUnitario: number;
   cantidadStockBodega: number;
+  tags?: string[];
 }
 
 // Datos de exportación
