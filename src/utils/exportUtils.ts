@@ -49,20 +49,20 @@ async function exportToExcelSimple(repuestos: Repuesto[], filename: string, tipo
   // Columnas básicas (con CLP si hay tipo de cambio)
   const columns = [
     { header: 'Código SAP', key: 'codigoSAP', width: 14 },
-    { header: 'Código Baader', key: 'codigoBaader', width: 16 },
-    { header: 'Descripción', key: 'descripcion', width: 45 },
-    { header: 'Cant. Solicitada', key: 'cantidadSolicitada', width: 14 },
-    { header: 'Total Solic. (USD)', key: 'totalSolicitadoUSD', width: 16 },
-    { header: 'Stock Bodega', key: 'stockBodega', width: 13 },
+    { header: 'Número Parte Manual', key: 'codigoBaader', width: 20 },
+    { header: 'Descripción SAP', key: 'descripcion', width: 45 },
+    { header: 'Cantidad Solicitada', key: 'cantidadSolicitada', width: 16 },
+    { header: 'Total Solicitado (USD)', key: 'totalSolicitadoUSD', width: 18 },
+    { header: 'Stock en Bodega', key: 'stockBodega', width: 15 },
     { header: 'Total Stock (USD)', key: 'totalStockUSD', width: 16 },
-    { header: 'V. Unitario (USD)', key: 'valorUnitario', width: 15 },
-    { header: 'Total (USD)', key: 'total', width: 14 },
+    { header: 'Valor Unitario (USD)', key: 'valorUnitario', width: 16 },
+    { header: 'Total General (USD)', key: 'total', width: 16 },
   ];
 
   if (tipoCambio && tipoCambio > 0) {
-    columns.splice(5, 0, { header: `Total Solic. (CLP) @${tipoCambio.toFixed(0)}`, key: 'totalSolicitadoCLP', width: 18 });
+    columns.splice(5, 0, { header: `Total Solicitado (CLP) @${tipoCambio.toFixed(0)}`, key: 'totalSolicitadoCLP', width: 20 });
     columns.splice(8, 0, { header: `Total Stock (CLP) @${tipoCambio.toFixed(0)}`, key: 'totalStockCLP', width: 18 });
-    columns.push({ header: `Total (CLP) @${tipoCambio.toFixed(0)}`, key: 'totalCLP', width: 18 });
+    columns.push({ header: `Total General (CLP) @${tipoCambio.toFixed(0)}`, key: 'totalCLP', width: 20 });
   }
 
   columns.push({ header: 'Tags', key: 'tags', width: 25 });
@@ -139,20 +139,20 @@ export async function exportToExcel(
   // Definir columnas (con CLP si hay tipo de cambio)
   const detalleColumns: { header: string; key: string; width: number }[] = [
     { header: 'Código SAP', key: 'codigoSAP', width: 14 },
-    { header: 'Código Baader', key: 'codigoBaader', width: 16 },
-    { header: 'Descripción', key: 'descripcion', width: 45 },
-    { header: 'Cant. Solicitada', key: 'cantidadSolicitada', width: 14 },
-    { header: 'Total Solic. (USD)', key: 'totalSolicitadoUSD', width: 16 },
-    { header: 'Stock Bodega', key: 'stockBodega', width: 13 },
+    { header: 'Número Parte Manual', key: 'codigoBaader', width: 20 },
+    { header: 'Descripción SAP', key: 'descripcion', width: 45 },
+    { header: 'Cantidad Solicitada', key: 'cantidadSolicitada', width: 16 },
+    { header: 'Total Solicitado (USD)', key: 'totalSolicitadoUSD', width: 18 },
+    { header: 'Stock en Bodega', key: 'stockBodega', width: 15 },
     { header: 'Total Stock (USD)', key: 'totalStockUSD', width: 16 },
-    { header: 'V. Unitario (USD)', key: 'valorUnitario', width: 15 },
-    { header: 'Total (USD)', key: 'total', width: 14 },
+    { header: 'Valor Unitario (USD)', key: 'valorUnitario', width: 16 },
+    { header: 'Total General (USD)', key: 'total', width: 16 },
   ];
 
   if (tipoCambio && tipoCambio > 0) {
-    detalleColumns.splice(5, 0, { header: `Total Solic. (CLP) @${tipoCambio.toFixed(0)}`, key: 'totalSolicitadoCLP', width: 18 });
+    detalleColumns.splice(5, 0, { header: `Total Solicitado (CLP) @${tipoCambio.toFixed(0)}`, key: 'totalSolicitadoCLP', width: 20 });
     detalleColumns.splice(8, 0, { header: `Total Stock (CLP) @${tipoCambio.toFixed(0)}`, key: 'totalStockCLP', width: 18 });
-    detalleColumns.push({ header: `Total (CLP) @${tipoCambio.toFixed(0)}`, key: 'totalCLP', width: 18 });
+    detalleColumns.push({ header: `Total General (CLP) @${tipoCambio.toFixed(0)}`, key: 'totalCLP', width: 20 });
   }
 
   detalleColumns.push(
@@ -615,11 +615,11 @@ export async function exportToExcel(
 
       wsSinStock.columns = [
       { header: 'Código SAP', key: 'codigoSAP', width: 14 },
-      { header: 'Código Baader', key: 'codigoBaader', width: 16 },
-      { header: 'Descripción', key: 'descripcion', width: 45 },
-      { header: 'Cant. Solicitada', key: 'cantidadSolicitada', width: 14 },
-      { header: 'V. Unitario (USD)', key: 'valorUnitario', width: 15 },
-      { header: 'Total (USD)', key: 'total', width: 14 },
+      { header: 'Número Parte Manual', key: 'codigoBaader', width: 20 },
+      { header: 'Descripción SAP', key: 'descripcion', width: 45 },
+      { header: 'Cantidad Solicitada', key: 'cantidadSolicitada', width: 16 },
+      { header: 'Valor Unitario (USD)', key: 'valorUnitario', width: 16 },
+      { header: 'Total General (USD)', key: 'total', width: 16 },
       { header: 'Tags', key: 'tags', width: 25 }
     ];
 
@@ -994,11 +994,11 @@ export async function exportToPDF(
     const dataX = margin + 2;
     let textY = currentY + 5;
 
-    // Código Baader (título principal)
+    // Número Parte Manual (título principal)
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(30, 64, 175);
-    doc.text(`Cód. Baader: ${repuesto.codigoBaader || '-'}`, dataX, textY);
+    doc.text(`N° Parte Manual: ${repuesto.codigoBaader || '-'}`, dataX, textY);
 
     // Código SAP
     textY += 4;

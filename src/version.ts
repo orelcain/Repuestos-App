@@ -1,8 +1,20 @@
 // Versión de la aplicación
-export const APP_VERSION = '2.6.1';
+export const APP_VERSION = '2.6.2';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '2.6.2',
+    date: '2025-12-20',
+    changes: [
+      'Títulos de columnas mejorados y más descriptivos',
+      '"Código Baader" → "Número Parte Manual"',
+      '"Desc. SAP" → "Descripción SAP"',
+      '"Desc. Extendida" → "Descripción Extendida"',
+      '"Total USD/CLP" → "Total General USD/CLP" (para distinguir de Total Solicitado y Total Stock)',
+      'Nombres actualizados en exportaciones Excel y PDF'
+    ]
+  },
   {
     version: '2.6.1',
     date: '2025-12-20',
