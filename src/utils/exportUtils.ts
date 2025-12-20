@@ -52,12 +52,16 @@ async function exportToExcelSimple(repuestos: Repuesto[], filename: string, tipo
     { header: 'Código Baader', key: 'codigoBaader', width: 16 },
     { header: 'Descripción', key: 'descripcion', width: 45 },
     { header: 'Cant. Solicitada', key: 'cantidadSolicitada', width: 14 },
+    { header: 'Total Solic. (USD)', key: 'totalSolicitadoUSD', width: 16 },
     { header: 'Stock Bodega', key: 'stockBodega', width: 13 },
+    { header: 'Total Stock (USD)', key: 'totalStockUSD', width: 16 },
     { header: 'V. Unitario (USD)', key: 'valorUnitario', width: 15 },
     { header: 'Total (USD)', key: 'total', width: 14 },
   ];
 
   if (tipoCambio && tipoCambio > 0) {
+    columns.splice(5, 0, { header: `Total Solic. (CLP) @${tipoCambio.toFixed(0)}`, key: 'totalSolicitadoCLP', width: 18 });
+    columns.splice(8, 0, { header: `Total Stock (CLP) @${tipoCambio.toFixed(0)}`, key: 'totalStockCLP', width: 18 });
     columns.push({ header: `Total (CLP) @${tipoCambio.toFixed(0)}`, key: 'totalCLP', width: 18 });
   }
 
@@ -71,21 +75,29 @@ async function exportToExcelSimple(repuestos: Repuesto[], filename: string, tipo
       codigoBaader: r.codigoBaader,
       descripcion: r.textoBreve,
       cantidadSolicitada: r.cantidadSolicitada,
+      totalSolicitadoUSD: r.valorUnitario * r.cantidadSolicitada,
       stockBodega: r.cantidadStockBodega,
+      totalStockUSD: r.valorUnitario * (r.cantidadStockBodega || 0),
       valorUnitario: r.valorUnitario,
       total: r.total,
       tags: r.tags?.join(', ') || ''
     };
 
     if (tipoCambio && tipoCambio > 0) {
+      rowData.totalSolicitadoCLP = Math.round((r.valorUnitario * r.cantidadSolicitada) * tipoCambio);
+      rowData.totalStockCLP = Math.round((r.valorUnitario * (r.cantidadStockBodega || 0)) * tipoCambio);
       rowData.totalCLP = Math.round((r.total || 0) * tipoCambio);
     }
 
     const row = ws.addRow(rowData);
     // Solo formato de moneda básico
     row.getCell('valorUnitario').numFmt = '"$"#,##0.00';
+    row.getCell('totalSolicitadoUSD').numFmt = '"$"#,##0.00';
+    row.getCell('totalStockUSD').numFmt = '"$"#,##0.00';
     row.getCell('total').numFmt = '"$"#,##0.00';
     if (tipoCambio && tipoCambio > 0) {
+      row.getCell('totalSolicitadoCLP').numFmt = '"$"#,##0';
+      row.getCell('totalStockCLP').numFmt = '"$"#,##0';
       row.getCell('totalCLP').numFmt = '"$"#,##0';
     }
   });
@@ -130,12 +142,16 @@ export async function exportToExcel(
     { header: 'Código Baader', key: 'codigoBaader', width: 16 },
     { header: 'Descripción', key: 'descripcion', width: 45 },
     { header: 'Cant. Solicitada', key: 'cantidadSolicitada', width: 14 },
+    { header: 'Total Solic. (USD)', key: 'totalSolicitadoUSD', width: 16 },
     { header: 'Stock Bodega', key: 'stockBodega', width: 13 },
+    { header: 'Total Stock (USD)', key: 'totalStockUSD', width: 16 },
     { header: 'V. Unitario (USD)', key: 'valorUnitario', width: 15 },
     { header: 'Total (USD)', key: 'total', width: 14 },
   ];
 
   if (tipoCambio && tipoCambio > 0) {
+    detalleColumns.splice(5, 0, { header: `Total Solic. (CLP) @${tipoCambio.toFixed(0)}`, key: 'totalSolicitadoCLP', width: 18 });
+    detalleColumns.splice(8, 0, { header: `Total Stock (CLP) @${tipoCambio.toFixed(0)}`, key: 'totalStockCLP', width: 18 });
     detalleColumns.push({ header: `Total (CLP) @${tipoCambio.toFixed(0)}`, key: 'totalCLP', width: 18 });
   }
 
@@ -165,7 +181,9 @@ export async function exportToExcel(
       codigoBaader: r.codigoBaader,
       descripcion: r.textoBreve,
       cantidadSolicitada: r.cantidadSolicitada,
+      totalSolicitadoUSD: r.valorUnitario * r.cantidadSolicitada,
       stockBodega: r.cantidadStockBodega,
+      totalStockUSD: r.valorUnitario * (r.cantidadStockBodega || 0),
       valorUnitario: r.valorUnitario,
       total: r.total,
       tags: r.tags?.length > 0 ? r.tags.join(', ') : null,
@@ -177,6 +195,8 @@ export async function exportToExcel(
     };
 
     if (tipoCambio && tipoCambio > 0) {
+      rowData.totalSolicitadoCLP = Math.round((r.valorUnitario * r.cantidadSolicitada) * tipoCambio);
+      rowData.totalStockCLP = Math.round((r.valorUnitario * (r.cantidadStockBodega || 0)) * tipoCambio);
       rowData.totalCLP = Math.round((r.total || 0) * tipoCambio);
     }
 
@@ -199,9 +219,13 @@ export async function exportToExcel(
     }
 
     // Formato de moneda (siempre)
+    row.getCell('totalSolicitadoUSD').numFmt = '"$"#,##0.00';
+    row.getCell('totalStockUSD').numFmt = '"$"#,##0.00';
     row.getCell('valorUnitario').numFmt = '"$"#,##0.00';
     row.getCell('total').numFmt = '"$"#,##0.00';
     if (tipoCambio && tipoCambio > 0) {
+      row.getCell('totalSolicitadoCLP').numFmt = '"$"#,##0';
+      row.getCell('totalStockCLP').numFmt = '"$"#,##0';
       row.getCell('totalCLP').numFmt = '"$"#,##0';
     }
   });
@@ -212,21 +236,25 @@ export async function exportToExcel(
     codigoBaader: null,
     descripcion: 'TOTALES',
     cantidadSolicitada: { formula: `SUM(D2:D${repuestos.length + 1})` },
-    stockBodega: { formula: `SUM(E2:E${repuestos.length + 1})` },
+    totalSolicitadoUSD: { formula: `SUM(E2:E${repuestos.length + 1})` },
+    stockBodega: { formula: `SUM(F2:F${repuestos.length + 1})` },
+    totalStockUSD: { formula: `SUM(G2:G${repuestos.length + 1})` },
     valorUnitario: null,
-    total: { formula: `SUM(G2:G${repuestos.length + 1})` },
+    total: { formula: `SUM(H2:H${repuestos.length + 1})` },
     tags: null,
     ultimaAct: null,
   };
 
   // Ajustar columnas de imgManual y fotosReales según si hay CLP
   if (tipoCambio && tipoCambio > 0) {
-    totalRowData.totalCLP = { formula: `SUM(H2:H${repuestos.length + 1})` };
-    totalRowData.imgManual = { formula: `SUM(K2:K${repuestos.length + 1})` };
-    totalRowData.fotosReales = { formula: `SUM(L2:L${repuestos.length + 1})` };
+    totalRowData.totalSolicitadoCLP = { formula: `SUM(I2:I${repuestos.length + 1})` };
+    totalRowData.totalStockCLP = { formula: `SUM(J2:J${repuestos.length + 1})` };
+    totalRowData.totalCLP = { formula: `SUM(K2:K${repuestos.length + 1})` };
+    totalRowData.imgManual = { formula: `SUM(N2:N${repuestos.length + 1})` };
+    totalRowData.fotosReales = { formula: `SUM(O2:O${repuestos.length + 1})` };
   } else {
-    totalRowData.imgManual = { formula: `SUM(J2:J${repuestos.length + 1})` };
-    totalRowData.fotosReales = { formula: `SUM(K2:K${repuestos.length + 1})` };
+    totalRowData.imgManual = { formula: `SUM(L2:L${repuestos.length + 1})` };
+    totalRowData.fotosReales = { formula: `SUM(M2:M${repuestos.length + 1})` };
   }
 
   const totalRow = wsDetalle.addRow(totalRowData);
@@ -234,8 +262,12 @@ export async function exportToExcel(
     totalRow.font = { bold: true };
     totalRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.primaryLight } };
   }
+  totalRow.getCell('totalSolicitadoUSD').numFmt = '"$"#,##0.00';
+  totalRow.getCell('totalStockUSD').numFmt = '"$"#,##0.00';
   totalRow.getCell('total').numFmt = '"$"#,##0.00';
   if (tipoCambio && tipoCambio > 0) {
+    totalRow.getCell('totalSolicitadoCLP').numFmt = '"$"#,##0';
+    totalRow.getCell('totalStockCLP').numFmt = '"$"#,##0';
     totalRow.getCell('totalCLP').numFmt = '"$"#,##0';
   }
 

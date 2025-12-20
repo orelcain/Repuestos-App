@@ -1,8 +1,20 @@
 // Versión de la aplicación
-export const APP_VERSION = '2.5.1';
+export const APP_VERSION = '2.6.0';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '2.6.0',
+    date: '2025-12-20',
+    changes: [
+      'Nuevas columnas calculadas: Total Solicitado USD/CLP y Total Stock USD/CLP',
+      'Total Solicitado USD: valor unitario × cantidad solicitada',
+      'Total Stock USD: valor unitario × cantidad en bodega',
+      'Versiones CLP con conversión automática al tipo de cambio',
+      'Columnas configurables desde el modal de visibilidad',
+      'Incluidas en exportaciones Excel con formato de moneda'
+    ]
+  },
   {
     version: '2.5.1',
     date: '2025-12-20',

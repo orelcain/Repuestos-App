@@ -855,6 +855,16 @@ export function RepuestosTable({
                   </div>
                 </th>
               )}
+              {isColumnVisible('totalSolicitadoUSD') && (
+                <th className="px-4 py-4 text-right font-semibold text-gray-600 text-xs uppercase tracking-wide">
+                  Total Solic. USD
+                </th>
+              )}
+              {isColumnVisible('totalSolicitadoCLP') && (
+                <th className="px-4 py-4 text-right font-semibold text-gray-600 text-xs uppercase tracking-wide">
+                  Total Solic. CLP
+                </th>
+              )}
               {isColumnVisible('cantidadStockBodega') && (
                 <th 
                   className="px-4 py-4 text-center font-semibold text-gray-600 text-xs uppercase tracking-wide cursor-pointer hover:bg-gray-100 select-none"
@@ -864,6 +874,16 @@ export function RepuestosTable({
                     Stock
                     <SortIcon column="cantidadStockBodega" />
                   </div>
+                </th>
+              )}
+              {isColumnVisible('totalStockUSD') && (
+                <th className="px-4 py-4 text-right font-semibold text-gray-600 text-xs uppercase tracking-wide">
+                  Total Stock USD
+                </th>
+              )}
+              {isColumnVisible('totalStockCLP') && (
+                <th className="px-4 py-4 text-right font-semibold text-gray-600 text-xs uppercase tracking-wide">
+                  Total Stock CLP
                 </th>
               )}
               {isColumnVisible('valorUnitario') && (
@@ -1086,6 +1106,24 @@ export function RepuestosTable({
                   </td>
                   )}
 
+                  {/* Total Solicitado USD */}
+                  {isColumnVisible('totalSolicitadoUSD') && (
+                  <td className="px-4 py-4 text-right">
+                    <span className="text-sm font-semibold text-blue-600">
+                      ${(repuesto.valorUnitario * repuesto.cantidadSolicitada).toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </td>
+                  )}
+
+                  {/* Total Solicitado CLP */}
+                  {isColumnVisible('totalSolicitadoCLP') && (
+                  <td className="px-4 py-4 text-right">
+                    <span className="text-sm font-semibold text-green-600">
+                      {formatClp((repuesto.valorUnitario * repuesto.cantidadSolicitada) * (tipoCambio || 900))}
+                    </span>
+                  </td>
+                  )}
+
                   {/* Stock Bodega - clickeable para ver historial */}
                   {isColumnVisible('cantidadStockBodega') && (
                   <td className="px-4 py-4 text-center">
@@ -1105,6 +1143,24 @@ export function RepuestosTable({
                     >
                       {repuesto.cantidadStockBodega}
                     </button>
+                  </td>
+                  )}
+
+                  {/* Total Stock USD */}
+                  {isColumnVisible('totalStockUSD') && (
+                  <td className="px-4 py-4 text-right">
+                    <span className="text-sm font-medium text-purple-600">
+                      ${(repuesto.valorUnitario * (repuesto.cantidadStockBodega || 0)).toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </td>
+                  )}
+
+                  {/* Total Stock CLP */}
+                  {isColumnVisible('totalStockCLP') && (
+                  <td className="px-4 py-4 text-right">
+                    <span className="text-sm font-medium text-amber-600">
+                      {formatClp((repuesto.valorUnitario * (repuesto.cantidadStockBodega || 0)) * (tipoCambio || 900))}
+                    </span>
                   </td>
                   )}
 
