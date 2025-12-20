@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { ImagenRepuesto, Repuesto } from '../../types';
 import { Modal, Button } from '../ui';
+import { ImageQualityModal } from './ImageQualityModal';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -33,6 +34,9 @@ export function ImageGallery({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [zoomImage, setZoomImage] = useState<ImagenRepuesto | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [currentFileIndex, setCurrentFileIndex] = useState(0);
+  const [showQualityModal, setShowQualityModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const imagenes = tipo === 'manual' ? repuesto?.imagenesManual : repuesto?.fotosReales;
@@ -40,20 +44,52 @@ export function ImageGallery({
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (!files || !repuesto) return;
+    if (!files || !repuesto || files.length === 0) return;
+
+    // Guardar archivos pendientes y mostrar modal de calidad
+    const fileArray = Array.from(files);
+    setPendingFiles(fileArray);
+    setCurrentFileIndex(0);
+    setShowQualityModal(true);
+    
+    // Limpiar input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleOptimizedUpload = async (optimizedFile: File) => {
+    if (!repuesto) return;
 
     setUploading(true);
     try {
-      for (const file of Array.from(files)) {
-        await onUpload(file, repuesto.id, tipo);
+      await onUpload(optimizedFile, repuesto.id, tipo);
+      
+      // Si hay más archivos pendientes, mostrar el siguiente
+      if (currentFileIndex < pendingFiles.length - 1) {
+        setCurrentFileIndex(prev => prev + 1);
+        setShowQualityModal(true);
+      } else {
+        // Limpiar estado
+        setPendingFiles([]);
+        setCurrentFileIndex(0);
       }
     } catch (error) {
       console.error('Error al subir imagen:', error);
     } finally {
       setUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+    }
+  };
+
+  const handleCloseQualityModal = () => {
+    setShowQualityModal(false);
+    // Si hay más archivos, preguntar por el siguiente
+    if (currentFileIndex < pendingFiles.length - 1) {
+      setCurrentFileIndex(prev => prev + 1);
+      setTimeout(() => setShowQualityModal(true), 100);
+    } else {
+      setPendingFiles([]);
+      setCurrentFileIndex(0);
     }
   };
 
@@ -251,6 +287,14 @@ export function ImageGallery({
           </p>
         </div>
       </Modal>
+
+      {/* Modal de Calidad de Imagen */}
+      <ImageQualityModal
+        isOpen={showQualityModal}
+        onClose={handleCloseQualityModal}
+        file={pendingFiles[currentFileIndex] || null}
+        onConfirm={handleOptimizedUpload}
+      />
     </div>
   );
 }

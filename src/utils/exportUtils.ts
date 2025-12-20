@@ -2,6 +2,7 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Repuesto } from '../types';
+import { preloadImagesAsBase64 } from './imageUtils';
 
 // Exportar a Excel
 export async function exportToExcel(repuestos: Repuesto[], filename: string = 'repuestos_baader_200') {
@@ -43,11 +44,20 @@ export async function exportToExcel(repuestos: Repuesto[], filename: string = 'r
 }
 
 // Exportar a PDF con imágenes
-export async function exportToPDF(repuestos: Repuesto[], filename: string = 'repuestos_baader_200') {
+export async function exportToPDF(
+  repuestos: Repuesto[], 
+  filename: string = 'repuestos_baader_200',
+  onProgress?: (progress: number, message: string) => void
+) {
   const doc = new jsPDF('p', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 15;
+
+  // Precargar imágenes como base64 para evitar problemas de CORS
+  onProgress?.(5, 'Precargando imágenes...');
+  const imageMap = await preloadImagesAsBase64(repuestos);
+  onProgress?.(20, 'Generando PDF...');
 
   // Título
   doc.setFontSize(18);
@@ -120,7 +130,7 @@ export async function exportToPDF(repuestos: Repuesto[], filename: string = 'rep
     doc.setFont('helvetica', 'bold');
     doc.text(`${repuesto.cantidadStockBodega}`, col1X + 25, dataY + 12);
 
-    // Imágenes (si existen)
+    // Imágenes (si existen) - Usar base64 del mapa precargado
     const allImages = [...repuesto.imagenesManual, ...repuesto.fotosReales];
     if (allImages.length > 0) {
       const imgStartX = pageWidth - margin - 45;
@@ -129,18 +139,22 @@ export async function exportToPDF(repuestos: Repuesto[], filename: string = 'rep
 
       // Mostrar hasta 2 imágenes
       for (let j = 0; j < Math.min(2, allImages.length); j++) {
-        try {
-          const img = allImages[j];
-          // Intentar cargar la imagen (esto puede fallar con CORS)
-          // En producción, las imágenes deberían estar en base64 o en el mismo dominio
-          doc.addImage(img.url, 'JPEG', imgStartX + (j * (imgSize + 2)), imgY, imgSize, imgSize);
-        } catch (e) {
-          // Si falla, dibujar placeholder
-          doc.setFillColor(230, 230, 230);
-          doc.rect(imgStartX + (j * (imgSize + 2)), imgY, imgSize, imgSize, 'F');
-          doc.setFontSize(6);
-          doc.setTextColor(150, 150, 150);
-          doc.text('Imagen', imgStartX + (j * (imgSize + 2)) + 5, imgY + 13);
+        const img = allImages[j];
+        const base64 = imageMap.get(img.url);
+        
+        if (base64) {
+          try {
+            // Determinar formato desde base64
+            const format = base64.includes('image/png') ? 'PNG' : 
+                          base64.includes('image/webp') ? 'WEBP' : 'JPEG';
+            doc.addImage(base64, format, imgStartX + (j * (imgSize + 2)), imgY, imgSize, imgSize);
+          } catch (e) {
+            // Si falla, dibujar placeholder
+            drawImagePlaceholder(doc, imgStartX + (j * (imgSize + 2)), imgY, imgSize);
+          }
+        } else {
+          // Si no hay base64, dibujar placeholder
+          drawImagePlaceholder(doc, imgStartX + (j * (imgSize + 2)), imgY, imgSize);
         }
       }
 
@@ -151,8 +165,14 @@ export async function exportToPDF(repuestos: Repuesto[], filename: string = 'rep
       }
     }
 
+    // Actualizar progreso
+    const progress = 20 + Math.round((i / repuestos.length) * 70);
+    onProgress?.(progress, `Procesando ${i + 1} de ${repuestos.length}...`);
+
     currentY += 65;
   }
+
+  onProgress?.(95, 'Generando resumen...');
 
   // Resumen al final
   doc.addPage();
@@ -178,7 +198,17 @@ export async function exportToPDF(repuestos: Repuesto[], filename: string = 'rep
     margin: { left: margin, right: margin }
   });
 
+  onProgress?.(100, 'Guardando PDF...');
   doc.save(`${filename}.pdf`);
+}
+
+// Función auxiliar para dibujar placeholder de imagen
+function drawImagePlaceholder(doc: jsPDF, x: number, y: number, size: number) {
+  doc.setFillColor(230, 230, 230);
+  doc.rect(x, y, size, size, 'F');
+  doc.setFontSize(6);
+  doc.setTextColor(150, 150, 150);
+  doc.text('Imagen', x + 5, y + size / 2);
 }
 
 // Parsear Excel de entrada

@@ -1,8 +1,21 @@
 // Versión de la aplicación
-export const APP_VERSION = '1.4.5';
+export const APP_VERSION = '1.4.6';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '1.4.6',
+    date: '2025-12-20',
+    changes: [
+      'Optimización de imágenes: conversión automática a WebP',
+      'Selector de calidad de compresión antes de subir imágenes',
+      'Opciones de calidad: Máxima, Alta, Media, Baja, Mínima',
+      'Previsualización del tamaño estimado antes de subir',
+      'Fix: Exportación PDF con imágenes ahora funciona correctamente',
+      'Imágenes precargadas a base64 para evitar problemas CORS',
+      'Indicador de progreso en exportación PDF'
+    ]
+  },
   {
     version: '1.4.5',
     date: '2025-12-20',
