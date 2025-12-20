@@ -4,7 +4,8 @@ import { useRepuestos } from '../hooks/useRepuestos';
 import { useStorage } from '../hooks/useStorage';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useToast } from '../hooks/useToast';
-import { Repuesto, RepuestoFormData, ImagenRepuesto } from '../types';
+import { Repuesto, RepuestoFormData, ImagenRepuesto, VinculoManual } from '../types';
+import { APP_VERSION } from '../version';
 
 import { RepuestosTable } from './repuestos/RepuestosTable';
 import { RepuestoForm } from './repuestos/RepuestoForm';
@@ -12,6 +13,7 @@ import { HistorialModal } from './repuestos/HistorialModal';
 import { DeleteConfirmModal } from './repuestos/DeleteConfirmModal';
 import { ImageGallery } from './gallery/ImageGallery';
 import { PDFViewer } from './pdf/PDFViewer';
+import { PDFMarkerEditor } from './pdf/PDFMarkerEditor';
 import { ImportModal } from './ImportModal';
 import { ToastContainer, Button } from './ui';
 
@@ -29,7 +31,7 @@ import {
   Upload
 } from 'lucide-react';
 
-type RightPanelMode = 'gallery' | 'pdf' | 'hidden';
+type RightPanelMode = 'gallery' | 'pdf' | 'marker-editor' | 'hidden';
 type GalleryType = 'manual' | 'real';
 
 export function Dashboard() {
@@ -62,6 +64,8 @@ export function Dashboard() {
   const [galleryType, setGalleryType] = useState<GalleryType>('manual');
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [targetPage, setTargetPage] = useState<number | undefined>();
+  const [currentMarker, setCurrentMarker] = useState<VinculoManual | undefined>();
+  const [markerRepuesto, setMarkerRepuesto] = useState<Repuesto | null>(null);
 
   // Estado móvil
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -158,9 +162,14 @@ export function Dashboard() {
   const handleViewManual = (repuesto: Repuesto) => {
     setSelectedRepuesto(repuesto);
     setRightPanelMode('pdf');
-    // Si tiene vínculo a página específica, navegar
-    if (repuesto.vinculosManual.length > 0) {
-      setTargetPage(repuesto.vinculosManual[0].pagina);
+    // Si tiene vínculo a página específica, navegar y mostrar marcador
+    if (repuesto.vinculosManual && repuesto.vinculosManual.length > 0) {
+      const marker = repuesto.vinculosManual[0];
+      setTargetPage(marker.pagina);
+      setCurrentMarker(marker);
+    } else {
+      setTargetPage(undefined);
+      setCurrentMarker(undefined);
     }
   };
 
@@ -179,6 +188,34 @@ export function Dashboard() {
   const handleAddManualImage = (repuesto: Repuesto) => {
     setSelectedRepuesto(repuesto);
     setRightPanelMode('pdf');
+  };
+
+  // Handler para marcar en el manual
+  const handleMarkInManual = (repuesto: Repuesto) => {
+    setMarkerRepuesto(repuesto);
+    setSelectedRepuesto(repuesto);
+    setRightPanelMode('marker-editor');
+  };
+
+  // Guardar marcador
+  const handleSaveMarker = async (marker: Omit<VinculoManual, 'id'>) => {
+    if (!markerRepuesto) return;
+    
+    const newMarker: VinculoManual = {
+      ...marker,
+      id: Date.now().toString()
+    };
+    
+    const vinculosActuales = markerRepuesto.vinculosManual || [];
+    await updateRepuesto(markerRepuesto.id, {
+      vinculosManual: [...vinculosActuales, newMarker]
+    });
+    
+    success('Marcador guardado - Ahora puedes ver este repuesto en el manual');
+    setRightPanelMode('pdf');
+    setMarkerRepuesto(null);
+    setCurrentMarker(newMarker);
+    setTargetPage(newMarker.pagina);
   };
 
   const handleViewHistory = (repuesto: Repuesto) => {
@@ -253,6 +290,8 @@ export function Dashboard() {
       vinculosManual: [...vinculosActuales, {
         id: Date.now().toString(),
         pagina: pageNumber,
+        forma: 'rectangulo' as const,
+        color: 'rgba(239, 68, 68, 0.4)',
         descripcion: `Página ${pageNumber}`
       }]
     });
@@ -304,8 +343,13 @@ export function Dashboard() {
               <span className="text-white font-bold text-lg">B</span>
             </div>
             <div>
-              <h1 className="font-bold text-gray-800">Baader 200</h1>
-              <p className="text-xs text-gray-500">Gestión de Repuestos</p>
+              <h1 className="font-bold text-gray-800 text-lg flex items-center gap-2">
+                Baader 200
+                <span className="text-xs font-normal bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full">
+                  v{APP_VERSION}
+                </span>
+              </h1>
+              <p className="text-sm text-gray-500">Gestión de Repuestos</p>
             </div>
           </div>
 
@@ -450,6 +494,7 @@ export function Dashboard() {
             onViewHistory={handleViewHistory}
             onAddNew={handleAddNew}
             onAddManualImage={handleAddManualImage}
+            onMarkInManual={handleMarkInManual}
           />
         </div>
 
@@ -527,10 +572,22 @@ export function Dashboard() {
                   onSetPrimary={handleSetPrimaryImage}
                   onUpdateOrder={handleUpdateImageOrder}
                 />
+              ) : rightPanelMode === 'marker-editor' && markerRepuesto && pdfUrl ? (
+                <PDFMarkerEditor
+                  pdfUrl={pdfUrl}
+                  repuestoId={markerRepuesto.id}
+                  repuestoDescripcion={markerRepuesto.descripcion || markerRepuesto.textoBreve}
+                  onSave={handleSaveMarker}
+                  onCancel={() => {
+                    setRightPanelMode('pdf');
+                    setMarkerRepuesto(null);
+                  }}
+                />
               ) : (
                 <PDFViewer
                   pdfUrl={pdfUrl}
                   targetPage={targetPage}
+                  marker={currentMarker}
                   onCapture={selectedRepuesto ? handlePDFCapture : undefined}
                 />
               )}

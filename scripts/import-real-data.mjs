@@ -48,11 +48,13 @@ async function cleanAndImport() {
       await addDoc(repuestosRef, {
         codigoSAP: repuesto.codigoSAP,
         codigoBaader: repuesto.codigoBaader,
+        textoBreve: repuesto.descripcion,
         descripcion: repuesto.descripcion,
         cantidadSolicitada: repuesto.cantidadSolicitada,
         cantidadStockBodega: repuesto.cantidadStockBodega,
         valorUnitario: repuesto.valorUnitario,
         total: repuesto.total,
+        vinculosManual: [],
         imagenesManual: [],
         fotosReales: [],
         paginaManual: null,

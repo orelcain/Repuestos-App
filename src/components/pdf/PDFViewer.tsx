@@ -11,6 +11,7 @@ import {
   Camera,
   Loader2
 } from 'lucide-react';
+import { VinculoManual } from '../../types';
 
 // Configurar worker de PDF.js - usando versión específica estable
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
@@ -18,15 +19,18 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.j
 interface PDFViewerProps {
   pdfUrl: string | null;
   targetPage?: number;
+  marker?: VinculoManual;
   onCapture?: (imageData: string, pageNumber: number) => void;
 }
 
 export function PDFViewer({ 
   pdfUrl, 
   targetPage,
+  marker,
   onCapture
 }: PDFViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const overlayRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   
@@ -81,14 +85,53 @@ export function PDFViewer({
       canvas.height = viewport.height;
       canvas.width = viewport.width;
 
+      // Ajustar overlay
+      if (overlayRef.current) {
+        overlayRef.current.height = viewport.height;
+        overlayRef.current.width = viewport.width;
+      }
+
       await page.render({
         canvasContext: context,
         viewport: viewport
       }).promise;
+
+      // Dibujar marcador si existe y estamos en la página correcta
+      if (marker && marker.pagina === pageNum && marker.coordenadas && overlayRef.current) {
+        const ctx = overlayRef.current.getContext('2d');
+        if (ctx) {
+          ctx.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height);
+          
+          const { x, y, width, height } = marker.coordenadas;
+          ctx.fillStyle = marker.color || 'rgba(239, 68, 68, 0.4)';
+          ctx.strokeStyle = marker.color?.replace('0.4', '1') || '#ef4444';
+          ctx.lineWidth = 3;
+
+          if (marker.forma === 'circulo') {
+            const centerX = x + width / 2;
+            const centerY = y + height / 2;
+            ctx.beginPath();
+            ctx.ellipse(centerX, centerY, width / 2, height / 2, 0, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.stroke();
+          } else {
+            ctx.fillRect(x, y, width, height);
+            ctx.strokeRect(x, y, width, height);
+          }
+
+          // Animación de pulso
+          ctx.globalAlpha = 0.6;
+          ctx.lineWidth = 6;
+          ctx.stroke();
+        }
+      } else if (overlayRef.current) {
+        const ctx = overlayRef.current.getContext('2d');
+        if (ctx) ctx.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height);
+      }
     } catch (err) {
       console.error('Error al renderizar página:', err);
     }
-  }, [pdf, scale]);
+  }, [pdf, scale, marker]);
 
   useEffect(() => {
     renderPage(currentPage);
@@ -348,11 +391,17 @@ export function PDFViewer({
         ref={scrollContainerRef}
         className="flex-1 overflow-auto pdf-container flex items-start justify-center p-4"
       >
-        <canvas
-          ref={canvasRef}
-          className="pdf-page bg-white shadow-lg"
-          style={{ maxWidth: '100%' }}
-        />
+        <div className="relative">
+          <canvas
+            ref={canvasRef}
+            className="pdf-page bg-white shadow-lg"
+            style={{ maxWidth: '100%' }}
+          />
+          <canvas
+            ref={overlayRef}
+            className="absolute top-0 left-0 pointer-events-none"
+          />
+        </div>
       </div>
 
       {/* Indicador de navegación por scroll */}

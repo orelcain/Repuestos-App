@@ -3,6 +3,7 @@ export interface Repuesto {
   id: string;
   codigoSAP: string;
   textoBreve: string;
+  descripcion: string;
   codigoBaader: string;
   cantidadSolicitada: number;
   valorUnitario: number;
@@ -16,7 +17,7 @@ export interface Repuesto {
   updatedAt: Date;
 }
 
-// Vínculo a página/área del manual PDF
+// Vínculo a página/área del manual PDF con marcador visual
 export interface VinculoManual {
   id: string;
   pagina: number;
@@ -26,6 +27,8 @@ export interface VinculoManual {
     width: number;
     height: number;
   };
+  forma: 'circulo' | 'rectangulo';
+  color: string;
   descripcion: string;
 }
 

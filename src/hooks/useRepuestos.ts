@@ -101,7 +101,7 @@ export function useRepuestos() {
     originalData?: Repuesto
   ) => {
     try {
-      const updateData: Record<string, unknown> = {
+      const updateData = {
         ...data,
         updatedAt: Timestamp.now()
       };
@@ -110,15 +110,16 @@ export function useRepuestos() {
       if (data.cantidadSolicitada !== undefined || data.valorUnitario !== undefined) {
         const cantidad = data.cantidadSolicitada ?? originalData?.cantidadSolicitada ?? 0;
         const valor = data.valorUnitario ?? originalData?.valorUnitario ?? 0;
-        updateData.total = cantidad * valor;
+        (updateData as Record<string, unknown>).total = cantidad * valor;
       }
 
       // Si se modifica cantidadStockBodega, actualizar fecha
       if (data.cantidadStockBodega !== undefined) {
-        updateData.fechaUltimaActualizacionInventario = Timestamp.now();
+        (updateData as Record<string, unknown>).fechaUltimaActualizacionInventario = Timestamp.now();
       }
 
-      await updateDoc(doc(db, COLLECTION_NAME, id), updateData);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await updateDoc(doc(db, COLLECTION_NAME, id), updateData as any);
 
       // Registrar cambios en historial
       if (originalData) {
