@@ -1,4 +1,4 @@
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, useCallback, useRef } from 'react';
 import { X } from 'lucide-react';
 
 interface ModalProps {
@@ -10,6 +10,8 @@ interface ModalProps {
 }
 
 export function Modal({ isOpen, onClose, children, title, size = 'md' }: ModalProps) {
+  const mouseDownTarget = useRef<EventTarget | null>(null);
+
   // Cerrar con Escape
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -27,6 +29,28 @@ export function Modal({ isOpen, onClose, children, title, size = 'md' }: ModalPr
     };
   }, [isOpen, onClose]);
 
+  // Manejar cierre del overlay solo si no hay texto seleccionado
+  // y el clic inició y terminó en el overlay
+  const handleOverlayMouseDown = useCallback((e: React.MouseEvent) => {
+    mouseDownTarget.current = e.target;
+  }, []);
+
+  const handleOverlayClick = useCallback((e: React.MouseEvent) => {
+    // Verificar que el clic inició y terminó en el mismo elemento (el overlay)
+    if (mouseDownTarget.current !== e.target) {
+      return;
+    }
+    
+    // Verificar si hay texto seleccionado
+    const selection = window.getSelection();
+    if (selection && selection.toString().trim().length > 0) {
+      // Hay texto seleccionado, no cerrar el modal
+      return;
+    }
+    
+    onClose();
+  }, [onClose]);
+
   if (!isOpen) return null;
 
   const sizeClasses = {
@@ -40,7 +64,8 @@ export function Modal({ isOpen, onClose, children, title, size = 'md' }: ModalPr
   return (
     <div 
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 animate-fadeIn"
-      onClick={onClose}
+      onMouseDown={handleOverlayMouseDown}
+      onClick={handleOverlayClick}
     >
       <div 
         className={`
@@ -49,6 +74,7 @@ export function Modal({ isOpen, onClose, children, title, size = 'md' }: ModalPr
           md:rounded-lg md:max-h-[85vh]
         `}
         onClick={e => e.stopPropagation()}
+        onMouseDown={e => e.stopPropagation()}
       >
         {/* Header */}
         {title && (

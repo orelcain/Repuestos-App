@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Repuesto, RepuestoFormData, TAGS_PREDEFINIDOS } from '../../types';
+import { Repuesto, RepuestoFormData } from '../../types';
+import { useTags } from '../../hooks/useTags';
 import { Modal, Button, Input } from '../ui';
 import { Save, Tag, X, Plus } from 'lucide-react';
 
@@ -11,11 +12,13 @@ interface RepuestoFormProps {
 }
 
 export function RepuestoForm({ isOpen, onClose, onSave, repuesto }: RepuestoFormProps) {
+  const { tags: globalTags, addTag: addGlobalTag } = useTags();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<RepuestoFormData>({
     codigoSAP: '',
     textoBreve: '',
     descripcion: '',
+    nombreManual: '',
     codigoBaader: '',
     cantidadSolicitada: 0,
     valorUnitario: 0,
@@ -34,6 +37,7 @@ export function RepuestoForm({ isOpen, onClose, onSave, repuesto }: RepuestoForm
         codigoSAP: repuesto.codigoSAP,
         textoBreve: repuesto.textoBreve,
         descripcion: repuesto.descripcion || '',
+        nombreManual: repuesto.nombreManual || '',
         codigoBaader: repuesto.codigoBaader,
         cantidadSolicitada: repuesto.cantidadSolicitada,
         valorUnitario: repuesto.valorUnitario,
@@ -45,6 +49,7 @@ export function RepuestoForm({ isOpen, onClose, onSave, repuesto }: RepuestoForm
         codigoSAP: '',
         textoBreve: '',
         descripcion: '',
+        nombreManual: '',
         codigoBaader: '',
         cantidadSolicitada: 0,
         valorUnitario: 0,
@@ -75,12 +80,18 @@ export function RepuestoForm({ isOpen, onClose, onSave, repuesto }: RepuestoForm
   // Agregar tag
   const addTag = (tag: string) => {
     if (!tag.trim()) return;
+    const trimmedTag = tag.trim();
     const currentTags = formData.tags || [];
-    if (!currentTags.includes(tag)) {
+    if (!currentTags.includes(trimmedTag)) {
       setFormData(prev => ({
         ...prev,
-        tags: [...currentTags, tag]
+        tags: [...currentTags, trimmedTag]
       }));
+      
+      // Si es un tag nuevo (no está en los predefinidos), agregarlo a la lista global
+      if (!globalTags.includes(trimmedTag)) {
+        addGlobalTag(trimmedTag);
+      }
     }
     setNewTagInput('');
     setShowTagSelector(false);
@@ -94,8 +105,8 @@ export function RepuestoForm({ isOpen, onClose, onSave, repuesto }: RepuestoForm
     }));
   };
 
-  // Tags disponibles (predefinidos que no están ya seleccionados)
-  const availableTags = TAGS_PREDEFINIDOS.filter(
+  // Tags disponibles (globales que no están ya seleccionados)
+  const availableTags = globalTags.filter(
     tag => !(formData.tags || []).includes(tag)
   );
 
@@ -129,13 +140,21 @@ export function RepuestoForm({ isOpen, onClose, onSave, repuesto }: RepuestoForm
           />
         </div>
 
-        {/* Texto Breve */}
+        {/* Texto Breve / Descripción SAP */}
         <Input
-          label="Texto Breve / Descripción"
+          label="Descripción SAP (Texto Breve)"
           value={formData.textoBreve}
           onChange={(e) => handleChange('textoBreve', e.target.value)}
-          placeholder="Descripción del repuesto"
+          placeholder="Descripción del repuesto según SAP"
           required
+        />
+
+        {/* Nombre según Manual */}
+        <Input
+          label="Nombre según Manual (opcional)"
+          value={formData.nombreManual || ''}
+          onChange={(e) => handleChange('nombreManual', e.target.value)}
+          placeholder="Nombre del repuesto según el manual Baader"
         />
 
         {/* Descripción extendida */}
@@ -146,7 +165,7 @@ export function RepuestoForm({ isOpen, onClose, onSave, repuesto }: RepuestoForm
           <textarea
             value={formData.descripcion || ''}
             onChange={(e) => handleChange('descripcion', e.target.value)}
-            placeholder="Descripción adicional o notas..."
+            placeholder="Notas adicionales, observaciones o detalles importantes..."
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
             rows={2}
           />

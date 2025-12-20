@@ -4,6 +4,7 @@ export interface Repuesto {
   codigoSAP: string;
   textoBreve: string;
   descripcion: string;
+  nombreManual?: string;  // Nombre según el manual Baader
   codigoBaader: string;
   cantidadSolicitada: number;
   valorUnitario: number;
@@ -98,6 +99,7 @@ export interface RepuestoFormData {
   codigoSAP: string;
   textoBreve: string;
   descripcion?: string;
+  nombreManual?: string;
   codigoBaader: string;
   cantidadSolicitada: number;
   valorUnitario: number;

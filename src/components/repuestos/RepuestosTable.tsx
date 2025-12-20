@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Repuesto, TAGS_PREDEFINIDOS, HistorialCambio } from '../../types';
+import { Repuesto, HistorialCambio } from '../../types';
 import { 
   Search, 
   Plus, 
@@ -141,6 +141,7 @@ export function RepuestosTable({
         r.codigoSAP?.toLowerCase().includes(term) ||
         r.textoBreve?.toLowerCase().includes(term) ||
         r.descripcion?.toLowerCase().includes(term) ||
+        r.nombreManual?.toLowerCase().includes(term) ||
         r.codigoBaader?.toLowerCase().includes(term)
       );
     }
@@ -248,7 +249,7 @@ export function RepuestosTable({
                     </button>
                   </div>
                   <div className="p-2 max-h-60 overflow-y-auto">
-                    {[...TAGS_PREDEFINIDOS, ...tagsEnUso.filter(t => !TAGS_PREDEFINIDOS.includes(t as any))].map(tag => (
+                    {tagsEnUso.map(tag => (
                       <button
                         key={tag}
                         onClick={() => {
@@ -339,7 +340,9 @@ export function RepuestosTable({
             <tr>
               <th className="px-4 py-4 text-left font-semibold text-gray-600 text-sm uppercase tracking-wide">Código SAP</th>
               <th className="px-4 py-4 text-left font-semibold text-gray-600 text-sm uppercase tracking-wide">Código Baader</th>
-              <th className="px-4 py-4 text-left font-semibold text-gray-600 text-sm uppercase tracking-wide">Descripción</th>
+              <th className="px-4 py-4 text-left font-semibold text-gray-600 text-xs uppercase tracking-wide">Desc. SAP</th>
+              <th className="px-4 py-4 text-left font-semibold text-gray-600 text-xs uppercase tracking-wide">Desc. Extendida</th>
+              <th className="px-4 py-4 text-left font-semibold text-gray-600 text-xs uppercase tracking-wide">Nombre Manual</th>
               <th className="px-4 py-4 text-center font-semibold text-gray-600 text-xs uppercase tracking-wide">Cant. Solicitada</th>
               <th className="px-4 py-4 text-center font-semibold text-gray-600 text-xs uppercase tracking-wide">Stock Bodega</th>
               <th className="px-4 py-4 text-right font-semibold text-gray-600 text-sm uppercase tracking-wide">V. Unit.</th>
@@ -409,51 +412,110 @@ export function RepuestosTable({
                     </div>
                   </td>
 
-                  {/* Descripción con botón copiar y tags */}
+                  {/* Descripción SAP (textoBreve) */}
+                  <td className="px-4 py-4">
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm text-gray-800 truncate max-w-[150px]" title={repuesto.textoBreve}>
+                        {repuesto.textoBreve}
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCopy(repuesto.textoBreve, `sap-${repuesto.id}`);
+                        }}
+                        className="flex-shrink-0 p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
+                        title="Copiar"
+                      >
+                        {copiedId === `sap-${repuesto.id}` ? (
+                          <Check className="w-3 h-3 text-green-500" />
+                        ) : (
+                          <Copy className="w-3 h-3" />
+                        )}
+                      </button>
+                    </div>
+                  </td>
+
+                  {/* Descripción Extendida */}
                   <td className="px-4 py-4">
                     <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-base text-gray-800 font-medium truncate max-w-[200px] lg:max-w-[300px]" title={repuesto.descripcion || repuesto.textoBreve}>
-                          {repuesto.descripcion || repuesto.textoBreve}
-                        </span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCopy(repuesto.descripcion || repuesto.textoBreve, `desc-${repuesto.id}`);
-                          }}
-                          className="flex-shrink-0 p-1.5 rounded-lg hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
-                          title="Copiar descripción"
-                        >
-                          {copiedId === `desc-${repuesto.id}` ? (
-                            <Check className="w-4 h-4 text-green-500" />
-                          ) : (
-                            <Copy className="w-4 h-4" />
-                          )}
-                        </button>
+                      <div className="flex items-center gap-1">
+                        {repuesto.descripcion ? (
+                          <>
+                            <span className="text-sm text-gray-700 truncate max-w-[150px]" title={repuesto.descripcion}>
+                              {repuesto.descripcion}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCopy(repuesto.descripcion, `desc-${repuesto.id}`);
+                              }}
+                              className="flex-shrink-0 p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
+                              title="Copiar"
+                            >
+                              {copiedId === `desc-${repuesto.id}` ? (
+                                <Check className="w-3 h-3 text-green-500" />
+                              ) : (
+                                <Copy className="w-3 h-3" />
+                              )}
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-xs text-gray-400 italic">-</span>
+                        )}
                         {!hasManualMarker && onMarkInManual && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               onMarkInManual(repuesto);
                             }}
-                            className="flex-shrink-0 p-1.5 rounded-lg bg-amber-100 text-amber-600 hover:bg-amber-200 transition-colors"
+                            className="flex-shrink-0 p-1 rounded bg-amber-100 text-amber-600 hover:bg-amber-200 transition-colors"
                             title="Marcar ubicación en manual"
                           >
-                            <MapPin className="w-4 h-4" />
+                            <MapPin className="w-3 h-3" />
                           </button>
                         )}
                       </div>
                       {/* Tags del repuesto */}
                       {repuesto.tags && repuesto.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1">
-                          {repuesto.tags.map(tag => (
-                            <span key={tag} className="inline-flex items-center px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs font-medium">
-                              {tag}
+                          {repuesto.tags.slice(0, 2).map(tag => (
+                            <span key={tag} className="inline-flex items-center px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-medium">
+                              {tag.length > 12 ? tag.substring(0, 12) + '...' : tag}
                             </span>
                           ))}
+                          {repuesto.tags.length > 2 && (
+                            <span className="text-[10px] text-gray-400">+{repuesto.tags.length - 2}</span>
+                          )}
                         </div>
                       )}
                     </div>
+                  </td>
+
+                  {/* Nombre según Manual */}
+                  <td className="px-4 py-4">
+                    {repuesto.nombreManual ? (
+                      <div className="flex items-center gap-1">
+                        <span className="text-sm text-gray-700 truncate max-w-[150px]" title={repuesto.nombreManual}>
+                          {repuesto.nombreManual}
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCopy(repuesto.nombreManual || '', `manual-${repuesto.id}`);
+                          }}
+                          className="flex-shrink-0 p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
+                          title="Copiar"
+                        >
+                          {copiedId === `manual-${repuesto.id}` ? (
+                            <Check className="w-3 h-3 text-green-500" />
+                          ) : (
+                            <Copy className="w-3 h-3" />
+                          )}
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400 italic">-</span>
+                    )}
                   </td>
 
                   {/* Cantidad Solicitada - clickeable para ver historial */}
@@ -672,10 +734,34 @@ export function RepuestosTable({
                   )}
                 </div>
 
-                {/* Descripción */}
-                <p className="text-sm text-gray-700 font-medium mb-3 line-clamp-2">
-                  {repuesto.descripcion || repuesto.textoBreve}
-                </p>
+                {/* Descripciones (3 campos) */}
+                <div className="space-y-2 mb-3">
+                  {/* Descripción SAP */}
+                  {repuesto.textoBreve && (
+                    <div className="flex items-start gap-2">
+                      <span className="text-xs text-gray-400 font-medium min-w-[60px]">SAP:</span>
+                      <span className="text-sm text-gray-700 line-clamp-1 flex-1">{repuesto.textoBreve}</span>
+                    </div>
+                  )}
+                  {/* Descripción Extendida */}
+                  {repuesto.descripcion && (
+                    <div className="flex items-start gap-2">
+                      <span className="text-xs text-gray-400 font-medium min-w-[60px]">Extendida:</span>
+                      <span className="text-sm text-gray-600 line-clamp-2 flex-1">{repuesto.descripcion}</span>
+                    </div>
+                  )}
+                  {/* Nombre Manual */}
+                  {repuesto.nombreManual && (
+                    <div className="flex items-start gap-2">
+                      <span className="text-xs text-gray-400 font-medium min-w-[60px]">Manual:</span>
+                      <span className="text-sm text-gray-600 line-clamp-1 flex-1">{repuesto.nombreManual}</span>
+                    </div>
+                  )}
+                  {/* Si no hay ninguna descripción */}
+                  {!repuesto.textoBreve && !repuesto.descripcion && !repuesto.nombreManual && (
+                    <p className="text-sm text-gray-400 italic">Sin descripción</p>
+                  )}
+                </div>
 
                 {/* Tags */}
                 {repuesto.tags && repuesto.tags.length > 0 && (
