@@ -1,8 +1,17 @@
 // Versión de la aplicación
-export const APP_VERSION = '2.5.0';
+export const APP_VERSION = '2.5.1';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '2.5.1',
+    date: '2025-12-20',
+    changes: [
+      'Fix: Sincronización automática de tags en uso',
+      'Los tags existentes en repuestos se agregan a la lista global',
+      'Solución al error "Ya existe un tag" con tags en uso'
+    ]
+  },
   {
     version: '2.5.0',
     date: '2025-12-20',

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Repuesto } from '../../types';
 import { useTags } from '../../hooks/useTags';
 import { X, Tag, Edit2, Trash2, Check, AlertTriangle, Plus } from 'lucide-react';
@@ -18,7 +18,7 @@ export function TagManagerModal({
   onRenameTag,
   onDeleteTag
 }: TagManagerModalProps) {
-  const { tags: globalTags, addTag, removeTag, renameTag: renameGlobalTag, loading: tagsLoading } = useTags();
+  const { tags: globalTags, addTag, removeTag, renameTag: renameGlobalTag, loading: tagsLoading, addMultipleTags } = useTags();
   const [editingTag, setEditingTag] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [deletingTag, setDeletingTag] = useState<string | null>(null);
@@ -43,6 +43,19 @@ export function TagManagerModal({
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [repuestos]);
+
+  // Sincronizar tags en uso con la lista global al abrir el modal
+  useEffect(() => {
+    if (isOpen && !tagsLoading && tagsEnUso.length > 0) {
+      const tagsEnUsoNames = tagsEnUso.map(t => t.name);
+      const tagsFaltantes = tagsEnUsoNames.filter(tagName => !globalTags.includes(tagName));
+      
+      if (tagsFaltantes.length > 0) {
+        console.log('Sincronizando tags faltantes:', tagsFaltantes);
+        addMultipleTags(tagsFaltantes);
+      }
+    }
+  }, [isOpen, tagsLoading, tagsEnUso, globalTags, addMultipleTags]);
 
   const handleStartEdit = (tagName: string) => {
     setEditingTag(tagName);
