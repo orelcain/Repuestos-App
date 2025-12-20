@@ -1,8 +1,31 @@
 // Versión de la aplicación
-export const APP_VERSION = '1.7.0';
+export const APP_VERSION = '1.8.0';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '1.8.0',
+    date: '2025-01-13',
+    changes: [
+      'Excel: Columna Total CLP con tipo de cambio actual',
+      'Tabla: Columnas configurables (mostrar/ocultar)',
+      'Tabla: Preferencias de columnas guardadas en localStorage',
+      'PDF: Lazy loading para optimizar carga inicial',
+      'Performance: Componentes PDF cargados bajo demanda'
+    ]
+  },
+  {
+    version: '1.7.0',
+    date: '2025-01-12',
+    changes: [
+      'Filtro de tags: Modo AND (todos) y OR (cualquiera)',
+      'Tipo de cambio USD/CLP desde mindicador.cl',
+      'Totales separados: USD y CLP en tiempo real',
+      'Historial mejorado: Vista de cambios por campo',
+      'Estadísticas: Indicadores de cobertura de stock',
+      'Estadísticas: Top repuestos más costosos'
+    ]
+  },
   {
     version: '1.5.8',
     date: '2025-12-20',

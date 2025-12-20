@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useRepuestos } from '../hooks/useRepuestos';
 import { useStorage } from '../hooks/useStorage';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useToast } from '../hooks/useToast';
+import { useDolar } from '../hooks/useDolar';
 import { Repuesto, RepuestoFormData, ImagenRepuesto, VinculoManual } from '../types';
 import { APP_VERSION } from '../version';
 
@@ -13,8 +14,11 @@ import { HistorialModal } from './repuestos/HistorialModal';
 import { DeleteConfirmModal } from './repuestos/DeleteConfirmModal';
 import { TagManagerModal } from './repuestos/TagManagerModal';
 import { ImageGallery } from './gallery/ImageGallery';
-import { PDFViewer } from './pdf/PDFViewer';
-import { PDFMarkerEditor } from './pdf/PDFMarkerEditor';
+
+// Lazy load PDF components para optimizar carga inicial
+const PDFViewer = lazy(() => import('./pdf/PDFViewer').then(module => ({ default: module.PDFViewer })));
+const PDFMarkerEditor = lazy(() => import('./pdf/PDFMarkerEditor').then(module => ({ default: module.PDFMarkerEditor })));
+
 import { ImportModal } from './ImportModal';
 import { StatsPanel } from './stats/StatsPanel';
 import { ToastContainer, Button } from './ui';
@@ -32,8 +36,19 @@ import {
   BookOpen,
   Upload,
   BarChart3,
-  Package
+  Package,
+  Loader2
 } from 'lucide-react';
+
+// Componente de loading para los PDF viewers
+const PDFLoadingFallback = () => (
+  <div className="flex items-center justify-center h-full bg-gray-100">
+    <div className="text-center">
+      <Loader2 className="w-10 h-10 text-primary-600 animate-spin mx-auto mb-3" />
+      <p className="text-gray-600">Cargando visor de PDF...</p>
+    </div>
+  </div>
+);
 
 type RightPanelMode = 'gallery' | 'pdf' | 'marker-editor' | 'hidden';
 type GalleryType = 'manual' | 'real';
@@ -55,6 +70,7 @@ export function Dashboard() {
   const { uploadImage, getManualURL } = useStorage();
   const { lastSelectedRepuestoId, setLastSelectedRepuesto } = useLocalStorage();
   const { toasts, removeToast, success, error } = useToast();
+  const { valor: tipoCambio } = useDolar();
 
   // Estado de selección y modales
   const [selectedRepuesto, setSelectedRepuesto] = useState<Repuesto | null>(null);
@@ -372,7 +388,8 @@ export function Dashboard() {
       incluirResumen: excelIncluirResumen,
       incluirSinStock: excelIncluirSinStock,
       incluirPorTags: excelIncluirPorTags,
-      incluirEstilos: excelIncluirEstilos
+      incluirEstilos: excelIncluirEstilos,
+      tipoCambio: tipoCambio > 0 ? tipoCambio : undefined
     });
     success(`Excel exportado con ${toExport.length} repuestos (formato ${excelFormato === 'simple' ? 'simple' : 'completo'})`);
     setShowExcelExportModal(false);
@@ -695,33 +712,37 @@ export function Dashboard() {
                   onUpdateOrder={handleUpdateImageOrder}
                 />
               ) : rightPanelMode === 'marker-editor' && markerRepuesto && pdfUrl ? (
-                <PDFMarkerEditor
-                  pdfUrl={pdfUrl}
-                  repuestoId={markerRepuesto.id}
-                  repuestoDescripcion={markerRepuesto.descripcion || markerRepuesto.textoBreve}
-                  existingMarker={editingMarker || undefined}
-                  onSave={handleSaveMarker}
-                  onCancel={() => {
-                    setRightPanelMode('pdf');
-                    setMarkerRepuesto(null);
-                    setEditingMarker(null);
-                  }}
-                  repuestos={repuestos}
-                  onSelectRepuesto={(r: Repuesto) => {
-                    setMarkerRepuesto(r);
-                    setSelectedRepuesto(r);
-                  }}
-                />
+                <Suspense fallback={<PDFLoadingFallback />}>
+                  <PDFMarkerEditor
+                    pdfUrl={pdfUrl}
+                    repuestoId={markerRepuesto.id}
+                    repuestoDescripcion={markerRepuesto.descripcion || markerRepuesto.textoBreve}
+                    existingMarker={editingMarker || undefined}
+                    onSave={handleSaveMarker}
+                    onCancel={() => {
+                      setRightPanelMode('pdf');
+                      setMarkerRepuesto(null);
+                      setEditingMarker(null);
+                    }}
+                    repuestos={repuestos}
+                    onSelectRepuesto={(r: Repuesto) => {
+                      setMarkerRepuesto(r);
+                      setSelectedRepuesto(r);
+                    }}
+                  />
+                </Suspense>
               ) : (
-                <PDFViewer
-                  pdfUrl={pdfUrl}
-                  targetPage={targetPage}
-                  marker={currentMarker}
-                  onCapture={selectedRepuesto ? handlePDFCapture : undefined}
-                  onEditMarker={selectedRepuesto ? (marker) => handleMarkInManual(selectedRepuesto, marker) : undefined}
-                  onDeleteMarker={selectedRepuesto ? (marker) => handleDeleteMarker(selectedRepuesto, marker.id) : undefined}
-                  onAddMarker={selectedRepuesto ? () => handleMarkInManual(selectedRepuesto) : undefined}
-                />
+                <Suspense fallback={<PDFLoadingFallback />}>
+                  <PDFViewer
+                    pdfUrl={pdfUrl}
+                    targetPage={targetPage}
+                    marker={currentMarker}
+                    onCapture={selectedRepuesto ? handlePDFCapture : undefined}
+                    onEditMarker={selectedRepuesto ? (marker) => handleMarkInManual(selectedRepuesto, marker) : undefined}
+                    onDeleteMarker={selectedRepuesto ? (marker) => handleDeleteMarker(selectedRepuesto, marker.id) : undefined}
+                    onAddMarker={selectedRepuesto ? () => handleMarkInManual(selectedRepuesto) : undefined}
+                  />
+                </Suspense>
               )}
             </div>
           </div>

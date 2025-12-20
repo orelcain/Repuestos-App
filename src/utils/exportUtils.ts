@@ -35,18 +35,19 @@ export interface ExcelExportOptions {
   incluirSinStock?: boolean;
   incluirPorTags?: boolean;
   incluirEstilos?: boolean;
+  tipoCambio?: number; // USD a CLP
 }
 
 // Exportación simple: Solo datos básicos, sin estilos ni hojas adicionales
-async function exportToExcelSimple(repuestos: Repuesto[], filename: string) {
+async function exportToExcelSimple(repuestos: Repuesto[], filename: string, tipoCambio?: number) {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Baader 200 App';
   workbook.created = new Date();
 
   const ws = workbook.addWorksheet('Repuestos');
 
-  // Columnas básicas
-  ws.columns = [
+  // Columnas básicas (con CLP si hay tipo de cambio)
+  const columns = [
     { header: 'Código SAP', key: 'codigoSAP', width: 14 },
     { header: 'Código Baader', key: 'codigoBaader', width: 16 },
     { header: 'Descripción', key: 'descripcion', width: 45 },
@@ -54,12 +55,18 @@ async function exportToExcelSimple(repuestos: Repuesto[], filename: string) {
     { header: 'Stock Bodega', key: 'stockBodega', width: 13 },
     { header: 'V. Unitario (USD)', key: 'valorUnitario', width: 15 },
     { header: 'Total (USD)', key: 'total', width: 14 },
-    { header: 'Tags', key: 'tags', width: 25 }
   ];
+
+  if (tipoCambio && tipoCambio > 0) {
+    columns.push({ header: `Total (CLP) @${tipoCambio.toFixed(0)}`, key: 'totalCLP', width: 18 });
+  }
+
+  columns.push({ header: 'Tags', key: 'tags', width: 25 });
+  ws.columns = columns;
 
   // Agregar datos sin formato
   repuestos.forEach((r) => {
-    const row = ws.addRow({
+    const rowData: Record<string, unknown> = {
       codigoSAP: r.codigoSAP,
       codigoBaader: r.codigoBaader,
       descripcion: r.textoBreve,
@@ -68,10 +75,19 @@ async function exportToExcelSimple(repuestos: Repuesto[], filename: string) {
       valorUnitario: r.valorUnitario,
       total: r.total,
       tags: r.tags?.join(', ') || ''
-    });
+    };
+
+    if (tipoCambio && tipoCambio > 0) {
+      rowData.totalCLP = Math.round((r.total || 0) * tipoCambio);
+    }
+
+    const row = ws.addRow(rowData);
     // Solo formato de moneda básico
     row.getCell('valorUnitario').numFmt = '"$"#,##0.00';
     row.getCell('total').numFmt = '"$"#,##0.00';
+    if (tipoCambio && tipoCambio > 0) {
+      row.getCell('totalCLP').numFmt = '"$"#,##0';
+    }
   });
 
   // Guardar archivo
@@ -88,14 +104,15 @@ export async function exportToExcel(
 ) {
   // Si es formato simple, exportar solo datos básicos
   if (options.formato === 'simple') {
-    return exportToExcelSimple(repuestos, filename);
+    return exportToExcelSimple(repuestos, filename, options.tipoCambio);
   }
 
   const {
     incluirResumen = true,
     incluirSinStock = true,
     incluirPorTags = true,
-    incluirEstilos = true
+    incluirEstilos = true,
+    tipoCambio
   } = options;
 
   const workbook = new ExcelJS.Workbook();
@@ -107,8 +124,8 @@ export async function exportToExcel(
     views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }] // Congelar primera fila
   });
 
-  // Definir columnas
-  wsDetalle.columns = [
+  // Definir columnas (con CLP si hay tipo de cambio)
+  const detalleColumns: { header: string; key: string; width: number }[] = [
     { header: 'Código SAP', key: 'codigoSAP', width: 14 },
     { header: 'Código Baader', key: 'codigoBaader', width: 16 },
     { header: 'Descripción', key: 'descripcion', width: 45 },
@@ -116,11 +133,21 @@ export async function exportToExcel(
     { header: 'Stock Bodega', key: 'stockBodega', width: 13 },
     { header: 'V. Unitario (USD)', key: 'valorUnitario', width: 15 },
     { header: 'Total (USD)', key: 'total', width: 14 },
+  ];
+
+  if (tipoCambio && tipoCambio > 0) {
+    detalleColumns.push({ header: `Total (CLP) @${tipoCambio.toFixed(0)}`, key: 'totalCLP', width: 18 });
+  }
+
+  detalleColumns.push(
     { header: 'Tags', key: 'tags', width: 25 },
     { header: 'Últ. Act. Inventario', key: 'ultimaAct', width: 16 },
     { header: 'Img Manual', key: 'imgManual', width: 10 },
     { header: 'Fotos Reales', key: 'fotosReales', width: 11 }
-  ];
+  );
+
+  wsDetalle.columns = detalleColumns;
+  const numColumns = detalleColumns.length;
 
   // Estilo del header (condicional)
   if (incluirEstilos) {
@@ -133,7 +160,7 @@ export async function exportToExcel(
 
   // Agregar datos
   repuestos.forEach((r, index) => {
-    const row = wsDetalle.addRow({
+    const rowData: Record<string, unknown> = {
       codigoSAP: r.codigoSAP,
       codigoBaader: r.codigoBaader,
       descripcion: r.textoBreve,
@@ -147,7 +174,13 @@ export async function exportToExcel(
         : null,
       imgManual: r.imagenesManual.length,
       fotosReales: r.fotosReales.length
-    });
+    };
+
+    if (tipoCambio && tipoCambio > 0) {
+      rowData.totalCLP = Math.round((r.total || 0) * tipoCambio);
+    }
+
+    const row = wsDetalle.addRow(rowData);
 
     if (incluirEstilos) {
       // Alternar colores de fila
@@ -168,10 +201,13 @@ export async function exportToExcel(
     // Formato de moneda (siempre)
     row.getCell('valorUnitario').numFmt = '"$"#,##0.00';
     row.getCell('total').numFmt = '"$"#,##0.00';
+    if (tipoCambio && tipoCambio > 0) {
+      row.getCell('totalCLP').numFmt = '"$"#,##0';
+    }
   });
 
   // Fila de totales
-  const totalRow = wsDetalle.addRow({
+  const totalRowData: Record<string, unknown> = {
     codigoSAP: null,
     codigoBaader: null,
     descripcion: 'TOTALES',
@@ -181,19 +217,32 @@ export async function exportToExcel(
     total: { formula: `SUM(G2:G${repuestos.length + 1})` },
     tags: null,
     ultimaAct: null,
-    imgManual: { formula: `SUM(J2:J${repuestos.length + 1})` },
-    fotosReales: { formula: `SUM(K2:K${repuestos.length + 1})` }
-  });
+  };
+
+  // Ajustar columnas de imgManual y fotosReales según si hay CLP
+  if (tipoCambio && tipoCambio > 0) {
+    totalRowData.totalCLP = { formula: `SUM(H2:H${repuestos.length + 1})` };
+    totalRowData.imgManual = { formula: `SUM(K2:K${repuestos.length + 1})` };
+    totalRowData.fotosReales = { formula: `SUM(L2:L${repuestos.length + 1})` };
+  } else {
+    totalRowData.imgManual = { formula: `SUM(J2:J${repuestos.length + 1})` };
+    totalRowData.fotosReales = { formula: `SUM(K2:K${repuestos.length + 1})` };
+  }
+
+  const totalRow = wsDetalle.addRow(totalRowData);
   if (incluirEstilos) {
     totalRow.font = { bold: true };
     totalRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.primaryLight } };
   }
   totalRow.getCell('total').numFmt = '"$"#,##0.00';
+  if (tipoCambio && tipoCambio > 0) {
+    totalRow.getCell('totalCLP').numFmt = '"$"#,##0';
+  }
 
   // Agregar filtros automáticos
   wsDetalle.autoFilter = {
     from: { row: 1, column: 1 },
-    to: { row: repuestos.length + 1, column: 11 }
+    to: { row: repuestos.length + 1, column: numColumns }
   };
 
   // Bordes a todas las celdas (condicional)

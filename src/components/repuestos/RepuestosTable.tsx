@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Repuesto, HistorialCambio } from '../../types';
 import { useDolar } from '../../hooks/useDolar';
+import { useTableColumns } from '../../hooks/useTableColumns';
 import { 
   Search, 
   Plus, 
@@ -19,7 +20,11 @@ import {
   X,
   Filter,
   Settings,
-  RefreshCw
+  RefreshCw,
+  Columns,
+  Eye,
+  EyeOff,
+  RotateCcw
 } from 'lucide-react';
 
 interface RepuestosTableProps {
@@ -125,6 +130,10 @@ export function RepuestosTable({
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [tagFilterMode, setTagFilterMode] = useState<'AND' | 'OR'>('OR');
   const [showTagFilter, setShowTagFilter] = useState(false);
+  const [showColumnConfig, setShowColumnConfig] = useState(false);
+  
+  // Hook para configuración de columnas
+  const { columns, toggleColumn, resetColumns, isColumnVisible } = useTableColumns();
   
   // Estado para historial de campo
   const [historialModal, setHistorialModal] = useState<{
@@ -375,6 +384,62 @@ export function RepuestosTable({
                 </div>
               )}
             </div>
+
+            {/* Configuración de columnas */}
+            <div className="relative hidden lg:block">
+              <button
+                onClick={() => setShowColumnConfig(!showColumnConfig)}
+                className={`flex items-center gap-2 px-3 py-2.5 border rounded-lg transition-colors ${
+                  showColumnConfig
+                    ? 'border-primary-500 bg-primary-50 text-primary-700' 
+                    : 'border-gray-300 hover:bg-gray-50'
+                }`}
+                title="Configurar columnas"
+              >
+                <Columns className="w-4 h-4" />
+              </button>
+              
+              {showColumnConfig && (
+                <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-20">
+                  <div className="p-3 border-b border-gray-100 flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">Columnas visibles</span>
+                    <button
+                      onClick={resetColumns}
+                      className="p-1 text-gray-400 hover:text-gray-600 rounded"
+                      title="Restaurar por defecto"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="p-2 max-h-72 overflow-y-auto">
+                    {columns.map(col => (
+                      <button
+                        key={col.key}
+                        onClick={() => !col.required && toggleColumn(col.key)}
+                        className={`w-full px-3 py-2 text-left text-sm rounded flex items-center gap-2 ${
+                          col.required 
+                            ? 'text-gray-400 cursor-not-allowed' 
+                            : col.visible 
+                              ? 'text-gray-700 hover:bg-gray-50' 
+                              : 'text-gray-400 hover:bg-gray-50'
+                        }`}
+                        disabled={col.required}
+                      >
+                        {col.visible ? (
+                          <Eye className="w-4 h-4 text-green-500" />
+                        ) : (
+                          <EyeOff className="w-4 h-4 text-gray-400" />
+                        )}
+                        <span className={col.visible ? '' : 'line-through'}>{col.label}</span>
+                        {col.required && (
+                          <span className="text-[10px] text-gray-400 ml-auto">requerido</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
             
             <button
               onClick={onAddNew}
@@ -480,17 +545,17 @@ export function RepuestosTable({
         <table className="w-full">
           <thead className="bg-gray-50 sticky top-0">
             <tr>
-              <th className="px-4 py-4 text-left font-semibold text-gray-600 text-sm uppercase tracking-wide">Código SAP</th>
-              <th className="px-4 py-4 text-left font-semibold text-gray-600 text-sm uppercase tracking-wide">Código Baader</th>
-              <th className="px-4 py-4 text-left font-semibold text-gray-600 text-xs uppercase tracking-wide">Desc. SAP</th>
-              <th className="px-4 py-4 text-left font-semibold text-gray-600 text-xs uppercase tracking-wide">Desc. Extendida</th>
-              <th className="px-4 py-4 text-left font-semibold text-gray-600 text-xs uppercase tracking-wide">Nombre Manual</th>
-              <th className="px-4 py-4 text-center font-semibold text-gray-600 text-xs uppercase tracking-wide">Cant. Solicitada</th>
-              <th className="px-4 py-4 text-center font-semibold text-gray-600 text-xs uppercase tracking-wide">Stock Bodega</th>
-              <th className="px-4 py-4 text-right font-semibold text-gray-600 text-sm uppercase tracking-wide">V. Unit.</th>
-              <th className="px-4 py-4 text-right font-semibold text-gray-600 text-sm uppercase tracking-wide">Total USD</th>
-              <th className="px-4 py-4 text-right font-semibold text-gray-600 text-sm uppercase tracking-wide">Total CLP</th>
-              <th className="px-4 py-4 text-center font-semibold text-gray-600 text-sm uppercase tracking-wide">Acciones</th>
+              {isColumnVisible('codigoSAP') && <th className="px-4 py-4 text-left font-semibold text-gray-600 text-sm uppercase tracking-wide">Código SAP</th>}
+              {isColumnVisible('codigoBaader') && <th className="px-4 py-4 text-left font-semibold text-gray-600 text-sm uppercase tracking-wide">Código Baader</th>}
+              {isColumnVisible('textoBreve') && <th className="px-4 py-4 text-left font-semibold text-gray-600 text-xs uppercase tracking-wide">Desc. SAP</th>}
+              {isColumnVisible('descripcion') && <th className="px-4 py-4 text-left font-semibold text-gray-600 text-xs uppercase tracking-wide">Desc. Extendida</th>}
+              {isColumnVisible('nombreManual') && <th className="px-4 py-4 text-left font-semibold text-gray-600 text-xs uppercase tracking-wide">Nombre Manual</th>}
+              {isColumnVisible('cantidadSolicitada') && <th className="px-4 py-4 text-center font-semibold text-gray-600 text-xs uppercase tracking-wide">Cant. Solicitada</th>}
+              {isColumnVisible('cantidadStockBodega') && <th className="px-4 py-4 text-center font-semibold text-gray-600 text-xs uppercase tracking-wide">Stock Bodega</th>}
+              {isColumnVisible('valorUnitario') && <th className="px-4 py-4 text-right font-semibold text-gray-600 text-sm uppercase tracking-wide">V. Unit.</th>}
+              {isColumnVisible('totalUSD') && <th className="px-4 py-4 text-right font-semibold text-gray-600 text-sm uppercase tracking-wide">Total USD</th>}
+              {isColumnVisible('totalCLP') && <th className="px-4 py-4 text-right font-semibold text-gray-600 text-sm uppercase tracking-wide">Total CLP</th>}
+              {isColumnVisible('acciones') && <th className="px-4 py-4 text-center font-semibold text-gray-600 text-sm uppercase tracking-wide">Acciones</th>}
             </tr>
           </thead>
           <tbody>
@@ -510,6 +575,7 @@ export function RepuestosTable({
                   `}
                 >
                   {/* Código SAP con botón copiar */}
+                  {isColumnVisible('codigoSAP') && (
                   <td className="px-4 py-4">
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-sm bg-gray-100 px-3 py-1.5 rounded-lg font-semibold text-gray-800">
@@ -531,8 +597,10 @@ export function RepuestosTable({
                       </button>
                     </div>
                   </td>
+                  )}
 
                   {/* Código Baader con botón copiar */}
+                  {isColumnVisible('codigoBaader') && (
                   <td className="px-4 py-4">
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-sm text-primary-700 font-semibold">
@@ -554,8 +622,10 @@ export function RepuestosTable({
                       </button>
                     </div>
                   </td>
+                  )}
 
                   {/* Descripción SAP (textoBreve) */}
+                  {isColumnVisible('textoBreve') && (
                   <td className="px-4 py-4">
                     <div className="flex items-center gap-1">
                       <span className="text-sm text-gray-800 truncate max-w-[150px]" title={repuesto.textoBreve}>
@@ -577,8 +647,10 @@ export function RepuestosTable({
                       </button>
                     </div>
                   </td>
+                  )}
 
                   {/* Descripción Extendida */}
+                  {isColumnVisible('descripcion') && (
                   <td className="px-4 py-4">
                     <div className="space-y-1">
                       <div className="flex items-center gap-1">
@@ -633,8 +705,10 @@ export function RepuestosTable({
                       )}
                     </div>
                   </td>
+                  )}
 
                   {/* Nombre según Manual */}
+                  {isColumnVisible('nombreManual') && (
                   <td className="px-4 py-4">
                     {repuesto.nombreManual ? (
                       <div className="flex items-center gap-1">
@@ -660,8 +734,10 @@ export function RepuestosTable({
                       <span className="text-xs text-gray-400 italic">-</span>
                     )}
                   </td>
+                  )}
 
                   {/* Cantidad Solicitada - clickeable para ver historial */}
+                  {isColumnVisible('cantidadSolicitada') && (
                   <td className="px-4 py-4 text-center">
                     <button
                       onClick={(e) => {
@@ -674,8 +750,10 @@ export function RepuestosTable({
                       {repuesto.cantidadSolicitada}
                     </button>
                   </td>
+                  )}
 
                   {/* Stock Bodega - clickeable para ver historial */}
+                  {isColumnVisible('cantidadStockBodega') && (
                   <td className="px-4 py-4 text-center">
                     <button
                       onClick={(e) => {
@@ -694,22 +772,28 @@ export function RepuestosTable({
                       {repuesto.cantidadStockBodega}
                     </button>
                   </td>
+                  )}
 
                   {/* Valor unitario */}
+                  {isColumnVisible('valorUnitario') && (
                   <td className="px-4 py-4 text-right">
                     <span className="text-base text-gray-600 font-medium">
                       ${repuesto.valorUnitario?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
                     </span>
                   </td>
+                  )}
 
                   {/* Total USD */}
+                  {isColumnVisible('totalUSD') && (
                   <td className="px-4 py-4 text-right">
                     <span className="text-base font-bold text-gray-800">
                       ${repuesto.total?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
                     </span>
                   </td>
+                  )}
 
                   {/* Total CLP */}
+                  {isColumnVisible('totalCLP') && (
                   <td className="px-4 py-4 text-right">
                     {dolarLoading ? (
                       <span className="text-xs text-gray-400">...</span>
@@ -721,8 +805,10 @@ export function RepuestosTable({
                       <span className="text-xs text-gray-400">-</span>
                     )}
                   </td>
+                  )}
 
                   {/* Acciones */}
+                  {isColumnVisible('acciones') && (
                   <td className="px-4 py-4">
                     <div className="flex items-center justify-center gap-1">
                       {/* Ver en manual */}
@@ -794,6 +880,7 @@ export function RepuestosTable({
                       </button>
                     </div>
                   </td>
+                  )}
                 </tr>
               );
             })}
