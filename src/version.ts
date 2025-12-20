@@ -1,8 +1,19 @@
 // Versión de la aplicación
-export const APP_VERSION = '1.4.3';
+export const APP_VERSION = '1.4.4';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '1.4.4',
+    date: '2025-12-20',
+    changes: [
+      'Fix: Ver en manual navega correctamente a la página del marcador',
+      'Botones para editar, eliminar y agregar marcadores',
+      'Barra de estado del marcador en el visor PDF',
+      'Botón "Ir al marcador" cuando estás en otra página',
+      'Confirmación antes de eliminar marcadores'
+    ]
+  },
   {
     version: '1.4.3',
     date: '2025-12-19',

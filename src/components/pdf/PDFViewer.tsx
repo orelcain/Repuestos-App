@@ -12,7 +12,11 @@ import {
   Loader2,
   X,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  Edit3,
+  Trash2,
+  Plus,
+  MapPin
 } from 'lucide-react';
 import { VinculoManual } from '../../types';
 
@@ -24,13 +28,19 @@ interface PDFViewerProps {
   targetPage?: number;
   marker?: VinculoManual;
   onCapture?: (imageData: string, pageNumber: number) => void;
+  onEditMarker?: (marker: VinculoManual) => void;
+  onDeleteMarker?: (marker: VinculoManual) => void;
+  onAddMarker?: () => void;
 }
 
 export function PDFViewer({ 
   pdfUrl, 
   targetPage,
   marker,
-  onCapture
+  onCapture,
+  onEditMarker,
+  onDeleteMarker,
+  onAddMarker
 }: PDFViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
@@ -132,12 +142,19 @@ export function PDFViewer({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showSearchPanel]);
 
-  // Navegar a página específica
+  // Navegar a página específica cuando cambia targetPage O cuando el PDF termina de cargar
   useEffect(() => {
-    if (targetPage && targetPage > 0 && targetPage <= totalPages) {
+    if (targetPage && targetPage > 0 && totalPages > 0 && targetPage <= totalPages) {
       setCurrentPage(targetPage);
     }
   }, [targetPage, totalPages]);
+  
+  // Cuando el PDF carga por primera vez, ir a targetPage si existe
+  useEffect(() => {
+    if (!loading && pdf && targetPage && targetPage > 0 && targetPage <= totalPages) {
+      setCurrentPage(targetPage);
+    }
+  }, [loading, pdf, targetPage, totalPages]);
 
   // Renderizar página
   const renderPage = useCallback(async (pageNum: number) => {
@@ -797,6 +814,95 @@ export function PDFViewer({
           >
             Capturar página {currentPage}
           </button>
+        </div>
+      )}
+
+      {/* Barra de marcador con opciones de editar/eliminar/agregar */}
+      {(marker || onAddMarker) && (
+        <div className="px-4 py-2 bg-gray-700 text-white text-sm flex items-center justify-between">
+          {marker && marker.pagina === currentPage ? (
+            <>
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-green-400" />
+                <span className="text-green-400 font-medium">Marcador en esta página</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {onEditMarker && (
+                  <button
+                    onClick={() => onEditMarker(marker)}
+                    className="px-3 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 flex items-center gap-1"
+                  >
+                    <Edit3 className="w-3 h-3" />
+                    Editar
+                  </button>
+                )}
+                {onDeleteMarker && (
+                  <button
+                    onClick={() => {
+                      if (confirm('¿Eliminar este marcador?')) {
+                        onDeleteMarker(marker);
+                      }
+                    }}
+                    className="px-3 py-1 bg-red-600 text-white rounded text-xs font-medium hover:bg-red-700 flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Eliminar
+                  </button>
+                )}
+              </div>
+            </>
+          ) : marker ? (
+            <>
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-yellow-400" />
+                <span className="text-yellow-400">Marcador en página {marker.pagina}</span>
+                <button
+                  onClick={() => setCurrentPage(marker.pagina)}
+                  className="px-2 py-0.5 bg-yellow-600 text-white rounded text-xs hover:bg-yellow-700"
+                >
+                  Ir al marcador
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                {onEditMarker && (
+                  <button
+                    onClick={() => onEditMarker(marker)}
+                    className="px-3 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 flex items-center gap-1"
+                  >
+                    <Edit3 className="w-3 h-3" />
+                    Editar
+                  </button>
+                )}
+                {onDeleteMarker && (
+                  <button
+                    onClick={() => {
+                      if (confirm('¿Eliminar este marcador?')) {
+                        onDeleteMarker(marker);
+                      }
+                    }}
+                    className="px-3 py-1 bg-red-600 text-white rounded text-xs font-medium hover:bg-red-700 flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Eliminar
+                  </button>
+                )}
+              </div>
+            </>
+          ) : onAddMarker ? (
+            <>
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-gray-400" />
+                <span className="text-gray-400">Sin marcador</span>
+              </div>
+              <button
+                onClick={onAddMarker}
+                className="px-3 py-1 bg-green-600 text-white rounded text-xs font-medium hover:bg-green-700 flex items-center gap-1"
+              >
+                <Plus className="w-3 h-3" />
+                Agregar marcador
+              </button>
+            </>
+          ) : null}
         </div>
       )}
 

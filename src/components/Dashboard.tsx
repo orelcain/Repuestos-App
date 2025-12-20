@@ -202,31 +202,62 @@ export function Dashboard() {
   void _handleAddManualImage; // Suprimir warning de variable no usada
 
   // Handler para marcar en el manual
-  const handleMarkInManual = (repuesto: Repuesto) => {
+  const handleMarkInManual = (repuesto: Repuesto, existingMarker?: VinculoManual) => {
     setMarkerRepuesto(repuesto);
     setSelectedRepuesto(repuesto);
+    setEditingMarker(existingMarker || null);
     setRightPanelMode('marker-editor');
   };
 
-  // Guardar marcador
+  // Estado para edición de marcador existente
+  const [editingMarker, setEditingMarker] = useState<VinculoManual | null>(null);
+
+  // Guardar marcador (nuevo o editado)
   const handleSaveMarker = async (marker: Omit<VinculoManual, 'id'>) => {
     if (!markerRepuesto) return;
     
-    const newMarker: VinculoManual = {
-      ...marker,
-      id: Date.now().toString()
-    };
-    
     const vinculosActuales = markerRepuesto.vinculosManual || [];
-    await updateRepuesto(markerRepuesto.id, {
-      vinculosManual: [...vinculosActuales, newMarker]
-    });
     
-    success('Marcador guardado - Ahora puedes ver este repuesto en el manual');
+    if (editingMarker) {
+      // Editar marcador existente
+      const updatedVinculos = vinculosActuales.map(v => 
+        v.id === editingMarker.id ? { ...marker, id: editingMarker.id } : v
+      );
+      await updateRepuesto(markerRepuesto.id, {
+        vinculosManual: updatedVinculos
+      });
+      success('Marcador actualizado correctamente');
+      setCurrentMarker({ ...marker, id: editingMarker.id });
+    } else {
+      // Crear nuevo marcador
+      const newMarker: VinculoManual = {
+        ...marker,
+        id: Date.now().toString()
+      };
+      await updateRepuesto(markerRepuesto.id, {
+        vinculosManual: [...vinculosActuales, newMarker]
+      });
+      success('Marcador guardado - Ahora puedes ver este repuesto en el manual');
+      setCurrentMarker(newMarker);
+    }
+    
     setRightPanelMode('pdf');
     setMarkerRepuesto(null);
-    setCurrentMarker(newMarker);
-    setTargetPage(newMarker.pagina);
+    setEditingMarker(null);
+    setTargetPage(marker.pagina);
+  };
+
+  // Eliminar marcador
+  const handleDeleteMarker = async (repuesto: Repuesto, markerId: string) => {
+    const vinculosActuales = repuesto.vinculosManual || [];
+    const updatedVinculos = vinculosActuales.filter(v => v.id !== markerId);
+    
+    await updateRepuesto(repuesto.id, {
+      vinculosManual: updatedVinculos
+    });
+    
+    success('Marcador eliminado');
+    setCurrentMarker(undefined);
   };
 
   const handleViewHistory = (repuesto: Repuesto) => {
@@ -629,10 +660,12 @@ export function Dashboard() {
                   pdfUrl={pdfUrl}
                   repuestoId={markerRepuesto.id}
                   repuestoDescripcion={markerRepuesto.descripcion || markerRepuesto.textoBreve}
+                  existingMarker={editingMarker || undefined}
                   onSave={handleSaveMarker}
                   onCancel={() => {
                     setRightPanelMode('pdf');
                     setMarkerRepuesto(null);
+                    setEditingMarker(null);
                   }}
                   repuestos={repuestos}
                   onSelectRepuesto={(r: Repuesto) => {
@@ -646,6 +679,9 @@ export function Dashboard() {
                   targetPage={targetPage}
                   marker={currentMarker}
                   onCapture={selectedRepuesto ? handlePDFCapture : undefined}
+                  onEditMarker={selectedRepuesto ? (marker) => handleMarkInManual(selectedRepuesto, marker) : undefined}
+                  onDeleteMarker={selectedRepuesto ? (marker) => handleDeleteMarker(selectedRepuesto, marker.id) : undefined}
+                  onAddMarker={selectedRepuesto ? () => handleMarkInManual(selectedRepuesto) : undefined}
                 />
               )}
             </div>
