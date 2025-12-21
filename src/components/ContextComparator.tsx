@@ -80,7 +80,9 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
   const [compactView, setCompactView] = useState(false);
   
   const tagsByType = useMemo(() => getAllUniqueTagsByType(repuestos), [repuestos]);
-  const allTags = useMemo(() => [...tagsByType.solicitud, ...tagsByType.stock], [tagsByType]);
+  // Lista combinada de todos los tags disponibles
+  const _allTags = useMemo(() => [...tagsByType.solicitud, ...tagsByType.stock], [tagsByType]);
+  void _allTags; // Reservado para uso futuro
   
   // Obtener repuestos que tienen al menos uno de los tags seleccionados
   const repuestosConTags = useMemo(() => {
@@ -789,7 +791,7 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
                         <td className="p-2 truncate max-w-[200px]" title={r.textoBreve}>{r.textoBreve}</td>
                       )}
                       <td className="p-2 text-right text-xs">${r.valorUnitario.toFixed(2)}</td>
-                      {selectedTags.map((tag, i) => {
+                      {selectedTags.map((tag) => {
                         const cantidad = getCantidadTag(r, tag);
                         const noTiene = cantidad === null || cantidad === 0;
                         const isSolicitud = tagsByType.solicitud.includes(tag);

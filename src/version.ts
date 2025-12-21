@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '3.5.0';
+export const APP_VERSION = '3.5.1';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '3.5.1',
+    date: '2025-01-21',
+    changes: [
+      'FIX: Selectores de contexto ahora muestran TODOS los tags (globales + en uso)',
+      'Los tags importados a repuestos ahora aparecen automáticamente en los selectores',
+      'Script de importación ahora registra el tag en la lista global automáticamente',
+      'FIX: Variables no usadas (5 errores de VSCode corregidos)'
+    ]
+  },
   {
     version: '3.5.0',
     date: '2025-01-20',

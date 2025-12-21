@@ -4,15 +4,15 @@
  * 
  * Para ejecutar este script:
  * 1. En el Dashboard, abrir consola del navegador (F12)
- * 2. Copiar y pegar el contenido de la función importarRepuestosInformeV2
- * 3. Ejecutar: await importarRepuestosInformeV2()
+ * 2. Ejecutar: await importarRepuestosInformeV2()
  */
 
-import { collection, getDocs, doc, updateDoc, addDoc, Timestamp, query, where } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, setDoc, getDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { TagAsignado } from '../types';
+import { TagAsignado, TagGlobal } from '../types';
 
 const COLLECTION_NAME = 'repuestosBaader200';
+const SETTINGS_DOC = 'settings/tags';
 
 // Datos extraídos del Excel "Informe Baader 200 v2.xlsx" - 147 repuestos
 const REPUESTOS_INFORME_V2 = [
@@ -172,6 +172,27 @@ export async function importarRepuestosInformeV2() {
   console.log('🚀 Iniciando importación de Informe Baader 200 v2...');
   console.log(`📋 Total repuestos a procesar: ${REPUESTOS_INFORME_V2.length}`);
   console.log(`🏷️ Tag: "${TAG_NAME}" (tipo: ${TAG_TIPO})`);
+  
+  // Primero, agregar el tag a la lista global si no existe
+  try {
+    const settingsRef = doc(db, SETTINGS_DOC);
+    const settingsSnap = await getDoc(settingsRef);
+    const currentTags: TagGlobal[] = settingsSnap.exists() ? (settingsSnap.data().tags || []) : [];
+    
+    const tagExists = currentTags.some(t => t.nombre === TAG_NAME);
+    if (!tagExists) {
+      const newTag: TagGlobal = { nombre: TAG_NAME, tipo: TAG_TIPO };
+      await setDoc(settingsRef, {
+        tags: [...currentTags, newTag],
+        updatedAt: new Date()
+      });
+      console.log(`✅ Tag "${TAG_NAME}" agregado a la lista global`);
+    } else {
+      console.log(`ℹ️ Tag "${TAG_NAME}" ya existe en la lista global`);
+    }
+  } catch (err) {
+    console.error('⚠️ Error agregando tag a lista global:', err);
+  }
   
   // Obtener todos los repuestos actuales
   const snapshot = await getDocs(collection(db, COLLECTION_NAME));

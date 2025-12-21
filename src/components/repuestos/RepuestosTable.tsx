@@ -172,6 +172,29 @@ export function RepuestosTable({
   // Hook para obtener información de tags globales
   const { tags: globalTags } = useTags();
   
+  // Combinar tags globales con tags en uso de repuestos (para incluir tags importados)
+  const allAvailableTags = useMemo(() => {
+    const tagsMap = new Map<string, { nombre: string; tipo: 'solicitud' | 'stock' }>();
+    
+    // Primero agregar todos los tags globales
+    globalTags.forEach(tag => {
+      tagsMap.set(tag.nombre, { nombre: tag.nombre, tipo: tag.tipo });
+    });
+    
+    // Luego agregar tags de los repuestos que no estén en globalTags
+    repuestos.forEach(r => {
+      if (r.tags) {
+        r.tags.forEach(tag => {
+          if (isTagAsignado(tag) && !tagsMap.has(tag.nombre)) {
+            tagsMap.set(tag.nombre, { nombre: tag.nombre, tipo: tag.tipo });
+          }
+        });
+      }
+    });
+    
+    return Array.from(tagsMap.values());
+  }, [globalTags, repuestos]);
+  
   // Compatibilidad: crear activeContextTag desde activeContexts
   const activeContextTag = useMemo(() => {
     // Prioridad: si hay solicitud activa, usar esa; si no, usar stock
@@ -797,7 +820,7 @@ export function RepuestosTable({
                     }`}
                   >
                     <option value="">🛒 Solicitud...</option>
-                    {globalTags.filter(t => t.tipo === 'solicitud').map(tag => (
+                    {allAvailableTags.filter(t => t.tipo === 'solicitud').map(tag => (
                       <option key={tag.nombre} value={tag.nombre}>🛒 {tag.nombre}</option>
                     ))}
                   </select>
@@ -816,7 +839,7 @@ export function RepuestosTable({
                     }`}
                   >
                     <option value="">📦 Stock...</option>
-                    {globalTags.filter(t => t.tipo === 'stock').map(tag => (
+                    {allAvailableTags.filter(t => t.tipo === 'stock').map(tag => (
                       <option key={tag.nombre} value={tag.nombre}>📦 {tag.nombre}</option>
                     ))}
                   </select>
