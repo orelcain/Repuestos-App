@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Repuesto } from '../../types';
+import { Repuesto, getTagNombre } from '../../types';
 import { useTags } from '../../hooks/useTags';
 import { X, Tag, Edit2, Trash2, Check, AlertTriangle, Plus } from 'lucide-react';
 
@@ -35,7 +35,8 @@ export function TagManagerModal({
     
     repuestos.forEach(r => {
       r.tags?.forEach(tag => {
-        tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+        const tagName = getTagNombre(tag);
+        tagCounts.set(tagName, (tagCounts.get(tagName) || 0) + 1);
       });
     });
 

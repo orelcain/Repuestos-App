@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Repuesto, HistorialCambio, isTagAsignado, getTagNombre, TagAsignado } from '../../types';
+import { Repuesto, HistorialCambio, isTagAsignado, getTagNombre } from '../../types';
 import { useTableColumns } from '../../hooks/useTableColumns';
 import { 
   Search, 
@@ -19,7 +19,6 @@ import {
   X,
   Filter,
   Settings,
-  RefreshCw,
   Columns,
   Eye,
   EyeOff,
@@ -1702,9 +1701,9 @@ export function RepuestosTable({
                 {/* Tags */}
                 {repuesto.tags && repuesto.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1 mb-3">
-                    {repuesto.tags.map(tag => (
-                      <span key={tag} className="inline-flex items-center px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs font-medium">
-                        {tag}
+                    {repuesto.tags.map((tag, index) => (
+                      <span key={`${getTagNombre(tag)}-${index}`} className="inline-flex items-center px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs font-medium">
+                        {isTagAsignado(tag) ? `${tag.nombre} (${tag.cantidad})` : tag}
                       </span>
                     ))}
                   </div>

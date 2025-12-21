@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Repuesto, RepuestoFormData, TagAsignado, isTagAsignado } from '../../types';
+import { Repuesto, RepuestoFormData, TagAsignado } from '../../types';
 import { Modal, Button, Input } from '../ui';
 import { Save } from 'lucide-react';
 import { TagEventSelector } from './TagEventSelector';

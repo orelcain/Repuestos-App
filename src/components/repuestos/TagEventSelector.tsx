@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { TagAsignado, isTagAsignado, getTagNombre } from '../../types';
+import { TagAsignado, isTagAsignado } from '../../types';
 import { useTags } from '../../hooks/useTags';
 import { Tag, X, Plus, Package, ShoppingCart, Calendar } from 'lucide-react';
 

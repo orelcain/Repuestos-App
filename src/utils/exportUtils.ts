@@ -2,7 +2,7 @@ import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Repuesto } from '../types';
+import { Repuesto, getTagNombre, isTagAsignado } from '../types';
 import { preloadImagesWithDimensions, ImageData } from './imageUtils';
 
 // Formatear número con decimales solo si los tiene
@@ -11,6 +11,32 @@ function formatNumber(num: number): string {
     return num.toLocaleString('es-CL');
   }
   return num.toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// Helper para obtener cantidad por contexto
+function getCantidadPorContexto(repuesto: Repuesto, contextTag: string | null, tipo: 'solicitud' | 'stock'): number {
+  if (!contextTag) return 0;
+  
+  const tagEncontrado = repuesto.tags?.find(tag => {
+    if (isTagAsignado(tag)) {
+      return tag.nombre === contextTag && tag.tipo === tipo;
+    }
+    return false;
+  });
+  
+  if (tagEncontrado && isTagAsignado(tagEncontrado)) {
+    return tagEncontrado.cantidad;
+  }
+  
+  // Fallback para tags string antiguos
+  const tieneTagAntiguo = repuesto.tags?.some(tag => 
+    typeof tag === 'string' && tag === contextTag
+  );
+  if (tieneTagAntiguo) {
+    return tipo === 'solicitud' ? (repuesto.cantidadSolicitada || 0) : (repuesto.cantidadStockBodega || 0);
+  }
+  
+  return 0;
 }
 
 // Colores para Excel
@@ -35,10 +61,11 @@ export interface ExcelExportOptions {
   incluirSinStock?: boolean;
   incluirPorTags?: boolean;
   incluirEstilos?: boolean;
+  contextTag?: string | null;  // Tag de contexto para cantidades
 }
 
 // Exportación simple: Solo datos básicos, sin estilos ni hojas adicionales
-async function exportToExcelSimple(repuestos: Repuesto[], filename: string) {
+async function exportToExcelSimple(repuestos: Repuesto[], filename: string, contextTag?: string | null) {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Baader 200 App';
   workbook.created = new Date();
@@ -50,9 +77,9 @@ async function exportToExcelSimple(repuestos: Repuesto[], filename: string) {
     { header: 'Código SAP', key: 'codigoSAP', width: 14 },
     { header: 'Número Parte Manual', key: 'codigoBaader', width: 20 },
     { header: 'Descripción SAP', key: 'descripcion', width: 45 },
-    { header: 'Cantidad Solicitada', key: 'cantidadSolicitada', width: 16 },
+    { header: contextTag ? `Cant. Solicitada (${contextTag})` : 'Cantidad Solicitada', key: 'cantidadSolicitada', width: 20 },
     { header: 'Total Solicitado (USD)', key: 'totalSolicitadoUSD', width: 18 },
-    { header: 'Stock en Bodega', key: 'stockBodega', width: 15 },
+    { header: contextTag ? `Stock (${contextTag})` : 'Stock en Bodega', key: 'stockBodega', width: 18 },
     { header: 'Total Stock (USD)', key: 'totalStockUSD', width: 16 },
     { header: 'Valor Unitario (USD)', key: 'valorUnitario', width: 16 },
     { header: 'Total General (USD)', key: 'total', width: 16 },
@@ -63,17 +90,22 @@ async function exportToExcelSimple(repuestos: Repuesto[], filename: string) {
 
   // Agregar datos sin formato
   repuestos.forEach((r) => {
+    const cantSol = contextTag ? getCantidadPorContexto(r, contextTag, 'solicitud') : r.cantidadSolicitada;
+    const cantStock = contextTag ? getCantidadPorContexto(r, contextTag, 'stock') : (r.cantidadStockBodega || 0);
+    const totalSolUSD = r.valorUnitario * cantSol;
+    const totalStockUSD = r.valorUnitario * cantStock;
+    
     const rowData: Record<string, unknown> = {
       codigoSAP: r.codigoSAP,
       codigoBaader: r.codigoBaader,
       descripcion: r.textoBreve,
-      cantidadSolicitada: r.cantidadSolicitada,
-      totalSolicitadoUSD: r.valorUnitario * r.cantidadSolicitada,
-      stockBodega: r.cantidadStockBodega,
-      totalStockUSD: r.valorUnitario * (r.cantidadStockBodega || 0),
+      cantidadSolicitada: cantSol,
+      totalSolicitadoUSD: totalSolUSD,
+      stockBodega: cantStock,
+      totalStockUSD: totalStockUSD,
       valorUnitario: r.valorUnitario,
-      total: r.total,
-      tags: r.tags?.join(', ') || ''
+      total: totalSolUSD + totalStockUSD,
+      tags: r.tags?.map(t => getTagNombre(t)).join(', ') || ''
     };
 
     const row = ws.addRow(rowData);
@@ -98,14 +130,15 @@ export async function exportToExcel(
 ) {
   // Si es formato simple, exportar solo datos básicos
   if (options.formato === 'simple') {
-    return exportToExcelSimple(repuestos, filename);
+    return exportToExcelSimple(repuestos, filename, options.contextTag);
   }
 
   const {
     incluirResumen = true,
     incluirSinStock = true,
     incluirPorTags = true,
-    incluirEstilos = true
+    incluirEstilos = true,
+    contextTag = null
   } = options;
 
   const workbook = new ExcelJS.Workbook();
@@ -117,14 +150,14 @@ export async function exportToExcel(
     views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }] // Congelar primera fila
   });
 
-  // Definir columnas (solo USD)
+  // Definir columnas (solo USD) - con contexto si aplica
   const detalleColumns: { header: string; key: string; width: number }[] = [
     { header: 'Código SAP', key: 'codigoSAP', width: 14 },
     { header: 'Número Parte Manual', key: 'codigoBaader', width: 20 },
     { header: 'Descripción SAP', key: 'descripcion', width: 45 },
-    { header: 'Cantidad Solicitada', key: 'cantidadSolicitada', width: 16 },
+    { header: contextTag ? `Cant. Solicitada (${contextTag})` : 'Cantidad Solicitada', key: 'cantidadSolicitada', width: 22 },
     { header: 'Total Solicitado (USD)', key: 'totalSolicitadoUSD', width: 18 },
-    { header: 'Stock en Bodega', key: 'stockBodega', width: 15 },
+    { header: contextTag ? `Stock (${contextTag})` : 'Stock en Bodega', key: 'stockBodega', width: 20 },
     { header: 'Total Stock (USD)', key: 'totalStockUSD', width: 16 },
     { header: 'Valor Unitario (USD)', key: 'valorUnitario', width: 16 },
     { header: 'Total General (USD)', key: 'total', width: 16 },
@@ -151,17 +184,22 @@ export async function exportToExcel(
 
   // Agregar datos
   repuestos.forEach((r, index) => {
+    const cantSol = contextTag ? getCantidadPorContexto(r, contextTag, 'solicitud') : r.cantidadSolicitada;
+    const cantStock = contextTag ? getCantidadPorContexto(r, contextTag, 'stock') : (r.cantidadStockBodega || 0);
+    const totalSolUSD = r.valorUnitario * cantSol;
+    const totalStockUSD = r.valorUnitario * cantStock;
+    
     const rowData: Record<string, unknown> = {
       codigoSAP: r.codigoSAP,
       codigoBaader: r.codigoBaader,
       descripcion: r.textoBreve,
-      cantidadSolicitada: r.cantidadSolicitada,
-      totalSolicitadoUSD: r.valorUnitario * r.cantidadSolicitada,
-      stockBodega: r.cantidadStockBodega,
-      totalStockUSD: r.valorUnitario * (r.cantidadStockBodega || 0),
+      cantidadSolicitada: cantSol,
+      totalSolicitadoUSD: totalSolUSD,
+      stockBodega: cantStock,
+      totalStockUSD: totalStockUSD,
       valorUnitario: r.valorUnitario,
-      total: r.total,
-      tags: r.tags?.length > 0 ? r.tags.join(', ') : null,
+      total: totalSolUSD + totalStockUSD,
+      tags: r.tags?.length > 0 ? r.tags.map(t => getTagNombre(t)).join(', ') : null,
       ultimaAct: r.fechaUltimaActualizacionInventario 
         ? new Date(r.fechaUltimaActualizacionInventario).toLocaleDateString('es-CL')
         : null,
@@ -179,7 +217,7 @@ export async function exportToExcel(
 
       // Formato condicional: Stock en rojo si es 0
       const stockCell = row.getCell('stockBodega');
-      if (r.cantidadStockBodega === 0) {
+      if (cantStock === 0) {
         stockCell.font = { bold: true, color: { argb: COLORS.danger } };
         stockCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.dangerLight } };
       } else {
@@ -244,13 +282,29 @@ export async function exportToExcel(
   if (incluirResumen) {
     const wsDash = workbook.addWorksheet('📊 Dashboard');
     
-    // Calcular estadísticas
+    // Calcular estadísticas usando contexto si aplica
     const totalRepuestos = repuestos.length;
-    const cantSolicitadaTotal = repuestos.reduce((s, r) => s + r.cantidadSolicitada, 0);
-    const stockBodegaTotal = repuestos.reduce((s, r) => s + r.cantidadStockBodega, 0);
-    const valorTotal = repuestos.reduce((s, r) => s + r.total, 0);
-    const conStock = repuestos.filter(r => r.cantidadStockBodega > 0).length;
-    const sinStock = repuestos.filter(r => r.cantidadStockBodega === 0).length;
+    const cantSolicitadaTotal = repuestos.reduce((s, r) => {
+      const cant = contextTag ? getCantidadPorContexto(r, contextTag, 'solicitud') : r.cantidadSolicitada;
+      return s + cant;
+    }, 0);
+    const stockBodegaTotal = repuestos.reduce((s, r) => {
+      const cant = contextTag ? getCantidadPorContexto(r, contextTag, 'stock') : r.cantidadStockBodega;
+      return s + cant;
+    }, 0);
+    const valorTotal = repuestos.reduce((s, r) => {
+      const cantSol = contextTag ? getCantidadPorContexto(r, contextTag, 'solicitud') : r.cantidadSolicitada;
+      const cantStock = contextTag ? getCantidadPorContexto(r, contextTag, 'stock') : (r.cantidadStockBodega || 0);
+      return s + (r.valorUnitario * cantSol) + (r.valorUnitario * cantStock);
+    }, 0);
+    const conStock = repuestos.filter(r => {
+      const cant = contextTag ? getCantidadPorContexto(r, contextTag, 'stock') : r.cantidadStockBodega;
+      return cant > 0;
+    }).length;
+    const sinStock = repuestos.filter(r => {
+      const cant = contextTag ? getCantidadPorContexto(r, contextTag, 'stock') : r.cantidadStockBodega;
+      return cant === 0;
+    }).length;
     const conImagenManual = repuestos.filter(r => r.imagenesManual.length > 0).length;
     const conFotosReales = repuestos.filter(r => r.fotosReales.length > 0).length;
     const valorPromedio = totalRepuestos > 0 ? valorTotal / totalRepuestos : 0;
@@ -260,7 +314,7 @@ export async function exportToExcel(
     
     // Valores por tag
     const allTags = new Set<string>();
-    repuestos.forEach(r => r.tags?.forEach(t => allTags.add(t)));
+    repuestos.forEach(r => r.tags?.forEach(t => allTags.add(getTagNombre(t))));
     
     // Anchos de columna
     wsDash.getColumn(1).width = 3;
@@ -276,7 +330,9 @@ export async function exportToExcel(
     // === TÍTULO PRINCIPAL ===
     wsDash.mergeCells('B2:I2');
     const titleCell = wsDash.getCell('B2');
-    titleCell.value = '📊 DASHBOARD - Repuestos Baader 200';
+    titleCell.value = contextTag 
+      ? `📊 DASHBOARD - ${contextTag}`
+      : '📊 DASHBOARD - Repuestos Baader 200';
     titleCell.font = { bold: true, size: 20, color: { argb: COLORS.primary } };
     titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
     wsDash.getRow(2).height = 35;
@@ -566,7 +622,7 @@ export async function exportToExcel(
       { header: 'Código SAP', key: 'codigoSAP', width: 14 },
       { header: 'Número Parte Manual', key: 'codigoBaader', width: 20 },
       { header: 'Descripción SAP', key: 'descripcion', width: 45 },
-      { header: 'Cantidad Solicitada', key: 'cantidadSolicitada', width: 16 },
+      { header: contextTag ? `Cant. Solicitada (${contextTag})` : 'Cantidad Solicitada', key: 'cantidadSolicitada', width: 22 },
       { header: 'Valor Unitario (USD)', key: 'valorUnitario', width: 16 },
       { header: 'Total General (USD)', key: 'total', width: 16 },
       { header: 'Tags', key: 'tags', width: 25 }
@@ -580,14 +636,18 @@ export async function exportToExcel(
     }
 
     sinStock.forEach((r, index) => {
+      const cantSol = contextTag ? getCantidadPorContexto(r, contextTag, 'solicitud') : r.cantidadSolicitada;
+      const cantStockVal = contextTag ? getCantidadPorContexto(r, contextTag, 'stock') : (r.cantidadStockBodega || 0);
+      const totalVal = (r.valorUnitario * cantSol) + (r.valorUnitario * cantStockVal);
+      
       const row = wsSinStock.addRow({
         codigoSAP: r.codigoSAP,
         codigoBaader: r.codigoBaader,
         descripcion: r.textoBreve,
-        cantidadSolicitada: r.cantidadSolicitada,
+        cantidadSolicitada: cantSol,
         valorUnitario: r.valorUnitario,
-        total: r.total,
-        tags: r.tags?.length > 0 ? r.tags.join(', ') : null
+        total: totalVal,
+        tags: r.tags?.length > 0 ? r.tags.map(t => getTagNombre(t)).join(', ') : null
       });
       row.getCell('valorUnitario').numFmt = '"$"#,##0.00';
       row.getCell('total').numFmt = '"$"#,##0.00';
@@ -597,27 +657,36 @@ export async function exportToExcel(
     });
 
     // Total
-    const totalSinStock = wsSinStock.addRow({
+    const totalSinStockVal = sinStock.reduce((s, r) => {
+      const cantSol = contextTag ? getCantidadPorContexto(r, contextTag, 'solicitud') : r.cantidadSolicitada;
+      const cantStock = contextTag ? getCantidadPorContexto(r, contextTag, 'stock') : (r.cantidadStockBodega || 0);
+      return s + (r.valorUnitario * cantSol) + (r.valorUnitario * cantStock);
+    }, 0);
+    const totalSinStockCant = sinStock.reduce((s, r) => {
+      return s + (contextTag ? getCantidadPorContexto(r, contextTag, 'solicitud') : r.cantidadSolicitada);
+    }, 0);
+    
+    const totalSinStockRow = wsSinStock.addRow({
       codigoSAP: null,
       codigoBaader: null,
       descripcion: `TOTAL (${sinStock.length} repuestos)`,
-      cantidadSolicitada: sinStock.reduce((s, r) => s + r.cantidadSolicitada, 0),
+      cantidadSolicitada: totalSinStockCant,
       valorUnitario: null,
-      total: sinStock.reduce((s, r) => s + r.total, 0),
+      total: totalSinStockVal,
       tags: null
     });
     if (incluirEstilos) {
-      totalSinStock.font = { bold: true };
-      totalSinStock.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.dangerLight } };
+      totalSinStockRow.font = { bold: true };
+      totalSinStockRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.dangerLight } };
     }
-    totalSinStock.getCell('total').numFmt = '"$"#,##0.00';
+    totalSinStockRow.getCell('total').numFmt = '"$"#,##0.00';
     }
   }
 
   // === HOJA 4: POR TAGS ===
   if (incluirPorTags) {
     const allTags = new Set<string>();
-    repuestos.forEach(r => r.tags?.forEach(t => allTags.add(t)));
+    repuestos.forEach(r => r.tags?.forEach(t => allTags.add(getTagNombre(t))));
     
     if (allTags.size > 0) {
       const wsTags = workbook.addWorksheet('Por Tags');
@@ -638,13 +707,27 @@ export async function exportToExcel(
       }
 
       Array.from(allTags).sort().forEach((tag, index) => {
-        const tagged = repuestos.filter(r => r.tags?.includes(tag));
+        const tagged = repuestos.filter(r => r.tags?.some(t => getTagNombre(t) === tag));
+        
+        // Calcular totales para este tag
+        let cantSolicitadaTag = 0;
+        let stockTotalTag = 0;
+        let valorTotalTag = 0;
+        
+        tagged.forEach(r => {
+          const cantSol = getCantidadPorContexto(r, tag, 'solicitud');
+          const cantStock = getCantidadPorContexto(r, tag, 'stock');
+          cantSolicitadaTag += cantSol;
+          stockTotalTag += cantStock;
+          valorTotalTag += (r.valorUnitario * cantSol) + (r.valorUnitario * cantStock);
+        });
+        
         const row = wsTags.addRow({
           tag: tag,
           cantidad: tagged.length,
-          cantSolicitada: tagged.reduce((s, r) => s + r.cantidadSolicitada, 0),
-          stockTotal: tagged.reduce((s, r) => s + r.cantidadStockBodega, 0),
-          valorTotal: tagged.reduce((s, r) => s + r.total, 0)
+          cantSolicitada: cantSolicitadaTag,
+          stockTotal: stockTotalTag,
+          valorTotal: valorTotalTag
         });
         row.getCell('valorTotal').numFmt = '"$"#,##0.00';
         if (incluirEstilos && index % 2 === 1) {
@@ -669,6 +752,7 @@ export async function exportToExcel(
 export interface PDFExportOptions {
   includeCharts?: boolean;
   filename?: string;
+  contextTag?: string | null;  // Tag de contexto para cantidades
 }
 
 // Exportar a PDF con imágenes
@@ -677,7 +761,7 @@ export async function exportToPDF(
   options: PDFExportOptions = {},
   onProgress?: (progress: number, message: string) => void
 ) {
-  const { includeCharts = true, filename = 'repuestos_baader_200' } = options;
+  const { includeCharts = true, filename = 'repuestos_baader_200', contextTag = null } = options;
   
   const doc = new jsPDF('p', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -695,20 +779,33 @@ export async function exportToPDF(
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(30, 64, 175);
-  doc.text('Repuestos Baader 200', pageWidth / 2, 20, { align: 'center' });
+  doc.text(contextTag ? `Repuestos Baader 200 - ${contextTag}` : 'Repuestos Baader 200', pageWidth / 2, 20, { align: 'center' });
   
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 100, 100);
   doc.text(`Fecha: ${new Date().toLocaleDateString('es-CL')}`, pageWidth / 2, 28, { align: 'center' });
 
-  // Calcular estadísticas
-  const totalCantSolicitada = repuestos.reduce((s, r) => s + r.cantidadSolicitada, 0);
-  const totalStockBodega = repuestos.reduce((s, r) => s + r.cantidadStockBodega, 0);
-  const totalValor = repuestos.reduce((s, r) => s + r.total, 0);
+  // Calcular estadísticas usando contexto si aplica
+  const totalCantSolicitada = repuestos.reduce((s, r) => {
+    const cant = contextTag ? getCantidadPorContexto(r, contextTag, 'solicitud') : r.cantidadSolicitada;
+    return s + cant;
+  }, 0);
+  const totalStockBodega = repuestos.reduce((s, r) => {
+    const cant = contextTag ? getCantidadPorContexto(r, contextTag, 'stock') : r.cantidadStockBodega;
+    return s + cant;
+  }, 0);
+  const totalValor = repuestos.reduce((s, r) => {
+    const cantSol = contextTag ? getCantidadPorContexto(r, contextTag, 'solicitud') : r.cantidadSolicitada;
+    const cantStock = contextTag ? getCantidadPorContexto(r, contextTag, 'stock') : (r.cantidadStockBodega || 0);
+    return s + (r.valorUnitario * cantSol) + (r.valorUnitario * cantStock);
+  }, 0);
   const conImagenManual = repuestos.filter(r => r.imagenesManual.length > 0).length;
   const conFotoReal = repuestos.filter(r => r.fotosReales.length > 0).length;
-  const conStock = repuestos.filter(r => r.cantidadStockBodega > 0).length;
+  const conStock = repuestos.filter(r => {
+    const cant = contextTag ? getCantidadPorContexto(r, contextTag, 'stock') : r.cantidadStockBodega;
+    return cant > 0;
+  }).length;
   const sinStock = repuestos.length - conStock;
 
   // Variable para controlar posición de la tabla
@@ -968,12 +1065,16 @@ export async function exportToPDF(
     textY += Math.min(lines.length, 2) * 2.5 + 2;
 
     // Cantidad
+    const cantSolPDF = contextTag ? getCantidadPorContexto(repuesto, contextTag, 'solicitud') : repuesto.cantidadSolicitada;
+    const cantStockPDF = contextTag ? getCantidadPorContexto(repuesto, contextTag, 'stock') : (repuesto.cantidadStockBodega || 0);
+    const totalPDF = (repuesto.valorUnitario * cantSolPDF) + (repuesto.valorUnitario * cantStockPDF);
+    
     doc.setFontSize(6);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(80, 80, 80);
     doc.text('Cantidad: ', dataX, textY);
     doc.setFont('helvetica', 'normal');
-    doc.text(`${repuesto.cantidadSolicitada}`, dataX + doc.getTextWidth('Cantidad: '), textY);
+    doc.text(`${cantSolPDF}`, dataX + doc.getTextWidth('Cantidad: '), textY);
     
     // Valor Unitario
     textY += 3;
@@ -987,16 +1088,16 @@ export async function exportToPDF(
     doc.setFont('helvetica', 'bold');
     doc.text('Total: ', dataX, textY);
     doc.setFont('helvetica', 'normal');
-    doc.text(`$${formatNumber(repuesto.total)}`, dataX + doc.getTextWidth('Total: '), textY);
+    doc.text(`$${formatNumber(totalPDF)}`, dataX + doc.getTextWidth('Total: '), textY);
     
     // Stock
     const stockX = dataX + 28;
     doc.setFont('helvetica', 'bold');
     doc.text('Stock: ', stockX, textY);
-    const stockColor = repuesto.cantidadStockBodega > 0 ? [0, 130, 0] : [180, 0, 0];
+    const stockColor = cantStockPDF > 0 ? [0, 130, 0] : [180, 0, 0];
     doc.setTextColor(stockColor[0], stockColor[1], stockColor[2]);
     doc.setFont('helvetica', 'bold');
-    doc.text(`${repuesto.cantidadStockBodega}`, stockX + doc.getTextWidth('Stock: '), textY);
+    doc.text(`${cantStockPDF}`, stockX + doc.getTextWidth('Stock: '), textY);
 
     // === IMÁGENES (DERECHA) ===
     if (hasImages) {

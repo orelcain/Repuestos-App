@@ -1,11 +1,24 @@
 // Versión de la aplicación
-export const APP_VERSION = '3.0.0';
+export const APP_VERSION = '3.0.1';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
   {
+    version: '3.0.1',
+    date: '2025-12-21',
+    changes: [
+      'Pestaña Estadísticas: filtrado por contexto/tag con cantidades específicas del evento',
+      'Estadísticas muestran "--" sin contexto seleccionado',
+      'Distribución por tags: barras separadas para solicitud (azul) y stock (verde)',
+      'Top Repuestos usa cantidades del contexto activo',
+      'Exportación Excel: cantidades basadas en contexto seleccionado',
+      'Exportación PDF: cantidades basadas en contexto seleccionado',
+      'Dashboard Excel muestra nombre del contexto si está seleccionado'
+    ]
+  },
+  {
     version: '3.0.0',
-    date: '2025-01-21',
+    date: '2025-12-21',
     changes: [
       'Nuevo sistema de Tags con Eventos: cada tag tiene tipo (solicitud/stock) y cantidad asociada',
       'Selector de contexto/evento: las cantidades y totales se muestran según el tag seleccionado',

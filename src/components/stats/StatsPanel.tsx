@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Repuesto, TAGS_PREDEFINIDOS } from '../../types';
+import { Repuesto, TAGS_PREDEFINIDOS, getTagNombre, isTagAsignado } from '../../types';
 import {
   DollarSign,
   Package,
@@ -12,7 +12,8 @@ import {
   X,
   AlertCircle,
   CheckCircle,
-  Clock
+  Clock,
+  ShoppingCart
 } from 'lucide-react';
 
 interface StatsPanelProps {
@@ -28,27 +29,71 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [showTopCount, setShowTopCount] = useState(10);
 
+  // Obtener cantidad por contexto de un repuesto
+  const getCantidadPorContexto = (repuesto: Repuesto, tipo: 'solicitud' | 'stock'): number => {
+    if (!selectedTag) return 0;
+    
+    const tagEncontrado = repuesto.tags?.find(tag => {
+      if (isTagAsignado(tag)) {
+        return tag.nombre === selectedTag && tag.tipo === tipo;
+      }
+      return false;
+    });
+    
+    if (tagEncontrado && isTagAsignado(tagEncontrado)) {
+      return tagEncontrado.cantidad;
+    }
+    
+    // Fallback para tags string antiguos
+    const tieneTagAntiguo = repuesto.tags?.some(tag => 
+      typeof tag === 'string' && tag === selectedTag
+    );
+    if (tieneTagAntiguo) {
+      return tipo === 'solicitud' ? (repuesto.cantidadSolicitada || 0) : (repuesto.cantidadStockBodega || 0);
+    }
+    
+    return 0;
+  };
+
   // Filtrar por tag si está seleccionado
   const filteredRepuestos = useMemo(() => {
     if (!selectedTag) return repuestos;
-    return repuestos.filter(r => r.tags?.includes(selectedTag));
+    return repuestos.filter(r => r.tags?.some(t => getTagNombre(t) === selectedTag));
   }, [repuestos, selectedTag]);
 
-  // Estadísticas generales
+  // Estadísticas generales - adaptadas al contexto
   const stats = useMemo(() => {
-    const totalSolicitadoUSD = filteredRepuestos.reduce((sum, r) => sum + (r.valorUnitario * r.cantidadSolicitada), 0);
-    const totalStockUSD = filteredRepuestos.reduce((sum, r) => sum + (r.valorUnitario * (r.cantidadStockBodega || 0)), 0);
-    const totalGeneralUSD = filteredRepuestos.reduce((sum, r) => sum + ((r.valorUnitario * r.cantidadSolicitada) + (r.valorUnitario * (r.cantidadStockBodega || 0))), 0);
-    const totalUnidades = filteredRepuestos.reduce((sum, r) => sum + (r.cantidadSolicitada || 0), 0);
-    const totalStock = filteredRepuestos.reduce((sum, r) => sum + (r.cantidadStockBodega || 0), 0);
+    // Si hay tag seleccionado, usar cantidades del contexto
+    const totalSolicitadoUSD = selectedTag 
+      ? filteredRepuestos.reduce((sum, r) => sum + (r.valorUnitario * getCantidadPorContexto(r, 'solicitud')), 0)
+      : 0;
+    const totalStockUSD = selectedTag
+      ? filteredRepuestos.reduce((sum, r) => sum + (r.valorUnitario * getCantidadPorContexto(r, 'stock')), 0)
+      : 0;
+    const totalGeneralUSD = totalSolicitadoUSD + totalStockUSD;
+    const totalUnidades = selectedTag
+      ? filteredRepuestos.reduce((sum, r) => sum + getCantidadPorContexto(r, 'solicitud'), 0)
+      : 0;
+    const totalStock = selectedTag
+      ? filteredRepuestos.reduce((sum, r) => sum + getCantidadPorContexto(r, 'stock'), 0)
+      : 0;
     const promedioValorUnitario = filteredRepuestos.length > 0 
       ? filteredRepuestos.reduce((sum, r) => sum + (r.valorUnitario || 0), 0) / filteredRepuestos.length 
       : 0;
-    const maxValorUnitario = Math.max(...filteredRepuestos.map(r => r.valorUnitario || 0));
-    const minValorUnitario = Math.min(...filteredRepuestos.filter(r => r.valorUnitario > 0).map(r => r.valorUnitario));
+    const maxValorUnitario = filteredRepuestos.length > 0 
+      ? Math.max(...filteredRepuestos.map(r => r.valorUnitario || 0))
+      : 0;
+    const minValorUnitario = filteredRepuestos.filter(r => r.valorUnitario > 0).length > 0
+      ? Math.min(...filteredRepuestos.filter(r => r.valorUnitario > 0).map(r => r.valorUnitario))
+      : 0;
     
-    const conStock = filteredRepuestos.filter(r => r.cantidadStockBodega > 0).length;
-    const sinStock = filteredRepuestos.filter(r => r.cantidadStockBodega === 0).length;
+    // Contar con stock según contexto
+    const conStock = selectedTag 
+      ? filteredRepuestos.filter(r => getCantidadPorContexto(r, 'stock') > 0).length
+      : filteredRepuestos.filter(r => r.cantidadStockBodega > 0).length;
+    const sinStock = selectedTag
+      ? filteredRepuestos.filter(r => getCantidadPorContexto(r, 'stock') === 0).length
+      : filteredRepuestos.filter(r => r.cantidadStockBodega === 0).length;
     const conImagenes = filteredRepuestos.filter(r => (r.imagenesManual?.length || 0) > 0 || (r.fotosReales?.length || 0) > 0).length;
     const conMarcador = filteredRepuestos.filter(r => (r.vinculosManual?.length || 0) > 0).length;
 
@@ -67,50 +112,89 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
       conMarcador,
       total: filteredRepuestos.length
     };
-  }, [filteredRepuestos]);
+  }, [filteredRepuestos, selectedTag]);
 
-  // Estadísticas por tags
+  // Estadísticas por tags - mostrar información de cada tag
   const tagStats = useMemo(() => {
-    const tagMap = new Map<string, { count: number; total: number; unidades: number }>();
+    const tagMap = new Map<string, { 
+      count: number; 
+      totalSolicitud: number; 
+      totalStock: number;
+      unidadesSolicitud: number;
+      unidadesStock: number;
+    }>();
     
     repuestos.forEach(r => {
       (r.tags || []).forEach(tag => {
-        const current = tagMap.get(tag) || { count: 0, total: 0, unidades: 0 };
-        const totalGeneral = (r.valorUnitario * r.cantidadSolicitada) + (r.valorUnitario * (r.cantidadStockBodega || 0));
-        tagMap.set(tag, {
+        const tagName = getTagNombre(tag);
+        const current = tagMap.get(tagName) || { 
+          count: 0, 
+          totalSolicitud: 0, 
+          totalStock: 0,
+          unidadesSolicitud: 0,
+          unidadesStock: 0
+        };
+        
+        let cantSolicitud = 0;
+        let cantStock = 0;
+        
+        if (isTagAsignado(tag)) {
+          if (tag.tipo === 'solicitud') {
+            cantSolicitud = tag.cantidad;
+          } else {
+            cantStock = tag.cantidad;
+          }
+        } else {
+          // Tag string antiguo - usar valores del repuesto
+          cantSolicitud = r.cantidadSolicitada || 0;
+          cantStock = r.cantidadStockBodega || 0;
+        }
+        
+        tagMap.set(tagName, {
           count: current.count + 1,
-          total: current.total + totalGeneral,
-          unidades: current.unidades + (r.cantidadSolicitada || 0)
+          totalSolicitud: current.totalSolicitud + (r.valorUnitario * cantSolicitud),
+          totalStock: current.totalStock + (r.valorUnitario * cantStock),
+          unidadesSolicitud: current.unidadesSolicitud + cantSolicitud,
+          unidadesStock: current.unidadesStock + cantStock
         });
       });
     });
 
     return Array.from(tagMap.entries())
-      .map(([tag, data]) => ({ tag, ...data }))
+      .map(([tag, data]) => ({ 
+        tag, 
+        ...data,
+        total: data.totalSolicitud + data.totalStock
+      }))
       .sort((a, b) => b.total - a.total);
   }, [repuestos]);
 
-  // Top repuestos ordenados
+  // Top repuestos ordenados - usar cantidades del contexto
   const sortedRepuestos = useMemo(() => {
     const sorted = [...filteredRepuestos].sort((a, b) => {
       let valueA = 0, valueB = 0;
       
       switch (sortBy) {
         case 'valorTotal':
-          valueA = (a.valorUnitario * a.cantidadSolicitada) + (a.valorUnitario * (a.cantidadStockBodega || 0));
-          valueB = (b.valorUnitario * b.cantidadSolicitada) + (b.valorUnitario * (b.cantidadStockBodega || 0));
+          if (selectedTag) {
+            valueA = (a.valorUnitario * getCantidadPorContexto(a, 'solicitud')) + (a.valorUnitario * getCantidadPorContexto(a, 'stock'));
+            valueB = (b.valorUnitario * getCantidadPorContexto(b, 'solicitud')) + (b.valorUnitario * getCantidadPorContexto(b, 'stock'));
+          } else {
+            valueA = (a.valorUnitario * a.cantidadSolicitada) + (a.valorUnitario * (a.cantidadStockBodega || 0));
+            valueB = (b.valorUnitario * b.cantidadSolicitada) + (b.valorUnitario * (b.cantidadStockBodega || 0));
+          }
           break;
         case 'valorUnitario':
           valueA = a.valorUnitario || 0;
           valueB = b.valorUnitario || 0;
           break;
         case 'cantidad':
-          valueA = a.cantidadSolicitada || 0;
-          valueB = b.cantidadSolicitada || 0;
+          valueA = selectedTag ? getCantidadPorContexto(a, 'solicitud') : (a.cantidadSolicitada || 0);
+          valueB = selectedTag ? getCantidadPorContexto(b, 'solicitud') : (b.cantidadSolicitada || 0);
           break;
         case 'stock':
-          valueA = a.cantidadStockBodega || 0;
-          valueB = b.cantidadStockBodega || 0;
+          valueA = selectedTag ? getCantidadPorContexto(a, 'stock') : (a.cantidadStockBodega || 0);
+          valueB = selectedTag ? getCantidadPorContexto(b, 'stock') : (b.cantidadStockBodega || 0);
           break;
       }
       
@@ -118,12 +202,12 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
     });
     
     return sorted.slice(0, showTopCount);
-  }, [filteredRepuestos, sortBy, sortOrder, showTopCount]);
+  }, [filteredRepuestos, sortBy, sortOrder, showTopCount, selectedTag]);
 
   // Tags únicos
   const allTags = useMemo(() => {
     const tags = new Set<string>();
-    repuestos.forEach(r => r.tags?.forEach(t => tags.add(t)));
+    repuestos.forEach(r => r.tags?.forEach(t => tags.add(getTagNombre(t))));
     return [...TAGS_PREDEFINIDOS, ...Array.from(tags).filter(t => !TAGS_PREDEFINIDOS.includes(t as typeof TAGS_PREDEFINIDOS[number]))];
   }, [repuestos]);
 
@@ -145,7 +229,14 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
     return max > 0 ? Math.max(5, (value / max) * 100) : 0;
   };
 
-  const maxTotal = Math.max(...sortedRepuestos.map(r => (r.valorUnitario * r.cantidadSolicitada) + (r.valorUnitario * (r.cantidadStockBodega || 0))));
+  const maxTotal = sortedRepuestos.length > 0 
+    ? Math.max(...sortedRepuestos.map(r => {
+        if (selectedTag) {
+          return (r.valorUnitario * getCantidadPorContexto(r, 'solicitud')) + (r.valorUnitario * getCantidadPorContexto(r, 'stock'));
+        }
+        return (r.valorUnitario * r.cantidadSolicitada) + (r.valorUnitario * (r.cantidadStockBodega || 0));
+      }))
+    : 0;
 
   return (
     <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
@@ -159,7 +250,13 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
             <div>
               <h2 className="text-xl font-bold text-gray-800">Estadísticas</h2>
               <p className="text-sm text-gray-500">
-                {selectedTag ? `Filtrado: ${selectedTag}` : 'Todos los repuestos'}
+                {selectedTag ? (
+                  <span className="flex items-center gap-1">
+                    <Tag className="w-3 h-3" /> Contexto: <span className="font-medium text-primary-600">{selectedTag}</span>
+                  </span>
+                ) : (
+                  <span className="text-amber-600">⚠️ Selecciona un tag/evento para ver cantidades</span>
+                )}
               </p>
             </div>
           </div>
@@ -172,7 +269,7 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
               onChange={(e) => setSelectedTag(e.target.value || null)}
               className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
-              <option value="">Todos los tags</option>
+              <option value="">-- Seleccionar contexto --</option>
               {allTags.map(tag => (
                 <option key={tag} value={tag}>{tag}</option>
               ))}
@@ -191,55 +288,81 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
 
       {/* Contenido scrolleable */}
       <div className="flex-1 overflow-auto p-6 space-y-6">
+        {/* Aviso si no hay contexto */}
+        {!selectedTag && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-amber-800">Sin contexto seleccionado</p>
+              <p className="text-xs text-amber-600 mt-1">
+                Selecciona un tag/evento en el filtro superior para ver las cantidades y valores asociados a ese evento específico 
+                (ej: "Solicitud Dic 2025" o "Stock Bodega Dic 2025").
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Tarjetas de resumen principal */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Total Solicitado USD */}
-          <div className="bg-white rounded-xl p-5 shadow-sm border border-blue-200">
+          <div className={`bg-white rounded-xl p-5 shadow-sm border ${selectedTag ? 'border-blue-200' : 'border-gray-200'}`}>
             <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <DollarSign className="w-5 h-5 text-blue-600" />
+              <div className={`p-2 rounded-lg ${selectedTag ? 'bg-blue-100' : 'bg-gray-100'}`}>
+                <ShoppingCart className={`w-5 h-5 ${selectedTag ? 'text-blue-600' : 'text-gray-400'}`} />
               </div>
               <span className="text-sm font-medium text-gray-500">Total Solicitado</span>
             </div>
-            <p className="text-2xl font-bold text-blue-700">{formatCurrency(stats.totalSolicitadoUSD)}</p>
+            <p className={`text-2xl font-bold ${selectedTag ? 'text-blue-700' : 'text-gray-400'}`}>
+              {selectedTag ? formatCurrency(stats.totalSolicitadoUSD) : '--'}
+            </p>
             <p className="text-xs text-gray-400 mt-1">USD</p>
-            <p className="text-xs text-gray-400 mt-2 italic">Σ (Valor Unit. × Cant. Solicitada)</p>
+            <p className="text-xs text-gray-400 mt-2 italic">
+              {selectedTag ? `Σ (Valor × Cant. en "${selectedTag}")` : 'Selecciona un contexto'}
+            </p>
           </div>
 
           {/* Total Stock USD */}
-          <div className="bg-white rounded-xl p-5 shadow-sm border border-green-200">
+          <div className={`bg-white rounded-xl p-5 shadow-sm border ${selectedTag ? 'border-green-200' : 'border-gray-200'}`}>
             <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <DollarSign className="w-5 h-5 text-green-600" />
+              <div className={`p-2 rounded-lg ${selectedTag ? 'bg-green-100' : 'bg-gray-100'}`}>
+                <Package className={`w-5 h-5 ${selectedTag ? 'text-green-600' : 'text-gray-400'}`} />
               </div>
-              <span className="text-sm font-medium text-gray-500">Total Stock Bodega</span>
+              <span className="text-sm font-medium text-gray-500">Total Stock</span>
             </div>
-            <p className="text-2xl font-bold text-green-700">{formatCurrency(stats.totalStockUSD)}</p>
+            <p className={`text-2xl font-bold ${selectedTag ? 'text-green-700' : 'text-gray-400'}`}>
+              {selectedTag ? formatCurrency(stats.totalStockUSD) : '--'}
+            </p>
             <p className="text-xs text-gray-400 mt-1">USD</p>
-            <p className="text-xs text-gray-400 mt-2 italic">Σ (Valor Unit. × Stock Bodega)</p>
+            <p className="text-xs text-gray-400 mt-2 italic">
+              {selectedTag ? `Σ (Valor × Stock en "${selectedTag}")` : 'Selecciona un contexto'}
+            </p>
           </div>
 
           {/* Total General USD */}
-          <div className="bg-white rounded-xl p-5 shadow-sm border border-purple-200">
+          <div className={`bg-white rounded-xl p-5 shadow-sm border ${selectedTag ? 'border-purple-200' : 'border-gray-200'}`}>
             <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <DollarSign className="w-5 h-5 text-purple-600" />
+              <div className={`p-2 rounded-lg ${selectedTag ? 'bg-purple-100' : 'bg-gray-100'}`}>
+                <DollarSign className={`w-5 h-5 ${selectedTag ? 'text-purple-600' : 'text-gray-400'}`} />
               </div>
               <span className="text-sm font-medium text-gray-500">Total General</span>
             </div>
-            <p className="text-2xl font-bold text-purple-700">{formatCurrency(stats.totalGeneralUSD)}</p>
+            <p className={`text-2xl font-bold ${selectedTag ? 'text-purple-700' : 'text-gray-400'}`}>
+              {selectedTag ? formatCurrency(stats.totalGeneralUSD) : '--'}
+            </p>
             <p className="text-xs text-gray-400 mt-1">Solicitado + Stock</p>
           </div>
 
           {/* Total Unidades */}
           <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
             <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-amber-100 rounded-lg">
-                <Package className="w-5 h-5 text-amber-600" />
+              <div className={`p-2 rounded-lg ${selectedTag ? 'bg-amber-100' : 'bg-gray-100'}`}>
+                <Package className={`w-5 h-5 ${selectedTag ? 'text-amber-600' : 'text-gray-400'}`} />
               </div>
               <span className="text-sm font-medium text-gray-500">Unidades</span>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{formatNumber(stats.totalUnidades)} / {formatNumber(stats.totalStock)}</p>
+            <p className={`text-2xl font-bold ${selectedTag ? 'text-gray-900' : 'text-gray-400'}`}>
+              {selectedTag ? `${formatNumber(stats.totalUnidades)} / ${formatNumber(stats.totalStock)}` : '-- / --'}
+            </p>
             <p className="text-xs text-gray-400 mt-1">Solicitadas / Stock</p>
           </div>
         </div>
@@ -321,33 +444,52 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
           <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
             <div className="flex items-center gap-2 mb-4">
               <Tag className="w-5 h-5 text-primary-600" />
-              <h3 className="font-semibold text-gray-800">Distribución por Tags</h3>
+              <h3 className="font-semibold text-gray-800">Distribución por Tags/Eventos</h3>
             </div>
             <div className="space-y-3">
-              {tagStats.map(({ tag, count, total }) => (
+              {tagStats.map(({ tag, count, total, totalSolicitud, totalStock, unidadesSolicitud, unidadesStock }) => (
                 <div key={tag} className="group">
                   <div className="flex items-center justify-between mb-1">
                     <button
                       onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
-                      className={`text-sm font-medium hover:text-primary-600 transition-colors ${
+                      className={`text-sm font-medium hover:text-primary-600 transition-colors flex items-center gap-2 ${
                         selectedTag === tag ? 'text-primary-600' : 'text-gray-700'
                       }`}
                     >
                       {tag}
+                      {selectedTag === tag && <CheckCircle className="w-3 h-3" />}
                     </button>
-                    <div className="flex items-center gap-3 text-sm">
+                    <div className="flex items-center gap-4 text-sm">
                       <span className="text-gray-500">{count} ítems</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-blue-600 text-xs" title="Solicitudes">
+                          <ShoppingCart className="w-3 h-3 inline mr-1" />{unidadesSolicitud}
+                        </span>
+                        <span className="text-green-600 text-xs" title="Stock">
+                          <Package className="w-3 h-3 inline mr-1" />{unidadesStock}
+                        </span>
+                      </div>
                       <span className="font-semibold text-gray-900">{formatCurrency(total)}</span>
                     </div>
                   </div>
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden flex">
                     <div 
-                      className="h-full bg-primary-500 rounded-full transition-all group-hover:bg-primary-600"
-                      style={{ width: `${getBarWidth(total, tagStats[0]?.total || 1)}%` }}
+                      className="h-full bg-blue-500 transition-all"
+                      style={{ width: `${getBarWidth(totalSolicitud, tagStats[0]?.total || 1)}%` }}
+                      title={`Solicitado: ${formatCurrency(totalSolicitud)}`}
+                    />
+                    <div 
+                      className="h-full bg-green-500 transition-all"
+                      style={{ width: `${getBarWidth(totalStock, tagStats[0]?.total || 1)}%` }}
+                      title={`Stock: ${formatCurrency(totalStock)}`}
                     />
                   </div>
                 </div>
               ))}
+            </div>
+            <div className="flex items-center gap-4 mt-4 text-xs text-gray-500">
+              <span className="flex items-center gap-1"><div className="w-3 h-3 bg-blue-500 rounded" /> Solicitudes</span>
+              <span className="flex items-center gap-1"><div className="w-3 h-3 bg-green-500 rounded" /> Stock</span>
             </div>
           </div>
         )}
@@ -399,11 +541,13 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
 
           <div className="space-y-3">
             {sortedRepuestos.map((repuesto, index) => {
-              const totalGeneral = (repuesto.valorUnitario * repuesto.cantidadSolicitada) + (repuesto.valorUnitario * (repuesto.cantidadStockBodega || 0));
+              const cantSol = selectedTag ? getCantidadPorContexto(repuesto, 'solicitud') : repuesto.cantidadSolicitada;
+              const cantStock = selectedTag ? getCantidadPorContexto(repuesto, 'stock') : (repuesto.cantidadStockBodega || 0);
+              const totalGeneral = (repuesto.valorUnitario * cantSol) + (repuesto.valorUnitario * cantStock);
               const value = sortBy === 'valorTotal' ? totalGeneral :
                            sortBy === 'valorUnitario' ? repuesto.valorUnitario :
-                           sortBy === 'cantidad' ? repuesto.cantidadSolicitada :
-                           repuesto.cantidadStockBodega;
+                           sortBy === 'cantidad' ? cantSol :
+                           cantStock;
               
               return (
                 <div key={repuesto.id} className="group">
@@ -425,16 +569,24 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-bold text-gray-900">
-                        {sortBy === 'cantidad' || sortBy === 'stock' 
-                          ? formatNumber(value || 0) 
-                          : formatCurrency(value || 0)}
+                      <p className={`text-sm font-bold ${selectedTag || sortBy === 'valorUnitario' ? 'text-gray-900' : 'text-gray-400'}`}>
+                        {(selectedTag || sortBy === 'valorUnitario')
+                          ? (sortBy === 'cantidad' || sortBy === 'stock' 
+                              ? formatNumber(value || 0) 
+                              : formatCurrency(value || 0))
+                          : '--'}
                       </p>
                       <p className="text-xs text-gray-400">
-                        {sortBy === 'valorTotal' && `${repuesto.cantidadSolicitada} solicitadas + ${repuesto.cantidadStockBodega || 0} stock`}
-                        {sortBy === 'valorUnitario' && `Total: ${formatCurrency(totalGeneral)}`}
-                        {sortBy === 'cantidad' && formatCurrency(totalGeneral)}
-                        {sortBy === 'stock' && `Solicitado: ${repuesto.cantidadSolicitada}`}
+                        {selectedTag ? (
+                          <>
+                            {sortBy === 'valorTotal' && `${cantSol} sol. + ${cantStock} stock`}
+                            {sortBy === 'valorUnitario' && `Total: ${formatCurrency(totalGeneral)}`}
+                            {sortBy === 'cantidad' && formatCurrency(totalGeneral)}
+                            {sortBy === 'stock' && `Solicitado: ${cantSol}`}
+                          </>
+                        ) : (
+                          sortBy === 'valorUnitario' ? `Unit: ${formatCurrency(repuesto.valorUnitario)}` : 'Selecciona contexto'
+                        )}
                       </p>
                     </div>
                   </div>
@@ -457,20 +609,28 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
 
         {/* Resumen rápido */}
         <div className="bg-gradient-to-r from-primary-600 to-primary-700 rounded-xl p-6 text-white">
-          <h3 className="text-lg font-semibold mb-4">📊 Resumen Rápido</h3>
+          <h3 className="text-lg font-semibold mb-4">
+            📊 Resumen {selectedTag ? `- ${selectedTag}` : 'Rápido'}
+          </h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
             <div>
-              <p className="text-primary-200">Inversión total general</p>
-              <p className="text-2xl font-bold">{formatCurrency(stats.totalGeneralUSD)}</p>
+              <p className="text-primary-200">
+                {selectedTag ? 'Total del evento' : 'Inversión total'}
+              </p>
+              <p className="text-2xl font-bold">
+                {selectedTag ? formatCurrency(stats.totalGeneralUSD) : '--'}
+              </p>
             </div>
             <div>
               <p className="text-primary-200">Repuesto más costoso (unit.)</p>
               <p className="text-2xl font-bold">{formatCurrency(stats.maxValorUnitario)}</p>
             </div>
             <div>
-              <p className="text-primary-200">Cobertura de stock</p>
+              <p className="text-primary-200">
+                {selectedTag ? 'Items en este evento' : 'Total items'}
+              </p>
               <p className="text-2xl font-bold">
-                {stats.total > 0 ? Math.round((stats.conStock / stats.total) * 100) : 0}%
+                {stats.total}
               </p>
             </div>
           </div>
