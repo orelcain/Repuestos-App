@@ -23,6 +23,24 @@ import { ContextComparator } from './ContextComparator';
 const PDFViewer = lazy(() => import('./pdf/PDFViewer').then(module => ({ default: module.PDFViewer })));
 const PDFMarkerEditor = lazy(() => import('./pdf/PDFMarkerEditor').then(module => ({ default: module.PDFMarkerEditor })));
 
+// Función para precargar el módulo del editor de marcadores
+let editorPreloaded = false;
+let editorPreloading = false;
+const preloadMarkerEditor = () => {
+  if (editorPreloaded || editorPreloading) return Promise.resolve();
+  editorPreloading = true;
+  console.log('[Dashboard] Precargando módulo PDFMarkerEditor...');
+  const startTime = performance.now();
+  return import('./pdf/PDFMarkerEditor').then(() => {
+    editorPreloaded = true;
+    editorPreloading = false;
+    console.log(`[Dashboard] PDFMarkerEditor precargado en ${(performance.now() - startTime).toFixed(0)}ms ✅`);
+  }).catch(err => {
+    editorPreloading = false;
+    console.error('[Dashboard] Error precargando PDFMarkerEditor:', err);
+  });
+};
+
 import { ImportModal } from './ImportModal';
 import { StatsPanel } from './stats/StatsPanel';
 import { ToastContainer, Button } from './ui';
@@ -109,6 +127,10 @@ export function Dashboard() {
   
   // Precarga del PDF del manual (carga automática después de 3 segundos)
   const pdfPreloader = usePDFPreloader(pdfUrl, 3000);
+  
+  // Estado de precarga del editor de marcadores
+  const [editorReady, setEditorReady] = useState(editorPreloaded);
+  const [editorLoading, setEditorLoading] = useState(editorPreloading);
 
   // Estado móvil
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -176,6 +198,15 @@ export function Dashboard() {
     if (pdfPreloader.isReady && pdfPreloader.pdf && pdfUrl) {
       setGlobalPDFCache(pdfUrl, pdfPreloader.pdf, pdfPreloader.textContent);
       console.log('[Dashboard] PDF manual guardado en cache global ✅');
+      
+      // Precargar el editor de marcadores después de que el PDF esté listo
+      if (!editorPreloaded && !editorPreloading) {
+        setEditorLoading(true);
+        preloadMarkerEditor().then(() => {
+          setEditorReady(true);
+          setEditorLoading(false);
+        });
+      }
     }
   }, [pdfPreloader.isReady, pdfPreloader.pdf, pdfPreloader.textContent, pdfUrl]);
 
@@ -827,11 +858,20 @@ export function Dashboard() {
               className="relative"
             >
               Manual
+              {/* Indicador PDF precargado */}
               {pdfPreloader.isReady ? (
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full" title="Manual precargado - apertura instantánea" />
               ) : pdfPreloader.loading ? (
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-500 rounded-full animate-pulse" title="Precargando manual..." />
               ) : null}
+              {/* Indicador Editor de marcadores precargado */}
+              {pdfPreloader.isReady && (
+                editorReady ? (
+                  <span className="absolute -top-1 right-1 w-2 h-2 bg-green-500 rounded-full" title="Editor de marcadores listo - apertura instantánea" />
+                ) : editorLoading ? (
+                  <span className="absolute -top-1 right-1 w-2 h-2 bg-yellow-500 rounded-full animate-pulse" title="Precargando editor de marcadores..." />
+                ) : null
+              )}
             </Button>
 
             <Button
