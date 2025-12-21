@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Repuesto, RepuestoFormData } from '../../types';
-import { useTags } from '../../hooks/useTags';
+import { Repuesto, RepuestoFormData, TagAsignado, isTagAsignado } from '../../types';
 import { Modal, Button, Input } from '../ui';
-import { Save, Tag, X, Plus } from 'lucide-react';
+import { Save } from 'lucide-react';
+import { TagEventSelector } from './TagEventSelector';
 
 interface RepuestoFormProps {
   isOpen: boolean;
@@ -12,7 +12,6 @@ interface RepuestoFormProps {
 }
 
 export function RepuestoForm({ isOpen, onClose, onSave, repuesto }: RepuestoFormProps) {
-  const { tags: globalTags, addTag: addGlobalTag } = useTags();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<RepuestoFormData>({
     codigoSAP: '',
@@ -25,10 +24,6 @@ export function RepuestoForm({ isOpen, onClose, onSave, repuesto }: RepuestoForm
     cantidadStockBodega: 0,
     tags: []
   });
-  
-  // Estado para gestión de tags
-  const [showTagSelector, setShowTagSelector] = useState(false);
-  const [newTagInput, setNewTagInput] = useState('');
 
   // Cargar datos si es edición
   useEffect(() => {
@@ -77,40 +72,10 @@ export function RepuestoForm({ isOpen, onClose, onSave, repuesto }: RepuestoForm
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  // Agregar tag
-  const addTag = (tag: string) => {
-    if (!tag.trim()) return;
-    const trimmedTag = tag.trim();
-    const currentTags = formData.tags || [];
-    if (!currentTags.includes(trimmedTag)) {
-      setFormData(prev => ({
-        ...prev,
-        tags: [...currentTags, trimmedTag]
-      }));
-      
-      // Si es un tag nuevo (no está en los predefinidos), agregarlo a la lista global
-      if (!globalTags.includes(trimmedTag)) {
-        addGlobalTag(trimmedTag);
-      }
-    }
-    setNewTagInput('');
-    setShowTagSelector(false);
+  // Manejar cambio de tags (nuevo formato con eventos)
+  const handleTagsChange = (newTags: TagAsignado[]) => {
+    setFormData(prev => ({ ...prev, tags: newTags }));
   };
-
-  // Eliminar tag
-  const removeTag = (tagToRemove: string) => {
-    setFormData(prev => ({
-      ...prev,
-      tags: (prev.tags || []).filter(t => t !== tagToRemove)
-    }));
-  };
-
-  // Tags disponibles (globales que no están ya seleccionados)
-  const availableTags = globalTags.filter(
-    tag => !(formData.tags || []).includes(tag)
-  );
-
-  const total = formData.cantidadSolicitada * formData.valorUnitario;
 
   return (
     <Modal 
@@ -193,116 +158,24 @@ export function RepuestoForm({ isOpen, onClose, onSave, repuesto }: RepuestoForm
             required
           />
 
-          {/* Stock Bodega */}
+          {/* Stock Bodega - LEGACY, se usa para compatibilidad */}
           <Input
-            label="Stock Bodega"
+            label="Stock Bodega (legacy)"
             type="number"
             min="0"
             value={formData.cantidadStockBodega}
             onChange={(e) => handleChange('cantidadStockBodega', parseInt(e.target.value) || 0)}
+            disabled
+            className="opacity-50"
           />
         </div>
 
-        {/* Tags Section */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-              <Tag className="w-4 h-4" />
-              Tags / Etiquetas
-            </label>
-            <button
-              type="button"
-              onClick={() => setShowTagSelector(!showTagSelector)}
-              className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
-            >
-              <Plus className="w-4 h-4" />
-              Agregar tag
-            </button>
-          </div>
-
-          {/* Tags actuales */}
-          <div className="flex flex-wrap gap-2 min-h-[32px]">
-            {(formData.tags || []).length === 0 ? (
-              <span className="text-sm text-gray-400 italic">Sin tags asignados</span>
-            ) : (
-              (formData.tags || []).map(tag => (
-                <span
-                  key={tag}
-                  className="inline-flex items-center gap-1 px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium"
-                >
-                  {tag}
-                  <button
-                    type="button"
-                    onClick={() => removeTag(tag)}
-                    className="hover:text-primary-900 transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </span>
-              ))
-            )}
-          </div>
-
-          {/* Selector de tags */}
-          {showTagSelector && (
-            <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 space-y-3">
-              {/* Tags predefinidos */}
-              <div>
-                <p className="text-xs font-medium text-gray-500 mb-2">Tags predefinidos:</p>
-                <div className="flex flex-wrap gap-2">
-                  {availableTags.map(tag => (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => addTag(tag)}
-                      className="px-3 py-1 bg-white border border-gray-300 rounded-full text-sm hover:bg-primary-50 hover:border-primary-300 hover:text-primary-700 transition-colors"
-                    >
-                      {tag}
-                    </button>
-                  ))}
-                  {availableTags.length === 0 && (
-                    <span className="text-xs text-gray-400 italic">Todos los tags predefinidos ya están asignados</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Tag personalizado */}
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newTagInput}
-                  onChange={(e) => setNewTagInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      addTag(newTagInput);
-                    }
-                  }}
-                  placeholder="Crear tag personalizado..."
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-                <button
-                  type="button"
-                  onClick={() => addTag(newTagInput)}
-                  disabled={!newTagInput.trim()}
-                  className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Agregar
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Total calculado */}
-        <div className="bg-gray-50 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-gray-600">Total:</span>
-            <span className="text-xl font-bold text-primary-600">
-              ${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-            </span>
-          </div>
-        </div>
+        {/* Tags/Eventos Section - Nuevo sistema */}
+        <TagEventSelector
+          tags={formData.tags || []}
+          onTagsChange={handleTagsChange}
+          valorUnitario={formData.valorUnitario}
+        />
 
         {/* Botones */}
         <div className="flex justify-end gap-3 pt-4 border-t">

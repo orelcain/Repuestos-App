@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Repuesto, HistorialCambio } from '../../types';
+import { Repuesto, HistorialCambio, isTagAsignado, getTagNombre, TagAsignado } from '../../types';
 import { useTableColumns } from '../../hooks/useTableColumns';
 import { 
   Search, 
@@ -30,7 +30,8 @@ import {
   BookMarked,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  ShoppingCart
 } from 'lucide-react';
 
 interface RepuestosTableProps {
@@ -138,6 +139,7 @@ export function RepuestosTable({
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [tagFilterMode, setTagFilterMode] = useState<'AND' | 'OR'>('OR');
   const [showTagFilter, setShowTagFilter] = useState(false);
+  const [activeContextTag, setActiveContextTag] = useState<string | null>(null); // Tag de contexto para mostrar cantidades
   const [showColumnConfig, setShowColumnConfig] = useState(false);
   const [filterSinStock, setFilterSinStock] = useState(false);
   const [filterConManual, setFilterConManual] = useState<boolean | null>(null); // null=todos, true=con marcador, false=sin marcador
@@ -258,24 +260,39 @@ export function RepuestosTable({
       );
     }
     
-    // Filtrar por tags (multi-tag con AND/OR)
+    // Filtrar por tags (multi-tag con AND/OR) - soporta formato antiguo y nuevo
     if (selectedTags.length > 0) {
+      const repuestoTieneTag = (r: Repuesto, tagBuscado: string) => {
+        return r.tags?.some(tag => getTagNombre(tag) === tagBuscado);
+      };
+
       if (tagFilterMode === 'AND') {
         // AND: debe tener TODOS los tags seleccionados
         result = result.filter(r => 
-          selectedTags.every(tag => r.tags?.includes(tag))
+          selectedTags.every(tag => repuestoTieneTag(r, tag))
         );
       } else {
         // OR: debe tener AL MENOS UNO de los tags seleccionados
         result = result.filter(r => 
-          selectedTags.some(tag => r.tags?.includes(tag))
+          selectedTags.some(tag => repuestoTieneTag(r, tag))
         );
       }
     }
     
-    // Filtrar sin stock
+    // Filtrar sin stock - usar contexto activo si existe, sino valor legacy
     if (filterSinStock) {
-      result = result.filter(r => !r.cantidadStockBodega || r.cantidadStockBodega === 0);
+      result = result.filter(r => {
+        if (activeContextTag) {
+          const stockEnContexto = r.tags?.find(tag => 
+            isTagAsignado(tag) && tag.nombre === activeContextTag && tag.tipo === 'stock'
+          );
+          if (stockEnContexto && isTagAsignado(stockEnContexto)) {
+            return stockEnContexto.cantidad === 0;
+          }
+        }
+        // Fallback a valor legacy
+        return !r.cantidadStockBodega || r.cantidadStockBodega === 0;
+      });
     }
     
     // Filtrar por marcador en manual
@@ -354,7 +371,7 @@ export function RepuestosTable({
     });
     
     return result;
-  }, [repuestos, searchTerm, selectedTags, tagFilterMode, filterSinStock, filterConManual, precioMin, precioMax, sortColumn, sortDirection]);
+  }, [repuestos, searchTerm, selectedTags, tagFilterMode, filterSinStock, filterConManual, precioMin, precioMax, sortColumn, sortDirection, activeContextTag]);
 
   // Función para manejar click en header de columna
   const handleSort = (column: string) => {
@@ -449,28 +466,78 @@ export function RepuestosTable({
   // Contar repuestos sin marcador
   const sinMarcadorCount = repuestos.filter(r => !r.vinculosManual || r.vinculosManual.length === 0).length;
 
-  // Tags únicos en los repuestos
+  // Tags únicos en los repuestos (soporta formato antiguo y nuevo)
   const tagsEnUso = useMemo(() => {
     const tags = new Set<string>();
-    repuestos.forEach(r => r.tags?.forEach(t => tags.add(t)));
-    return Array.from(tags);
+    repuestos.forEach(r => r.tags?.forEach(t => tags.add(getTagNombre(t))));
+    return Array.from(tags).sort((a, b) => a.localeCompare(b, 'es'));
   }, [repuestos]);
 
-  // Calcular totales de repuestos filtrados
+  // Helper: Obtener cantidad de un repuesto según el tag de contexto activo
+  const getCantidadPorContexto = useMemo(() => {
+    return (repuesto: Repuesto, tipo: 'solicitud' | 'stock'): number => {
+      if (!activeContextTag) return 0; // Sin contexto = 0
+      
+      const tagEncontrado = repuesto.tags?.find(tag => {
+        if (isTagAsignado(tag)) {
+          return tag.nombre === activeContextTag && tag.tipo === tipo;
+        }
+        return false;
+      });
+      
+      if (tagEncontrado && isTagAsignado(tagEncontrado)) {
+        return tagEncontrado.cantidad;
+      }
+      
+      // Fallback: si el tag es string (formato antiguo), usar valores del repuesto
+      const tieneTagAntiguo = repuesto.tags?.some(tag => 
+        typeof tag === 'string' && tag === activeContextTag
+      );
+      if (tieneTagAntiguo) {
+        return tipo === 'solicitud' ? (repuesto.cantidadSolicitada || 0) : (repuesto.cantidadStockBodega || 0);
+      }
+      
+      return 0;
+    };
+  }, [activeContextTag]);
+
+  // Calcular totales de repuestos filtrados según contexto activo
   const totales = useMemo(() => {
-    const totalSolicitado = filteredRepuestos.reduce((sum, r) => sum + (r.cantidadSolicitada || 0), 0);
-    const totalBodega = filteredRepuestos.reduce((sum, r) => sum + (r.cantidadStockBodega || 0), 0);
-    const totalSolicitadoUSD = filteredRepuestos.reduce((sum, r) => sum + (r.valorUnitario * r.cantidadSolicitada), 0);
-    const totalStockUSD = filteredRepuestos.reduce((sum, r) => sum + (r.valorUnitario * (r.cantidadStockBodega || 0)), 0);
-    const totalUSD = totalSolicitadoUSD + totalStockUSD;
+    if (!activeContextTag) {
+      // Sin contexto activo = mostrar 0 (solicitar seleccionar un tag)
+      return { 
+        totalSolicitado: 0, 
+        totalBodega: 0, 
+        totalSolicitadoUSD: 0,
+        totalStockUSD: 0,
+        totalUSD: 0,
+        sinContexto: true
+      };
+    }
+
+    let totalSolicitado = 0;
+    let totalBodega = 0;
+    let totalSolicitadoUSD = 0;
+    let totalStockUSD = 0;
+
+    filteredRepuestos.forEach(r => {
+      const cantSol = getCantidadPorContexto(r, 'solicitud');
+      const cantStock = getCantidadPorContexto(r, 'stock');
+      totalSolicitado += cantSol;
+      totalBodega += cantStock;
+      totalSolicitadoUSD += cantSol * r.valorUnitario;
+      totalStockUSD += cantStock * r.valorUnitario;
+    });
+
     return { 
       totalSolicitado, 
       totalBodega, 
       totalSolicitadoUSD,
       totalStockUSD,
-      totalUSD
+      totalUSD: totalSolicitadoUSD + totalStockUSD,
+      sinContexto: false
     };
-  }, [filteredRepuestos]);
+  }, [filteredRepuestos, activeContextTag, getCantidadPorContexto]);
 
   // Renderizar encabezado de columna con drag & drop
   const renderColumnHeader = (columnKey: string) => {
@@ -741,82 +808,124 @@ export function RepuestosTable({
           </div>
         </div>
 
-        {/* Panel de Totales */}
+        {/* Panel de Totales con Selector de Contexto */}
         <div className="flex flex-wrap items-center gap-3 px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-xl border border-gray-200 dark:border-gray-700">
-          {/* Cantidades */}
-          <div className="flex items-center gap-4 pr-4 border-r border-gray-300 dark:border-gray-600">
-            <div className="text-center group relative cursor-help">
-              <div className="text-xs text-gray-500 dark:text-gray-400 uppercase">Solicitado</div>
-              <div className="text-lg font-bold text-blue-600 dark:text-blue-400">{totales.totalSolicitado.toLocaleString()}</div>
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
-                Suma total de unidades solicitadas
-                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
-              </div>
-            </div>
-            <div className="text-center group relative cursor-help">
-              <div className="text-xs text-gray-500 dark:text-gray-400 uppercase">En Bodega</div>
-              <div className={`text-lg font-bold ${totales.totalBodega > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`}>
-                {totales.totalBodega.toLocaleString()}
-              </div>
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
-                Suma total de unidades en bodega
-                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
-              </div>
-            </div>
-            <button
-              onClick={() => setFilterSinStock(!filterSinStock)}
-              className={`text-center cursor-pointer rounded-lg px-2 py-1 transition-colors group relative ${
-                filterSinStock ? 'bg-red-100 dark:bg-red-900/50' : 'hover:bg-red-50 dark:hover:bg-red-900/30'
-              }`}
-            >
-              <div className="text-xs text-red-500 dark:text-red-400 uppercase">Sin Stock</div>
-              <div className="text-lg font-bold text-red-600 dark:text-red-400">
-                {filteredRepuestos.filter(r => !r.cantidadStockBodega || r.cantidadStockBodega === 0).length}
-              </div>
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
-                Tipos de repuesto con stock = 0 (click para filtrar)
-                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
-              </div>
-            </button>
-          </div>
-          
-          {/* Totales monetarios USD */}
-          <div className="flex items-center gap-4 pr-4 border-r border-gray-300 dark:border-gray-600">
-            <div className="text-center group relative cursor-help">
-              <div className="text-xs text-blue-500 dark:text-blue-400 uppercase">Total Solicitado</div>
-              <div className="text-base font-bold text-blue-700 dark:text-blue-300">
-                ${totales.totalSolicitadoUSD.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-              </div>
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
-                Valor USD de unidades solicitadas
-                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
-              </div>
-            </div>
-            <div className="text-center group relative cursor-help">
-              <div className="text-xs text-green-500 dark:text-green-400 uppercase">Total Stock</div>
-              <div className="text-base font-bold text-green-700 dark:text-green-300">
-                ${totales.totalStockUSD.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-              </div>
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
-                Valor USD de unidades en bodega
-                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
-              </div>
+          {/* Selector de Contexto (Tag activo) */}
+          <div className="flex items-center gap-2 pr-4 border-r border-gray-300 dark:border-gray-600">
+            <div className="text-center">
+              <div className="text-xs text-gray-500 dark:text-gray-400 uppercase mb-1">Contexto/Evento</div>
+              <select
+                value={activeContextTag || ''}
+                onChange={(e) => setActiveContextTag(e.target.value || null)}
+                className={`px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors ${
+                  activeContextTag 
+                    ? 'bg-primary-100 dark:bg-primary-900/50 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300'
+                    : 'bg-amber-50 dark:bg-amber-900/30 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300'
+                }`}
+              >
+                <option value="">-- Seleccionar evento --</option>
+                {tagsEnUso.map(tag => (
+                  <option key={tag} value={tag}>{tag}</option>
+                ))}
+              </select>
             </div>
           </div>
-          
-          {/* Total General */}
-          <div className="flex items-center gap-4">
-            <div className="text-center group relative cursor-help">
-              <div className="text-xs text-purple-500 dark:text-purple-400 uppercase font-semibold">Total General USD</div>
-              <div className="text-xl font-bold text-purple-700 dark:text-purple-300">
-                ${totales.totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-              </div>
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
-                Solicitado + Stock en bodega
-                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
-              </div>
+
+          {/* Cantidades según contexto */}
+          {totales.sinContexto ? (
+            <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-900/30 rounded-lg border border-amber-200 dark:border-amber-800">
+              <AlertTriangle className="w-4 h-4 text-amber-500" />
+              <span className="text-sm text-amber-700 dark:text-amber-300">
+                Selecciona un evento/tag para ver cantidades y totales
+              </span>
             </div>
-          </div>
+          ) : (
+            <>
+              {/* Cantidades */}
+              <div className="flex items-center gap-4 pr-4 border-r border-gray-300 dark:border-gray-600">
+                <div className="text-center group relative cursor-help">
+                  <div className="text-xs text-blue-500 dark:text-blue-400 uppercase flex items-center gap-1 justify-center">
+                    <ShoppingCart className="w-3 h-3" />
+                    Solicitado
+                  </div>
+                  <div className="text-lg font-bold text-blue-600 dark:text-blue-400">{totales.totalSolicitado.toLocaleString()}</div>
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
+                    Unidades solicitadas en "{activeContextTag}"
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
+                  </div>
+                </div>
+                <div className="text-center group relative cursor-help">
+                  <div className="text-xs text-green-500 dark:text-green-400 uppercase flex items-center gap-1 justify-center">
+                    <Package className="w-3 h-3" />
+                    En Bodega
+                  </div>
+                  <div className={`text-lg font-bold ${totales.totalBodega > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`}>
+                    {totales.totalBodega.toLocaleString()}
+                  </div>
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
+                    Unidades en bodega en "{activeContextTag}"
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setFilterSinStock(!filterSinStock)}
+                  className={`text-center cursor-pointer rounded-lg px-2 py-1 transition-colors group relative ${
+                    filterSinStock ? 'bg-red-100 dark:bg-red-900/50' : 'hover:bg-red-50 dark:hover:bg-red-900/30'
+                  }`}
+                >
+                  <div className="text-xs text-red-500 dark:text-red-400 uppercase">Sin Stock</div>
+                  <div className="text-lg font-bold text-red-600 dark:text-red-400">
+                    {filteredRepuestos.filter(r => {
+                      const stock = getCantidadPorContexto(r, 'stock');
+                      return stock === 0;
+                    }).length}
+                  </div>
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
+                    Repuestos con stock = 0 (click para filtrar)
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
+                  </div>
+                </button>
+              </div>
+              
+              {/* Totales monetarios USD */}
+              <div className="flex items-center gap-4 pr-4 border-r border-gray-300 dark:border-gray-600">
+                <div className="text-center group relative cursor-help">
+                  <div className="text-xs text-blue-500 dark:text-blue-400 uppercase">Total Solicitado</div>
+                  <div className="text-base font-bold text-blue-700 dark:text-blue-300">
+                    ${totales.totalSolicitadoUSD.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                  </div>
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
+                    Valor USD de unidades solicitadas
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
+                  </div>
+                </div>
+                <div className="text-center group relative cursor-help">
+                  <div className="text-xs text-green-500 dark:text-green-400 uppercase">Total Stock</div>
+                  <div className="text-base font-bold text-green-700 dark:text-green-300">
+                    ${totales.totalStockUSD.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                  </div>
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
+                    Valor USD de unidades en bodega
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Total General */}
+              <div className="flex items-center gap-4">
+                <div className="text-center group relative cursor-help">
+                  <div className="text-xs text-purple-500 dark:text-purple-400 uppercase font-semibold">Total General USD</div>
+                  <div className="text-xl font-bold text-purple-700 dark:text-purple-300">
+                    ${totales.totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  </div>
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
+                    Solicitado + Stock en bodega
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Barra de búsqueda con botón de filtros avanzados */}
@@ -1161,11 +1270,31 @@ export function RepuestosTable({
                   <td className="px-4 py-4">
                     {repuesto.tags && repuesto.tags.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
-                        {repuesto.tags.map(tag => (
-                          <span key={tag} className="inline-flex items-center px-2 py-1 bg-primary-50 text-primary-700 rounded-md text-xs font-medium" title={tag}>
-                            {tag.length > 20 ? tag.substring(0, 20) + '...' : tag}
-                          </span>
-                        ))}
+                        {repuesto.tags.map((tag, idx) => {
+                          const tagNombre = getTagNombre(tag);
+                          const tagInfo = isTagAsignado(tag) ? tag : null;
+                          return (
+                            <span 
+                              key={`${tagNombre}-${idx}`} 
+                              className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium ${
+                                tagInfo?.tipo === 'stock' 
+                                  ? 'bg-green-50 text-green-700 border border-green-200' 
+                                  : 'bg-blue-50 text-blue-700 border border-blue-200'
+                              }`}
+                              title={tagInfo ? `${tagNombre} (${tagInfo.tipo}: ${tagInfo.cantidad})` : tagNombre}
+                            >
+                              {tagInfo?.tipo === 'stock' ? (
+                                <Package className="w-3 h-3" />
+                              ) : (
+                                <ShoppingCart className="w-3 h-3" />
+                              )}
+                              {tagNombre.length > 15 ? tagNombre.substring(0, 15) + '...' : tagNombre}
+                              {tagInfo && (
+                                <span className="text-[10px] opacity-70">({tagInfo.cantidad})</span>
+                              )}
+                            </span>
+                          );
+                        })}
                       </div>
                     ) : (
                       <span className="text-xs text-gray-400 italic">-</span>
@@ -1173,59 +1302,78 @@ export function RepuestosTable({
                   </td>
                   )}
 
-                  {/* Cantidad Solicitada - clickeable para ver historial */}
+                  {/* Cantidad Solicitada - según contexto activo */}
                   {isColumnVisible('cantidadSolicitada') && (
                   <td className="px-4 py-4 text-center">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleViewFieldHistory(repuesto, 'cantidadSolicitada');
-                      }}
-                      className="text-base font-semibold px-3 py-1.5 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                      title="Ver historial de cambios"
-                    >
-                      {repuesto.cantidadSolicitada}
-                    </button>
+                    {activeContextTag ? (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewFieldHistory(repuesto, 'cantidadSolicitada');
+                        }}
+                        className="text-base font-semibold px-3 py-1.5 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                        title={`Cantidad en "${activeContextTag}" - Ver historial`}
+                      >
+                        {getCantidadPorContexto(repuesto, 'solicitud')}
+                      </button>
+                    ) : (
+                      <span className="text-xs text-gray-400 italic">--</span>
+                    )}
                   </td>
                   )}
 
                   {/* Total Solicitado USD */}
                   {isColumnVisible('totalSolicitadoUSD') && (
                   <td className="px-4 py-4 text-right">
-                    <span className="text-sm font-semibold text-blue-600">
-                      ${(repuesto.valorUnitario * repuesto.cantidadSolicitada).toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
+                    {activeContextTag ? (
+                      <span className="text-sm font-semibold text-blue-600">
+                        ${(repuesto.valorUnitario * getCantidadPorContexto(repuesto, 'solicitud')).toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-400">--</span>
+                    )}
                   </td>
                   )}
 
-                  {/* Stock Bodega - clickeable para ver historial */}
+                  {/* Stock Bodega - según contexto activo */}
                   {isColumnVisible('cantidadStockBodega') && (
                   <td className="px-4 py-4 text-center">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleViewFieldHistory(repuesto, 'cantidadStockBodega');
-                      }}
-                      className={`
-                        px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors
-                        ${repuesto.cantidadStockBodega > 0 
-                          ? 'bg-green-100 text-green-700 hover:bg-green-200' 
-                          : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                        }
-                      `}
-                      title="Ver historial de cambios"
-                    >
-                      {repuesto.cantidadStockBodega}
-                    </button>
+                    {activeContextTag ? (() => {
+                      const stockEnContexto = getCantidadPorContexto(repuesto, 'stock');
+                      return (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleViewFieldHistory(repuesto, 'cantidadStockBodega');
+                          }}
+                          className={`
+                            px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors
+                            ${stockEnContexto > 0 
+                              ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                              : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                            }
+                          `}
+                          title={`Stock en "${activeContextTag}" - Ver historial`}
+                        >
+                          {stockEnContexto}
+                        </button>
+                      );
+                    })() : (
+                      <span className="text-xs text-gray-400 italic">--</span>
+                    )}
                   </td>
                   )}
 
                   {/* Total Stock USD */}
                   {isColumnVisible('totalStockUSD') && (
                   <td className="px-4 py-4 text-right">
-                    <span className="text-sm font-medium text-purple-600">
-                      ${(repuesto.valorUnitario * (repuesto.cantidadStockBodega || 0)).toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
+                    {activeContextTag ? (
+                      <span className="text-sm font-medium text-purple-600">
+                        ${(repuesto.valorUnitario * getCantidadPorContexto(repuesto, 'stock')).toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-400">--</span>
+                    )}
                   </td>
                   )}
 
@@ -1241,9 +1389,13 @@ export function RepuestosTable({
                   {/* Total USD */}
                   {isColumnVisible('totalUSD') && (
                   <td className="px-4 py-4 text-right">
-                    <span className="text-base font-bold text-gray-800">
-                      ${((repuesto.valorUnitario * repuesto.cantidadSolicitada) + (repuesto.valorUnitario * (repuesto.cantidadStockBodega || 0))).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
+                    {activeContextTag ? (
+                      <span className="text-base font-bold text-gray-800">
+                        ${((repuesto.valorUnitario * getCantidadPorContexto(repuesto, 'solicitud')) + (repuesto.valorUnitario * getCantidadPorContexto(repuesto, 'stock'))).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-400">--</span>
+                    )}
                   </td>
                   )}
 
@@ -1327,11 +1479,14 @@ export function RepuestosTable({
             
             {/* Fila de totales */}
             {paginatedRepuestos.length > 0 && (
-              <tr className="bg-gradient-to-r from-purple-50 to-blue-50 border-t-2 border-purple-300 font-bold">
+              <tr className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/30 dark:to-blue-900/30 border-t-2 border-purple-300 dark:border-purple-700 font-bold">
                 {/* Código SAP */}
                 {isColumnVisible('codigoSAP') && (
                   <td className="px-4 py-4 text-left">
-                    <span className="text-purple-700 font-bold">TOTALES</span>
+                    <span className="text-purple-700 dark:text-purple-300 font-bold">TOTALES</span>
+                    {!activeContextTag && (
+                      <span className="block text-xs font-normal text-amber-600 dark:text-amber-400">Selecciona contexto</span>
+                    )}
                   </td>
                 )}
                 
@@ -1353,36 +1508,52 @@ export function RepuestosTable({
                 {/* Cantidad Solicitada */}
                 {isColumnVisible('cantidadSolicitada') && (
                   <td className="px-4 py-4 text-center">
-                    <span className="inline-block px-4 py-2 bg-blue-100 text-blue-800 rounded-lg font-bold">
-                      {totales.totalSolicitado}
-                    </span>
+                    {activeContextTag ? (
+                      <span className="inline-block px-4 py-2 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 rounded-lg font-bold">
+                        {totales.totalSolicitado}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 text-sm">--</span>
+                    )}
                   </td>
                 )}
                 
                 {/* Total Solicitado USD */}
                 {isColumnVisible('totalSolicitadoUSD') && (
                   <td className="px-4 py-4 text-right">
-                    <span className="text-blue-700 font-bold" title="Σ (Valor Unitario × Cantidad Solicitada)">
-                      ${totales.totalSolicitadoUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
+                    {activeContextTag ? (
+                      <span className="text-blue-700 dark:text-blue-300 font-bold" title="Σ (Valor Unitario × Cantidad Solicitada)">
+                        ${totales.totalSolicitadoUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 text-sm">--</span>
+                    )}
                   </td>
                 )}
                 
                 {/* Cantidad Stock Bodega */}
                 {isColumnVisible('cantidadStockBodega') && (
                   <td className="px-4 py-4 text-center">
-                    <span className="inline-block px-4 py-2 bg-green-100 text-green-800 rounded-lg font-bold">
-                      {totales.totalBodega}
-                    </span>
+                    {activeContextTag ? (
+                      <span className="inline-block px-4 py-2 bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 rounded-lg font-bold">
+                        {totales.totalBodega}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 text-sm">--</span>
+                    )}
                   </td>
                 )}
                 
                 {/* Total Stock USD */}
                 {isColumnVisible('totalStockUSD') && (
                   <td className="px-4 py-4 text-right">
-                    <span className="text-green-700 font-bold" title="Σ (Valor Unitario × Stock en Bodega)">
-                      ${totales.totalStockUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
+                    {activeContextTag ? (
+                      <span className="text-green-700 dark:text-green-300 font-bold" title="Σ (Valor Unitario × Stock en Bodega)">
+                        ${totales.totalStockUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 text-sm">--</span>
+                    )}
                   </td>
                 )}
                 
@@ -1392,9 +1563,13 @@ export function RepuestosTable({
                 {/* Total General USD */}
                 {isColumnVisible('totalUSD') && (
                   <td className="px-4 py-4 text-right">
-                    <span className="text-purple-700 font-bold text-lg" title="Total Solicitado + Total Stock">
-                      ${totales.totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
+                    {activeContextTag ? (
+                      <span className="text-purple-700 dark:text-purple-300 font-bold text-lg" title="Total Solicitado + Total Stock">
+                        ${totales.totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 text-sm">--</span>
+                    )}
                   </td>
                 )}
                 

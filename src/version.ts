@@ -1,8 +1,21 @@
 // Versión de la aplicación
-export const APP_VERSION = '2.9.0';
+export const APP_VERSION = '3.0.0';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '3.0.0',
+    date: '2025-01-21',
+    changes: [
+      'Nuevo sistema de Tags con Eventos: cada tag tiene tipo (solicitud/stock) y cantidad asociada',
+      'Selector de contexto/evento: las cantidades y totales se muestran según el tag seleccionado',
+      'Sin contexto activo, las cantidades muestran "--" hasta seleccionar un evento',
+      'Tags visuales mejorados: muestran tipo (solicitud/stock) con icono y cantidad',
+      'Formulario de repuesto actualizado: asignar tags con tipo y cantidad',
+      'Soporte para múltiples eventos por repuesto (ej: "Solicitud Dic 2025", "Stock Dic 2025")',
+      'Preparado para histórico de pedidos y levantamientos de inventario'
+    ]
+  },
   {
     version: '2.9.0',
     date: '2025-01-22',

@@ -1,3 +1,11 @@
+// Tag asignado a un repuesto con cantidad específica del evento
+export interface TagAsignado {
+  nombre: string;                    // Nombre del tag/evento
+  tipo: 'solicitud' | 'stock';       // A qué columna aplica
+  cantidad: number;                  // Cantidad en este evento
+  fecha: Date;                       // Cuándo se asignó/creó el evento
+}
+
 // Tipo principal de Repuesto
 export interface Repuesto {
   id: string;
@@ -6,17 +14,27 @@ export interface Repuesto {
   descripcion: string;
   nombreManual?: string;  // Nombre según el manual Baader
   codigoBaader: string;
-  cantidadSolicitada: number;
+  cantidadSolicitada: number;       // DEPRECATED: usar tags para cantidades por evento
   valorUnitario: number;
-  total: number;
-  cantidadStockBodega: number;
+  total: number;                     // DEPRECATED: se calcula desde tags
+  cantidadStockBodega: number;       // DEPRECATED: usar tags para cantidades por evento
   fechaUltimaActualizacionInventario: Date | null;
-  tags: string[];
+  tags: (string | TagAsignado)[];    // Soporta formato antiguo (string) y nuevo (TagAsignado)
   vinculosManual: VinculoManual[];
   imagenesManual: ImagenRepuesto[];
   fotosReales: ImagenRepuesto[];
   createdAt: Date;
   updatedAt: Date;
+}
+
+// Helper para verificar si un tag es del nuevo formato
+export function isTagAsignado(tag: string | TagAsignado): tag is TagAsignado {
+  return typeof tag === 'object' && 'nombre' in tag && 'tipo' in tag;
+}
+
+// Helper para obtener el nombre de un tag (compatible con ambos formatos)
+export function getTagNombre(tag: string | TagAsignado): string {
+  return isTagAsignado(tag) ? tag.nombre : tag;
 }
 
 // Tags disponibles para filtrar repuestos (gestionados desde TagManager)
@@ -103,10 +121,10 @@ export interface RepuestoFormData {
   descripcion?: string;
   nombreManual?: string;
   codigoBaader: string;
-  cantidadSolicitada: number;
+  cantidadSolicitada: number;      // DEPRECATED: usar tags para cantidades por evento
   valorUnitario: number;
-  cantidadStockBodega: number;
-  tags?: string[];
+  cantidadStockBodega: number;     // DEPRECATED: usar tags para cantidades por evento
+  tags?: (string | TagAsignado)[];  // Soporta formato antiguo y nuevo
 }
 
 // Datos de exportación
