@@ -1,8 +1,19 @@
 // Versión de la aplicación
-export const APP_VERSION = '2.7.7';
+export const APP_VERSION = '2.8.0';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '2.8.0',
+    date: '2025-12-20',
+    changes: [
+      'Header informativo mejorado: muestra Total Solicitado, Total Stock y Total General por separado',
+      'Líneas divisorias verticales entre columnas para mejor legibilidad',
+      'Tipo de cambio actualizado a ~995 CLP/USD (valor actual del mercado)',
+      'Contrastes mejorados para modo oscuro en toda la interfaz',
+      'Total CLP siempre visible con tipo de cambio actual o fallback'
+    ]
+  },
   {
     version: '2.7.7',
     date: '2025-12-20',

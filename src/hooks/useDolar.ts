@@ -23,6 +23,7 @@ interface MindicadorResponse {
 
 const CACHE_KEY = 'dolar_cache';
 const CACHE_DURATION = 1000 * 60 * 60; // 1 hora en milliseconds
+const FALLBACK_RATE = 995; // Tipo de cambio por defecto actualizado (Dic 2025)
 
 interface CachedData {
   valor: number;
@@ -149,8 +150,8 @@ export function useDolar() {
 
   // Función para convertir USD a CLP
   const convertToClp = useCallback((usd: number): number => {
-    if (!data.valor || data.valor === 0) return 0;
-    return Math.round(usd * data.valor);
+    const rate = data.valor && data.valor > 0 ? data.valor : FALLBACK_RATE;
+    return Math.round(usd * rate);
   }, [data.valor]);
 
   // Función para formatear CLP
@@ -163,8 +164,12 @@ export function useDolar() {
     });
   }, []);
 
+  // Getter para el valor con fallback
+  const valorConFallback = data.valor && data.valor > 0 ? data.valor : FALLBACK_RATE;
+
   return {
     ...data,
+    valor: valorConFallback,
     refresh: () => fetchDolar(true),
     convertToClp,
     formatClp

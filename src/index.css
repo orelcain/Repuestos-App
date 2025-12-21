@@ -48,6 +48,20 @@ th {
 
 td {
   font-size: 0.9375rem;
+  border-right: 1px solid #e5e7eb;
+}
+
+.dark td {
+  border-right-color: #374151;
+}
+
+td:last-child {
+  border-right: none;
+}
+
+/* Fila de totales */
+tr.totals-row td {
+  border-top: 2px solid #6b7280;
 }
 
 /* Inputs más grandes */

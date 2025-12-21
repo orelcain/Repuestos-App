@@ -165,18 +165,18 @@ export function RepuestosTable({
   // Función helper para obtener clases de color según el grupo de columna
   const getColumnHeaderClass = (columnKey: string) => {
     const column = getColumn(columnKey);
-    const baseClass = "px-4 py-4 font-semibold text-xs uppercase tracking-wide transition-colors cursor-move select-none";
+    const baseClass = "px-4 py-4 font-semibold text-xs uppercase tracking-wide transition-colors cursor-move select-none border-r border-gray-200 dark:border-gray-600 last:border-r-0";
     
-    if (!column) return baseClass + " text-gray-600";
+    if (!column) return baseClass + " text-gray-600 dark:text-gray-300";
     
     // Colores de fondo según el grupo
     let colorClass = "";
     if (column.group === 'solicitada') {
-      colorClass = "bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800/40";
+      colorClass = "bg-blue-100 dark:bg-blue-900/50 text-blue-900 dark:text-blue-100 hover:bg-blue-200 dark:hover:bg-blue-800/60 border-blue-200 dark:border-blue-700";
     } else if (column.group === 'stock') {
-      colorClass = "bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-800/40";
+      colorClass = "bg-green-100 dark:bg-green-900/50 text-green-900 dark:text-green-100 hover:bg-green-200 dark:hover:bg-green-800/60 border-green-200 dark:border-green-700";
     } else {
-      colorClass = "bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600";
+      colorClass = "bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-600";
     }
     
     // Efecto durante drag
@@ -450,7 +450,7 @@ export function RepuestosTable({
     const totalStockUSD = filteredRepuestos.reduce((sum, r) => sum + (r.valorUnitario * (r.cantidadStockBodega || 0)), 0);
     const totalUSD = totalSolicitadoUSD + totalStockUSD;
     // Usar tipoCambio con fallback a 900 si no está disponible
-    const tasaCambio = tipoCambio || 900;
+    const tasaCambio = tipoCambio || 995;
     const totalSolicitadoCLP = Math.round(totalSolicitadoUSD * tasaCambio);
     const totalStockCLP = Math.round(totalStockUSD * tasaCambio);
     const totalCLP = Math.round(totalUSD * tasaCambio);
@@ -737,52 +737,66 @@ export function RepuestosTable({
         </div>
 
         {/* Panel de Totales */}
-        <div className="flex flex-wrap items-center gap-3 px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200">
+        <div className="flex flex-wrap items-center gap-3 px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-xl border border-gray-200 dark:border-gray-700">
           {/* Cantidades */}
-          <div className="flex items-center gap-4 pr-4 border-r border-gray-300">
+          <div className="flex items-center gap-4 pr-4 border-r border-gray-300 dark:border-gray-600">
             <div className="text-center">
-              <div className="text-xs text-gray-500 uppercase">Solicitado</div>
-              <div className="text-lg font-bold text-blue-600">{totales.totalSolicitado.toLocaleString()}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 uppercase">Solicitado</div>
+              <div className="text-lg font-bold text-blue-600 dark:text-blue-400">{totales.totalSolicitado.toLocaleString()}</div>
             </div>
             <div className="text-center">
-              <div className="text-xs text-gray-500 uppercase">En Bodega</div>
-              <div className={`text-lg font-bold ${totales.totalBodega > 0 ? 'text-green-600' : 'text-gray-400'}`}>
+              <div className="text-xs text-gray-500 dark:text-gray-400 uppercase">En Bodega</div>
+              <div className={`text-lg font-bold ${totales.totalBodega > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`}>
                 {totales.totalBodega.toLocaleString()}
               </div>
             </div>
             <button
               onClick={() => setFilterSinStock(!filterSinStock)}
               className={`text-center cursor-pointer rounded-lg px-2 py-1 transition-colors ${
-                filterSinStock ? 'bg-red-100' : 'hover:bg-red-50'
+                filterSinStock ? 'bg-red-100 dark:bg-red-900/50' : 'hover:bg-red-50 dark:hover:bg-red-900/30'
               }`}
               title="Click para filtrar"
             >
-              <div className="text-xs text-red-500 uppercase">Sin Stock</div>
-              <div className="text-lg font-bold text-red-600">
+              <div className="text-xs text-red-500 dark:text-red-400 uppercase">Sin Stock</div>
+              <div className="text-lg font-bold text-red-600 dark:text-red-400">
                 {filteredRepuestos.filter(r => !r.cantidadStockBodega || r.cantidadStockBodega === 0).length}
               </div>
             </button>
           </div>
           
-          {/* Totales monetarios */}
+          {/* Totales monetarios USD */}
+          <div className="flex items-center gap-4 pr-4 border-r border-gray-300 dark:border-gray-600">
+            <div className="text-center">
+              <div className="text-xs text-blue-500 dark:text-blue-400 uppercase">Total Solicitado</div>
+              <div className="text-base font-bold text-blue-700 dark:text-blue-300">
+                ${totales.totalSolicitadoUSD.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-xs text-green-500 dark:text-green-400 uppercase">Total Stock</div>
+              <div className="text-base font-bold text-green-700 dark:text-green-300">
+                ${totales.totalStockUSD.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              </div>
+            </div>
+          </div>
+          
+          {/* Total General */}
           <div className="flex items-center gap-4">
             <div className="text-center">
-              <div className="text-xs text-gray-500 uppercase">Total USD</div>
-              <div className="text-lg font-bold text-gray-800">
+              <div className="text-xs text-purple-500 dark:text-purple-400 uppercase font-semibold">Total General USD</div>
+              <div className="text-xl font-bold text-purple-700 dark:text-purple-300">
                 ${totales.totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </div>
             </div>
-            {tipoCambio > 0 && (
-              <div className="text-center">
-                <div className="text-xs text-gray-500 uppercase flex items-center gap-1 justify-center">
-                  Total CLP
-                  <span className="text-[10px] text-gray-400">(@{tipoCambio.toFixed(0)})</span>
-                </div>
-                <div className="text-lg font-bold text-green-700">
-                  {formatClp(totales.totalCLP)}
-                </div>
+            <div className="text-center">
+              <div className="text-xs text-gray-500 dark:text-gray-400 uppercase flex items-center gap-1 justify-center">
+                Total CLP
+                <span className="text-[10px] text-gray-400 dark:text-gray-500">(@{(tipoCambio || 995).toFixed(0)})</span>
               </div>
-            )}
+              <div className="text-xl font-bold text-green-700 dark:text-green-300">
+                {formatClp(totales.totalCLP)}
+              </div>
+            </div>
           </div>
           
           {/* Indicador de tipo de cambio */}
@@ -1177,7 +1191,7 @@ export function RepuestosTable({
                   {isColumnVisible('totalSolicitadoCLP') && (
                   <td className="px-4 py-4 text-right">
                     <span className="text-sm font-semibold text-green-600">
-                      {formatClp((repuesto.valorUnitario * repuesto.cantidadSolicitada) * (tipoCambio || 900))}
+                      {formatClp((repuesto.valorUnitario * repuesto.cantidadSolicitada) * (tipoCambio || 995))}
                     </span>
                   </td>
                   )}
@@ -1217,7 +1231,7 @@ export function RepuestosTable({
                   {isColumnVisible('totalStockCLP') && (
                   <td className="px-4 py-4 text-right">
                     <span className="text-sm font-medium text-amber-600">
-                      {formatClp((repuesto.valorUnitario * (repuesto.cantidadStockBodega || 0)) * (tipoCambio || 900))}
+                      {formatClp((repuesto.valorUnitario * (repuesto.cantidadStockBodega || 0)) * (tipoCambio || 995))}
                     </span>
                   </td>
                   )}
@@ -1244,7 +1258,7 @@ export function RepuestosTable({
                   {isColumnVisible('totalCLP') && (
                   <td className="px-4 py-4 text-right">
                     <span className="text-sm font-medium text-green-700">
-                      {formatClp(Math.round(((repuesto.valorUnitario * repuesto.cantidadSolicitada) + (repuesto.valorUnitario * (repuesto.cantidadStockBodega || 0))) * (tipoCambio || 900)))}
+                      {formatClp(Math.round(((repuesto.valorUnitario * repuesto.cantidadSolicitada) + (repuesto.valorUnitario * (repuesto.cantidadStockBodega || 0))) * (tipoCambio || 995)))}
                     </span>
                   </td>
                   )}
