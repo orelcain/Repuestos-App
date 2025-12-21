@@ -349,6 +349,55 @@ export function useRepuestos() {
     }
   }, [repuestos]);
 
+  // Restaurar tags desde historial de Firebase
+  const restoreTagsFromHistory = useCallback(async () => {
+    try {
+      let restoredCount = 0;
+      const errors: string[] = [];
+      
+      for (const repuesto of repuestos) {
+        try {
+          // Buscar en historial cambios de 'tags'
+          const historialRef = collection(db, COLLECTION_NAME, repuesto.id, 'historial');
+          const q = query(historialRef, orderBy('fecha', 'desc'));
+          const snapshot = await getDocs(q);
+          
+          // Buscar el último cambio de tags que tenga valorAnterior
+          for (const docSnap of snapshot.docs) {
+            const data = docSnap.data();
+            if (data.campo === 'tags' && data.valorAnterior) {
+              // Restaurar el valor anterior
+              let tagsAnteriores = data.valorAnterior;
+              if (typeof tagsAnteriores === 'string') {
+                try {
+                  tagsAnteriores = JSON.parse(tagsAnteriores);
+                } catch {
+                  continue;
+                }
+              }
+              
+              if (Array.isArray(tagsAnteriores)) {
+                await updateDoc(doc(db, COLLECTION_NAME, repuesto.id), {
+                  tags: tagsAnteriores,
+                  updatedAt: Timestamp.now()
+                });
+                restoredCount++;
+                break;
+              }
+            }
+          }
+        } catch (err) {
+          errors.push(repuesto.codigoSAP);
+        }
+      }
+      
+      return { restoredCount, errors };
+    } catch (err) {
+      console.error('Error al restaurar tags:', err);
+      throw err;
+    }
+  }, [repuestos]);
+
   return {
     repuestos,
     loading,
@@ -360,6 +409,7 @@ export function useRepuestos() {
     importRepuestos,
     renameTag,
     deleteTag,
-    migrateTagsToNewSystem
+    migrateTagsToNewSystem,
+    restoreTagsFromHistory
   };
 }

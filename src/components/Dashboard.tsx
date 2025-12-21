@@ -78,7 +78,8 @@ export function Dashboard() {
     importRepuestos,
     renameTag,
     deleteTag,
-    migrateTagsToNewSystem
+    migrateTagsToNewSystem,
+    restoreTagsFromHistory
   } = useRepuestos();
   const { uploadImage, getManualURL } = useStorage();
   const { lastSelectedRepuestoId, setLastSelectedRepuesto } = useLocalStorage();
@@ -610,6 +611,26 @@ export function Dashboard() {
     }
   };
 
+  // Restaurar tags desde historial de Firebase
+  const handleRestoreTags = async () => {
+    if (!confirm('¿Restaurar tags desde el historial de Firebase? Esto buscará los valores anteriores guardados.')) {
+      return;
+    }
+    try {
+      const result = await restoreTagsFromHistory();
+      if (result.restoredCount > 0) {
+        success(`Tags restaurados: ${result.restoredCount} repuestos`);
+      } else {
+        error('No se encontró historial de tags para restaurar');
+      }
+      if (result.errors.length > 0) {
+        console.log('Errores:', result.errors);
+      }
+    } catch (err) {
+      error('Error al restaurar tags');
+    }
+  };
+
   // Backup: Exportar todos los datos a JSON
   const handleBackupExport = () => {
     setBackupLoading(true);
@@ -823,7 +844,14 @@ export function Dashboard() {
 
             <div className="w-px h-8 bg-gray-200 dark:bg-gray-700" />
 
-            {/* Botón TEMPORAL de migración de tags - QUITAR DESPUÉS DE USAR */}
+            {/* Botones TEMPORALES de tags - QUITAR DESPUÉS DE USAR */}
+            <button
+              onClick={handleRestoreTags}
+              className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-medium rounded-lg transition-colors"
+              title="Restaurar tags desde historial de Firebase"
+            >
+              ⬅️ Restaurar Tags
+            </button>
             <button
               onClick={handleMigrateTags}
               className="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium rounded-lg transition-colors"

@@ -1,8 +1,17 @@
 // Versión de la aplicación
-export const APP_VERSION = '3.3.9';
+export const APP_VERSION = '3.4.0';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '3.4.0',
+    date: '2025-12-21',
+    changes: [
+      'NUEVO: Botón "Restaurar Tags" - intenta restaurar tags desde historial Firebase',
+      'Búsqueda de historial de cambios de tags para recuperar valores anteriores',
+      'Si no hay historial, se requiere restaurar desde backup JSON'
+    ]
+  },
   {
     version: '3.3.9',
     date: '2025-12-21',
