@@ -44,35 +44,47 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
   }, [selectedTag, repuestos]);
 
   // Obtener cantidad de un repuesto para el tag seleccionado
-  // SOLO devuelve cantidad si el repuesto tiene el tag con el tipo correcto
+  // Usa cantidadSolicitada o cantidadStockBodega según el tipo del tag
   const getCantidadDelTag = (repuesto: Repuesto): number => {
-    if (!selectedTag) return 0;
+    if (!selectedTag || !selectedTagTipo) return 0;
     
-    const tagEncontrado = repuesto.tags?.find(tag => {
-      if (isTagAsignado(tag)) {
-        return tag.nombre === selectedTag;
-      }
-      return false;
+    // Verificar que el repuesto tenga el tag
+    const tieneTag = repuesto.tags?.some(tag => {
+      const nombre = isTagAsignado(tag) ? tag.nombre : tag;
+      return nombre === selectedTag;
     });
     
-    if (tagEncontrado && isTagAsignado(tagEncontrado)) {
-      return tagEncontrado.cantidad;
-    }
+    if (!tieneTag) return 0;
     
-    return 0;
+    // Devolver la cantidad según el tipo del tag
+    if (selectedTagTipo === 'solicitud') {
+      return repuesto.cantidadSolicitada || 0;
+    } else {
+      return repuesto.cantidadStockBodega || 0;
+    }
   };
 
-  // Filtrar por tag si está seleccionado - SOLO repuestos que tienen ese tag con cantidad > 0
+  // Filtrar por tag si está seleccionado
+  // Muestra repuestos que tienen el tag Y tienen cantidad > 0 según el tipo
   const filteredRepuestos = useMemo(() => {
     if (!selectedTag) return repuestos;
     return repuestos.filter(r => {
-      const tag = r.tags?.find(t => isTagAsignado(t) && t.nombre === selectedTag);
-      if (tag && isTagAsignado(tag)) {
-        return tag.cantidad > 0; // Solo incluir si tiene cantidad asignada
+      // Verificar que tenga el tag (formato nuevo o string)
+      const tieneTag = r.tags?.some(tag => {
+        const nombre = isTagAsignado(tag) ? tag.nombre : tag;
+        return nombre === selectedTag;
+      });
+      if (!tieneTag) return false;
+      
+      // Si tenemos el tipo del tag, filtrar por cantidad > 0
+      if (selectedTagTipo === 'solicitud') {
+        return (r.cantidadSolicitada || 0) > 0;
+      } else if (selectedTagTipo === 'stock') {
+        return (r.cantidadStockBodega || 0) > 0;
       }
-      return false;
+      return true; // Si no hay tipo, mostrar todos con el tag
     });
-  }, [repuestos, selectedTag]);
+  }, [repuestos, selectedTag, selectedTagTipo]);
 
   // Estadísticas generales - adaptadas al contexto
   const stats = useMemo(() => {
@@ -132,7 +144,7 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
 
   // Estadísticas por tags - mostrar información de cada tag SIN MEZCLAR
   // Cada tag muestra SOLO los repuestos que tienen ese tag específico
-  // con su cantidad específica (solicitud O stock, según el tipo del tag)
+  // con su cantidad según el tipo del tag (cantidadSolicitada o cantidadStockBodega)
   const tagStats = useMemo(() => {
     const tagMap = new Map<string, { 
       count: number; 
@@ -155,13 +167,20 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
         let tipoTag: 'solicitud' | 'stock' | 'mixto' = 'mixto';
         
         if (isTagAsignado(tag)) {
-          // Tag con tipo específico - usar su cantidad específica
-          cantidad = tag.cantidad;
+          // Tag con tipo específico - usar cantidad del repuesto según tipo
           tipoTag = tag.tipo;
+          if (tag.tipo === 'solicitud') {
+            cantidad = r.cantidadSolicitada || 0;
+          } else {
+            cantidad = r.cantidadStockBodega || 0;
+          }
         } else {
           // Tag string antiguo - usar valores del repuesto (fallback)
           cantidad = (r.cantidadSolicitada || 0) + (r.cantidadStockBodega || 0);
         }
+        
+        // Solo contar si tiene cantidad > 0 para ese tipo
+        if (cantidad === 0) return;
         
         // Si es el primer registro, establecer el tipo; si ya existe, verificar consistencia
         const nuevoTipo = current.count === 0 ? tipoTag : 

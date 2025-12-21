@@ -281,14 +281,23 @@ export function RepuestosTable({
   const filteredRepuestos = useMemo(() => {
     let result = repuestos;
     
-    // *** Filtrar por contexto activo - solo repuestos que tienen ese tag CON cantidad > 0 ***
+    // *** Filtrar por contexto activo - repuestos que tienen ese tag Y cantidad > 0 según tipo ***
     if (activeContextTag) {
       result = result.filter(r => {
-        const tag = r.tags?.find(t => isTagAsignado(t) && t.nombre === activeContextTag);
-        if (tag && isTagAsignado(tag)) {
-          return tag.cantidad > 0; // Solo incluir si tiene cantidad asignada
+        // Verificar que tenga el tag (formato nuevo o string)
+        const tieneTag = r.tags?.some(tag => {
+          const nombre = isTagAsignado(tag) ? tag.nombre : tag;
+          return nombre === activeContextTag;
+        });
+        if (!tieneTag) return false;
+        
+        // Filtrar por cantidad según el tipo del contexto
+        if (activeContextTipo === 'solicitud') {
+          return (r.cantidadSolicitada || 0) > 0;
+        } else if (activeContextTipo === 'stock') {
+          return (r.cantidadStockBodega || 0) > 0;
         }
-        return false;
+        return true; // Si no hay tipo, mostrar todos con el tag
       });
     }
     
