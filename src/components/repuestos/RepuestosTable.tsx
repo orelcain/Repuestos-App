@@ -745,52 +745,75 @@ export function RepuestosTable({
         <div className="flex flex-wrap items-center gap-3 px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-xl border border-gray-200 dark:border-gray-700">
           {/* Cantidades */}
           <div className="flex items-center gap-4 pr-4 border-r border-gray-300 dark:border-gray-600">
-            <div className="text-center">
+            <div className="text-center group relative cursor-help">
               <div className="text-xs text-gray-500 dark:text-gray-400 uppercase">Solicitado</div>
               <div className="text-lg font-bold text-blue-600 dark:text-blue-400">{totales.totalSolicitado.toLocaleString()}</div>
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
+                Suma total de unidades solicitadas
+                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
+              </div>
             </div>
-            <div className="text-center">
+            <div className="text-center group relative cursor-help">
               <div className="text-xs text-gray-500 dark:text-gray-400 uppercase">En Bodega</div>
               <div className={`text-lg font-bold ${totales.totalBodega > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`}>
                 {totales.totalBodega.toLocaleString()}
               </div>
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
+                Suma total de unidades en bodega
+                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
+              </div>
             </div>
             <button
               onClick={() => setFilterSinStock(!filterSinStock)}
-              className={`text-center cursor-pointer rounded-lg px-2 py-1 transition-colors ${
+              className={`text-center cursor-pointer rounded-lg px-2 py-1 transition-colors group relative ${
                 filterSinStock ? 'bg-red-100 dark:bg-red-900/50' : 'hover:bg-red-50 dark:hover:bg-red-900/30'
               }`}
-              title="Click para filtrar"
             >
               <div className="text-xs text-red-500 dark:text-red-400 uppercase">Sin Stock</div>
               <div className="text-lg font-bold text-red-600 dark:text-red-400">
                 {filteredRepuestos.filter(r => !r.cantidadStockBodega || r.cantidadStockBodega === 0).length}
+              </div>
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
+                Tipos de repuesto con stock = 0 (click para filtrar)
+                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
               </div>
             </button>
           </div>
           
           {/* Totales monetarios USD */}
           <div className="flex items-center gap-4 pr-4 border-r border-gray-300 dark:border-gray-600">
-            <div className="text-center">
+            <div className="text-center group relative cursor-help">
               <div className="text-xs text-blue-500 dark:text-blue-400 uppercase">Total Solicitado</div>
               <div className="text-base font-bold text-blue-700 dark:text-blue-300">
                 ${totales.totalSolicitadoUSD.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
               </div>
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
+                Valor USD de unidades solicitadas
+                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
+              </div>
             </div>
-            <div className="text-center">
+            <div className="text-center group relative cursor-help">
               <div className="text-xs text-green-500 dark:text-green-400 uppercase">Total Stock</div>
               <div className="text-base font-bold text-green-700 dark:text-green-300">
                 ${totales.totalStockUSD.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              </div>
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
+                Valor USD de unidades en bodega
+                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
               </div>
             </div>
           </div>
           
           {/* Total General */}
           <div className="flex items-center gap-4">
-            <div className="text-center">
+            <div className="text-center group relative cursor-help">
               <div className="text-xs text-purple-500 dark:text-purple-400 uppercase font-semibold">Total General USD</div>
               <div className="text-xl font-bold text-purple-700 dark:text-purple-300">
                 ${totales.totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              </div>
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
+                Solicitado + Stock en bodega
+                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
               </div>
             </div>
           </div>
