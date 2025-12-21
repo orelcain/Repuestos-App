@@ -947,6 +947,7 @@ export function RepuestosTable({
               {isColumnVisible('textoBreve') && renderColumnHeader('textoBreve')}
               {isColumnVisible('descripcion') && renderColumnHeader('descripcion')}
               {isColumnVisible('nombreManual') && renderColumnHeader('nombreManual')}
+              {isColumnVisible('tags') && renderColumnHeader('tags')}
               {isColumnVisible('cantidadSolicitada') && renderColumnHeader('cantidadSolicitada')}
               {isColumnVisible('totalSolicitadoUSD') && renderColumnHeader('totalSolicitadoUSD')}
               {isColumnVisible('totalSolicitadoCLP') && renderColumnHeader('totalSolicitadoCLP')}
@@ -1134,6 +1135,23 @@ export function RepuestosTable({
                             <Copy className="w-3 h-3" />
                           )}
                         </button>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400 italic">-</span>
+                    )}
+                  </td>
+                  )}
+
+                  {/* Tags */}
+                  {isColumnVisible('tags') && (
+                  <td className="px-4 py-4">
+                    {repuesto.tags && repuesto.tags.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {repuesto.tags.map(tag => (
+                          <span key={tag} className="inline-flex items-center px-2 py-1 bg-primary-50 text-primary-700 rounded-md text-xs font-medium" title={tag}>
+                            {tag.length > 20 ? tag.substring(0, 20) + '...' : tag}
+                          </span>
+                        ))}
                       </div>
                     ) : (
                       <span className="text-xs text-gray-400 italic">-</span>
@@ -1347,6 +1365,9 @@ export function RepuestosTable({
                 
                 {/* Nombre Manual */}
                 {isColumnVisible('nombreManual') && <td className="px-4 py-4"></td>}
+                
+                {/* Tags */}
+                {isColumnVisible('tags') && <td className="px-4 py-4"></td>}
                 
                 {/* Cantidad Solicitada */}
                 {isColumnVisible('cantidadSolicitada') && (
