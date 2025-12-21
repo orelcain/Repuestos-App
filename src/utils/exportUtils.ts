@@ -13,30 +13,50 @@ function formatNumber(num: number): string {
   return num.toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-// Helper para obtener cantidad por contexto
+// Helper para obtener cantidad por contexto o desde tags
 function getCantidadPorContexto(repuesto: Repuesto, contextTag: string | null, tipo: 'solicitud' | 'stock'): number {
-  if (!contextTag) return 0;
-  
-  const tagEncontrado = repuesto.tags?.find(tag => {
-    if (isTagAsignado(tag)) {
-      return tag.nombre === contextTag && tag.tipo === tipo;
+  // Si hay contexto específico, buscar ese tag
+  if (contextTag) {
+    const tagEncontrado = repuesto.tags?.find(tag => {
+      if (isTagAsignado(tag)) {
+        return tag.nombre === contextTag && tag.tipo === tipo;
+      }
+      return false;
+    });
+    
+    if (tagEncontrado && isTagAsignado(tagEncontrado)) {
+      return tagEncontrado.cantidad;
     }
-    return false;
+    return 0;
+  }
+  
+  // Sin contexto: sumar todas las cantidades de tags de ese tipo
+  let total = 0;
+  repuesto.tags?.forEach(tag => {
+    if (isTagAsignado(tag) && tag.tipo === tipo) {
+      total += tag.cantidad || 0;
+    }
   });
   
-  if (tagEncontrado && isTagAsignado(tagEncontrado)) {
-    return tagEncontrado.cantidad;
-  }
+  return total;
+}
+
+// Helper para obtener total de todas las cantidades de un repuesto (de todos sus tags)
+function getTotalCantidadesRepuesto(repuesto: Repuesto): { solicitud: number; stock: number } {
+  let solicitud = 0;
+  let stock = 0;
   
-  // Fallback para tags string antiguos
-  const tieneTagAntiguo = repuesto.tags?.some(tag => 
-    typeof tag === 'string' && tag === contextTag
-  );
-  if (tieneTagAntiguo) {
-    return tipo === 'solicitud' ? (repuesto.cantidadSolicitada || 0) : (repuesto.cantidadStockBodega || 0);
-  }
+  repuesto.tags?.forEach(tag => {
+    if (isTagAsignado(tag)) {
+      if (tag.tipo === 'solicitud') {
+        solicitud += tag.cantidad || 0;
+      } else {
+        stock += tag.cantidad || 0;
+      }
+    }
+  });
   
-  return 0;
+  return { solicitud, stock };
 }
 
 // Colores para Excel
@@ -90,8 +110,9 @@ async function exportToExcelSimple(repuestos: Repuesto[], filename: string, cont
 
   // Agregar datos sin formato
   repuestos.forEach((r) => {
-    const cantSol = contextTag ? getCantidadPorContexto(r, contextTag, 'solicitud') : r.cantidadSolicitada;
-    const cantStock = contextTag ? getCantidadPorContexto(r, contextTag, 'stock') : (r.cantidadStockBodega || 0);
+    const cantidades = getTotalCantidadesRepuesto(r);
+    const cantSol = contextTag ? getCantidadPorContexto(r, contextTag, 'solicitud') : cantidades.solicitud;
+    const cantStock = contextTag ? getCantidadPorContexto(r, contextTag, 'stock') : cantidades.stock;
     const totalSolUSD = r.valorUnitario * cantSol;
     const totalStockUSD = r.valorUnitario * cantStock;
     
@@ -184,8 +205,9 @@ export async function exportToExcel(
 
   // Agregar datos
   repuestos.forEach((r, index) => {
-    const cantSol = contextTag ? getCantidadPorContexto(r, contextTag, 'solicitud') : r.cantidadSolicitada;
-    const cantStock = contextTag ? getCantidadPorContexto(r, contextTag, 'stock') : (r.cantidadStockBodega || 0);
+    const cantidades = getTotalCantidadesRepuesto(r);
+    const cantSol = contextTag ? getCantidadPorContexto(r, contextTag, 'solicitud') : cantidades.solicitud;
+    const cantStock = contextTag ? getCantidadPorContexto(r, contextTag, 'stock') : cantidades.stock;
     const totalSolUSD = r.valorUnitario * cantSol;
     const totalStockUSD = r.valorUnitario * cantStock;
     
@@ -282,27 +304,36 @@ export async function exportToExcel(
   if (incluirResumen) {
     const wsDash = workbook.addWorksheet('📊 Dashboard');
     
-    // Calcular estadísticas usando contexto si aplica
+    // Calcular estadísticas usando tags (no valores legacy)
     const totalRepuestos = repuestos.length;
     const cantSolicitadaTotal = repuestos.reduce((s, r) => {
-      const cant = contextTag ? getCantidadPorContexto(r, contextTag, 'solicitud') : r.cantidadSolicitada;
+      const cant = contextTag 
+        ? getCantidadPorContexto(r, contextTag, 'solicitud') 
+        : getTotalCantidadesRepuesto(r).solicitud;
       return s + cant;
     }, 0);
     const stockBodegaTotal = repuestos.reduce((s, r) => {
-      const cant = contextTag ? getCantidadPorContexto(r, contextTag, 'stock') : r.cantidadStockBodega;
+      const cant = contextTag 
+        ? getCantidadPorContexto(r, contextTag, 'stock') 
+        : getTotalCantidadesRepuesto(r).stock;
       return s + cant;
     }, 0);
     const valorTotal = repuestos.reduce((s, r) => {
-      const cantSol = contextTag ? getCantidadPorContexto(r, contextTag, 'solicitud') : r.cantidadSolicitada;
-      const cantStock = contextTag ? getCantidadPorContexto(r, contextTag, 'stock') : (r.cantidadStockBodega || 0);
+      const cantidades = getTotalCantidadesRepuesto(r);
+      const cantSol = contextTag ? getCantidadPorContexto(r, contextTag, 'solicitud') : cantidades.solicitud;
+      const cantStock = contextTag ? getCantidadPorContexto(r, contextTag, 'stock') : cantidades.stock;
       return s + (r.valorUnitario * cantSol) + (r.valorUnitario * cantStock);
     }, 0);
     const conStock = repuestos.filter(r => {
-      const cant = contextTag ? getCantidadPorContexto(r, contextTag, 'stock') : r.cantidadStockBodega;
+      const cant = contextTag 
+        ? getCantidadPorContexto(r, contextTag, 'stock') 
+        : getTotalCantidadesRepuesto(r).stock;
       return cant > 0;
     }).length;
     const sinStock = repuestos.filter(r => {
-      const cant = contextTag ? getCantidadPorContexto(r, contextTag, 'stock') : r.cantidadStockBodega;
+      const cant = contextTag 
+        ? getCantidadPorContexto(r, contextTag, 'stock') 
+        : getTotalCantidadesRepuesto(r).stock;
       return cant === 0;
     }).length;
     const conImagenManual = repuestos.filter(r => r.imagenesManual.length > 0).length;
@@ -531,10 +562,11 @@ export async function exportToExcel(
     
     top5.forEach((r, i) => {
       const row = 24 + i;
+      const top5Cantidades = getTotalCantidadesRepuesto(r);
       wsDash.getCell(`B${row}`).value = i + 1;
       wsDash.getCell(`C${row}`).value = r.codigoSAP || r.codigoBaader;
       wsDash.getCell(`D${row}`).value = r.textoBreve.substring(0, 30) + (r.textoBreve.length > 30 ? '...' : '');
-      wsDash.getCell(`E${row}`).value = r.cantidadSolicitada;
+      wsDash.getCell(`E${row}`).value = top5Cantidades.solicitud + top5Cantidades.stock;
       
       const totalCell = wsDash.getCell(`F${row}`);
       totalCell.value = r.total;
@@ -612,7 +644,13 @@ export async function exportToExcel(
 
   // === HOJA 3: SIN STOCK ===
   if (incluirSinStock) {
-    const sinStock = repuestos.filter(r => r.cantidadStockBodega === 0);
+    // Filtrar repuestos sin stock en tags
+    const sinStock = repuestos.filter(r => {
+      const cantStock = contextTag 
+        ? getCantidadPorContexto(r, contextTag, 'stock')
+        : getTotalCantidadesRepuesto(r).stock;
+      return cantStock === 0;
+    });
     if (sinStock.length > 0) {
       const wsSinStock = workbook.addWorksheet('Sin Stock', {
         views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }]
@@ -636,8 +674,9 @@ export async function exportToExcel(
     }
 
     sinStock.forEach((r, index) => {
-      const cantSol = contextTag ? getCantidadPorContexto(r, contextTag, 'solicitud') : r.cantidadSolicitada;
-      const cantStockVal = contextTag ? getCantidadPorContexto(r, contextTag, 'stock') : (r.cantidadStockBodega || 0);
+      const cantidades = getTotalCantidadesRepuesto(r);
+      const cantSol = contextTag ? getCantidadPorContexto(r, contextTag, 'solicitud') : cantidades.solicitud;
+      const cantStockVal = contextTag ? getCantidadPorContexto(r, contextTag, 'stock') : cantidades.stock;
       const totalVal = (r.valorUnitario * cantSol) + (r.valorUnitario * cantStockVal);
       
       const row = wsSinStock.addRow({
@@ -658,12 +697,16 @@ export async function exportToExcel(
 
     // Total
     const totalSinStockVal = sinStock.reduce((s, r) => {
-      const cantSol = contextTag ? getCantidadPorContexto(r, contextTag, 'solicitud') : r.cantidadSolicitada;
-      const cantStock = contextTag ? getCantidadPorContexto(r, contextTag, 'stock') : (r.cantidadStockBodega || 0);
+      const cantidades = getTotalCantidadesRepuesto(r);
+      const cantSol = contextTag ? getCantidadPorContexto(r, contextTag, 'solicitud') : cantidades.solicitud;
+      const cantStock = contextTag ? getCantidadPorContexto(r, contextTag, 'stock') : cantidades.stock;
       return s + (r.valorUnitario * cantSol) + (r.valorUnitario * cantStock);
     }, 0);
     const totalSinStockCant = sinStock.reduce((s, r) => {
-      return s + (contextTag ? getCantidadPorContexto(r, contextTag, 'solicitud') : r.cantidadSolicitada);
+      const cantSol = contextTag 
+        ? getCantidadPorContexto(r, contextTag, 'solicitud') 
+        : getTotalCantidadesRepuesto(r).solicitud;
+      return s + cantSol;
     }, 0);
     
     const totalSinStockRow = wsSinStock.addRow({
@@ -786,24 +829,31 @@ export async function exportToPDF(
   doc.setTextColor(100, 100, 100);
   doc.text(`Fecha: ${new Date().toLocaleDateString('es-CL')}`, pageWidth / 2, 28, { align: 'center' });
 
-  // Calcular estadísticas usando contexto si aplica
+  // Calcular estadísticas usando tags (no valores legacy)
   const totalCantSolicitada = repuestos.reduce((s, r) => {
-    const cant = contextTag ? getCantidadPorContexto(r, contextTag, 'solicitud') : r.cantidadSolicitada;
+    const cant = contextTag 
+      ? getCantidadPorContexto(r, contextTag, 'solicitud') 
+      : getTotalCantidadesRepuesto(r).solicitud;
     return s + cant;
   }, 0);
   const totalStockBodega = repuestos.reduce((s, r) => {
-    const cant = contextTag ? getCantidadPorContexto(r, contextTag, 'stock') : r.cantidadStockBodega;
+    const cant = contextTag 
+      ? getCantidadPorContexto(r, contextTag, 'stock') 
+      : getTotalCantidadesRepuesto(r).stock;
     return s + cant;
   }, 0);
   const totalValor = repuestos.reduce((s, r) => {
-    const cantSol = contextTag ? getCantidadPorContexto(r, contextTag, 'solicitud') : r.cantidadSolicitada;
-    const cantStock = contextTag ? getCantidadPorContexto(r, contextTag, 'stock') : (r.cantidadStockBodega || 0);
+    const cantidades = getTotalCantidadesRepuesto(r);
+    const cantSol = contextTag ? getCantidadPorContexto(r, contextTag, 'solicitud') : cantidades.solicitud;
+    const cantStock = contextTag ? getCantidadPorContexto(r, contextTag, 'stock') : cantidades.stock;
     return s + (r.valorUnitario * cantSol) + (r.valorUnitario * cantStock);
   }, 0);
   const conImagenManual = repuestos.filter(r => r.imagenesManual.length > 0).length;
   const conFotoReal = repuestos.filter(r => r.fotosReales.length > 0).length;
   const conStock = repuestos.filter(r => {
-    const cant = contextTag ? getCantidadPorContexto(r, contextTag, 'stock') : r.cantidadStockBodega;
+    const cant = contextTag 
+      ? getCantidadPorContexto(r, contextTag, 'stock') 
+      : getTotalCantidadesRepuesto(r).stock;
     return cant > 0;
   }).length;
   const sinStock = repuestos.length - conStock;
@@ -1065,8 +1115,9 @@ export async function exportToPDF(
     textY += Math.min(lines.length, 2) * 2.5 + 2;
 
     // Cantidad
-    const cantSolPDF = contextTag ? getCantidadPorContexto(repuesto, contextTag, 'solicitud') : repuesto.cantidadSolicitada;
-    const cantStockPDF = contextTag ? getCantidadPorContexto(repuesto, contextTag, 'stock') : (repuesto.cantidadStockBodega || 0);
+    const cantidadesPDF = getTotalCantidadesRepuesto(repuesto);
+    const cantSolPDF = contextTag ? getCantidadPorContexto(repuesto, contextTag, 'solicitud') : cantidadesPDF.solicitud;
+    const cantStockPDF = contextTag ? getCantidadPorContexto(repuesto, contextTag, 'stock') : cantidadesPDF.stock;
     const totalPDF = (repuesto.valorUnitario * cantSolPDF) + (repuesto.valorUnitario * cantStockPDF);
     
     doc.setFontSize(6);

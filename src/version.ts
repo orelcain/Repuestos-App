@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '3.4.2';
+export const APP_VERSION = '3.4.3';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '3.4.3',
+    date: '2025-12-21',
+    changes: [
+      'FIX: Modal de exportación Excel con soporte completo para modo oscuro',
+      'FIX: Exportación PDF y Excel ahora usa cantidades de Tags en lugar de valores legacy',
+      'FIX: Corregido cálculo de totales en resumen PDF',
+      'MEJORA: Top 5 repuestos en Excel usa cantidades de tags'
+    ]
+  },
   {
     version: '3.4.2',
     date: '2025-12-21',

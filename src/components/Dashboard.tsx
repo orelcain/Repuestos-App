@@ -1243,120 +1243,120 @@ export function Dashboard() {
       {showExcelExportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowExcelExportModal(false)}>
           <div 
-            className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden max-h-[90vh] overflow-y-auto"
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden max-h-[90vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
-            <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2">
                 <FileSpreadsheet className="w-5 h-5 text-green-600" />
                 Exportar Excel
               </h3>
               <button 
                 onClick={() => setShowExcelExportModal(false)}
-                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
               </button>
             </div>
             
             <div className="p-5 space-y-4">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 Se exportarán {filteredRepuestos.length > 0 ? filteredRepuestos.length : repuestos.length} repuestos
               </p>
               
               {/* Selector de formato */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Formato de exportación</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Formato de exportación</label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => setExcelFormato('simple')}
                     className={`p-3 rounded-lg border-2 text-left transition-all ${
                       excelFormato === 'simple' 
-                        ? 'border-green-500 bg-green-50' 
-                        : 'border-gray-200 hover:border-gray-300'
+                        ? 'border-green-500 bg-green-50 dark:bg-green-900/30' 
+                        : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
                     }`}
                   >
-                    <div className="font-medium text-gray-800">Simple</div>
-                    <div className="text-xs text-gray-500 mt-1">Solo datos, 1 hoja</div>
+                    <div className="font-medium text-gray-800 dark:text-gray-200">Simple</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Solo datos, 1 hoja</div>
                   </button>
                   <button
                     onClick={() => setExcelFormato('completo')}
                     className={`p-3 rounded-lg border-2 text-left transition-all ${
                       excelFormato === 'completo' 
-                        ? 'border-green-500 bg-green-50' 
-                        : 'border-gray-200 hover:border-gray-300'
+                        ? 'border-green-500 bg-green-50 dark:bg-green-900/30' 
+                        : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
                     }`}
                   >
-                    <div className="font-medium text-gray-800">Completo</div>
-                    <div className="text-xs text-gray-500 mt-1">Estilos, múltiples hojas</div>
+                    <div className="font-medium text-gray-800 dark:text-gray-200">Completo</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Estilos, múltiples hojas</div>
                   </button>
                 </div>
               </div>
               
               {/* Opciones solo para formato completo */}
               {excelFormato === 'completo' && (
-                <div className="space-y-2 pt-2 border-t">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Opciones avanzadas</label>
+                <div className="space-y-2 pt-2 border-t dark:border-gray-700">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Opciones avanzadas</label>
                   
-                  <label className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
+                  <label className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700">
                     <input
                       type="checkbox"
                       checked={excelIncluirEstilos}
                       onChange={(e) => setExcelIncluirEstilos(e.target.checked)}
-                      className="w-4 h-4 text-green-600 rounded border-gray-300"
+                      className="w-4 h-4 text-green-600 rounded border-gray-300 dark:border-gray-600"
                     />
                     <div>
-                      <span className="text-sm font-medium text-gray-800">Incluir estilos</span>
-                      <p className="text-xs text-gray-500">Colores, bordes y formato condicional</p>
+                      <span className="text-sm font-medium text-gray-800 dark:text-gray-200">Incluir estilos</span>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Colores, bordes y formato condicional</p>
                     </div>
                   </label>
                   
-                  <label className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
+                  <label className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700">
                     <input
                       type="checkbox"
                       checked={excelIncluirResumen}
                       onChange={(e) => setExcelIncluirResumen(e.target.checked)}
-                      className="w-4 h-4 text-green-600 rounded border-gray-300"
+                      className="w-4 h-4 text-green-600 rounded border-gray-300 dark:border-gray-600"
                     />
                     <div>
-                      <span className="text-sm font-medium text-gray-800">Hoja de resumen</span>
-                      <p className="text-xs text-gray-500">Estadísticas y totales generales</p>
+                      <span className="text-sm font-medium text-gray-800 dark:text-gray-200">Hoja de resumen</span>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Estadísticas y totales generales</p>
                     </div>
                   </label>
                   
-                  <label className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
+                  <label className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700">
                     <input
                       type="checkbox"
                       checked={excelIncluirSinStock}
                       onChange={(e) => setExcelIncluirSinStock(e.target.checked)}
-                      className="w-4 h-4 text-green-600 rounded border-gray-300"
+                      className="w-4 h-4 text-green-600 rounded border-gray-300 dark:border-gray-600"
                     />
                     <div>
-                      <span className="text-sm font-medium text-gray-800">Hoja "Sin Stock"</span>
-                      <p className="text-xs text-gray-500">Lista de repuestos con stock en 0</p>
+                      <span className="text-sm font-medium text-gray-800 dark:text-gray-200">Hoja "Sin Stock"</span>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Lista de repuestos con stock en 0</p>
                     </div>
                   </label>
                   
-                  <label className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
+                  <label className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700">
                     <input
                       type="checkbox"
                       checked={excelIncluirPorTags}
                       onChange={(e) => setExcelIncluirPorTags(e.target.checked)}
-                      className="w-4 h-4 text-green-600 rounded border-gray-300"
+                      className="w-4 h-4 text-green-600 rounded border-gray-300 dark:border-gray-600"
                     />
                     <div>
-                      <span className="text-sm font-medium text-gray-800">Hoja "Por Tags"</span>
-                      <p className="text-xs text-gray-500">Resumen agrupado por etiquetas</p>
+                      <span className="text-sm font-medium text-gray-800 dark:text-gray-200">Hoja "Por Tags"</span>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Resumen agrupado por etiquetas</p>
                     </div>
                   </label>
                 </div>
               )}
             </div>
             
-            <div className="px-5 py-4 border-t border-gray-200 bg-gray-50 flex gap-3 justify-end">
+            <div className="px-5 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex gap-3 justify-end">
               <button
                 onClick={() => setShowExcelExportModal(false)}
-                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
+                className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
                 Cancelar
               </button>
