@@ -20,8 +20,6 @@ import {
   MapPin,
   Tag,
   X,
-  Filter,
-  Settings,
   Columns,
   Eye,
   EyeOff,
@@ -144,8 +142,7 @@ export function RepuestosTable({
   const [currentPage, setCurrentPage] = useState(1);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [tagFilterMode, setTagFilterMode] = useState<'AND' | 'OR'>('OR');
-  const [showTagFilter, setShowTagFilter] = useState(false);
+  const [tagFilterMode] = useState<'AND' | 'OR'>('OR');
   const [activeContextTag, setActiveContextTag] = useState<string | null>(null); // Tag de contexto para mostrar cantidades
   const [showColumnConfig, setShowColumnConfig] = useState(false);
   const [filterSinStock, setFilterSinStock] = useState(false);
@@ -508,13 +505,6 @@ export function RepuestosTable({
 
   // Contar repuestos sin marcador
   const sinMarcadorCount = repuestos.filter(r => !r.vinculosManual || r.vinculosManual.length === 0).length;
-
-  // Tags únicos en los repuestos (soporta formato antiguo y nuevo)
-  const tagsEnUso = useMemo(() => {
-    const tags = new Set<string>();
-    repuestos.forEach(r => r.tags?.forEach(t => tags.add(getTagNombre(t))));
-    return Array.from(tags).sort((a, b) => a.localeCompare(b, 'es'));
-  }, [repuestos]);
 
   // Helper: Obtener cantidad de un repuesto según el tag de contexto activo
   const getCantidadPorContexto = useMemo(() => {
