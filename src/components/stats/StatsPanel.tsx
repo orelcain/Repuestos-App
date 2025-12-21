@@ -114,14 +114,15 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
     };
   }, [filteredRepuestos, selectedTag]);
 
-  // Estadísticas por tags - mostrar información de cada tag
+  // Estadísticas por tags - mostrar información de cada tag SIN MEZCLAR
+  // Cada tag muestra SOLO los repuestos que tienen ese tag específico
+  // con su cantidad específica (solicitud O stock, según el tipo del tag)
   const tagStats = useMemo(() => {
     const tagMap = new Map<string, { 
       count: number; 
-      totalSolicitud: number; 
-      totalStock: number;
-      unidadesSolicitud: number;
-      unidadesStock: number;
+      totalValor: number;
+      unidades: number;
+      tipo: 'solicitud' | 'stock' | 'mixto';
     }>();
     
     repuestos.forEach(r => {
@@ -129,33 +130,32 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
         const tagName = getTagNombre(tag);
         const current = tagMap.get(tagName) || { 
           count: 0, 
-          totalSolicitud: 0, 
-          totalStock: 0,
-          unidadesSolicitud: 0,
-          unidadesStock: 0
+          totalValor: 0,
+          unidades: 0,
+          tipo: 'mixto' as const
         };
         
-        let cantSolicitud = 0;
-        let cantStock = 0;
+        let cantidad = 0;
+        let tipoTag: 'solicitud' | 'stock' | 'mixto' = 'mixto';
         
         if (isTagAsignado(tag)) {
-          if (tag.tipo === 'solicitud') {
-            cantSolicitud = tag.cantidad;
-          } else {
-            cantStock = tag.cantidad;
-          }
+          // Tag con tipo específico - usar su cantidad específica
+          cantidad = tag.cantidad;
+          tipoTag = tag.tipo;
         } else {
-          // Tag string antiguo - usar valores del repuesto
-          cantSolicitud = r.cantidadSolicitada || 0;
-          cantStock = r.cantidadStockBodega || 0;
+          // Tag string antiguo - usar valores del repuesto (fallback)
+          cantidad = (r.cantidadSolicitada || 0) + (r.cantidadStockBodega || 0);
         }
+        
+        // Si es el primer registro, establecer el tipo; si ya existe, verificar consistencia
+        const nuevoTipo = current.count === 0 ? tipoTag : 
+          (current.tipo === tipoTag ? tipoTag : 'mixto');
         
         tagMap.set(tagName, {
           count: current.count + 1,
-          totalSolicitud: current.totalSolicitud + (r.valorUnitario * cantSolicitud),
-          totalStock: current.totalStock + (r.valorUnitario * cantStock),
-          unidadesSolicitud: current.unidadesSolicitud + cantSolicitud,
-          unidadesStock: current.unidadesStock + cantStock
+          totalValor: current.totalValor + (r.valorUnitario * cantidad),
+          unidades: current.unidades + cantidad,
+          tipo: nuevoTipo
         });
       });
     });
@@ -163,10 +163,9 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
     return Array.from(tagMap.entries())
       .map(([tag, data]) => ({ 
         tag, 
-        ...data,
-        total: data.totalSolicitud + data.totalStock
+        ...data
       }))
-      .sort((a, b) => b.total - a.total);
+      .sort((a, b) => b.totalValor - a.totalValor);
   }, [repuestos]);
 
   // Top repuestos ordenados - usar cantidades del contexto
@@ -447,7 +446,7 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
               <h3 className="font-semibold text-gray-800">Distribución por Tags/Eventos</h3>
             </div>
             <div className="space-y-3">
-              {tagStats.map(({ tag, count, total, totalSolicitud, totalStock, unidadesSolicitud, unidadesStock }) => (
+              {tagStats.map(({ tag, count, totalValor, unidades, tipo }) => (
                 <div key={tag} className="group">
                   <div className="flex items-center justify-between mb-1">
                     <button
@@ -461,27 +460,29 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
                     </button>
                     <div className="flex items-center gap-4 text-sm">
                       <span className="text-gray-500">{count} ítems</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-blue-600 text-xs" title="Solicitudes">
-                          <ShoppingCart className="w-3 h-3 inline mr-1" />{unidadesSolicitud}
-                        </span>
-                        <span className="text-green-600 text-xs" title="Stock">
-                          <Package className="w-3 h-3 inline mr-1" />{unidadesStock}
-                        </span>
-                      </div>
-                      <span className="font-semibold text-gray-900">{formatCurrency(total)}</span>
+                      <span className={`text-xs flex items-center gap-1 ${
+                        tipo === 'solicitud' ? 'text-blue-600' : 
+                        tipo === 'stock' ? 'text-green-600' : 'text-gray-600'
+                      }`}>
+                        {tipo === 'solicitud' ? (
+                          <><ShoppingCart className="w-3 h-3" /> {unidades} sol.</>
+                        ) : tipo === 'stock' ? (
+                          <><Package className="w-3 h-3" /> {unidades} stk.</>
+                        ) : (
+                          <>{unidades} uds.</>
+                        )}
+                      </span>
+                      <span className="font-semibold text-gray-900">{formatCurrency(totalValor)}</span>
                     </div>
                   </div>
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden flex">
+                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                     <div 
-                      className="h-full bg-blue-500 transition-all"
-                      style={{ width: `${getBarWidth(totalSolicitud, tagStats[0]?.total || 1)}%` }}
-                      title={`Solicitado: ${formatCurrency(totalSolicitud)}`}
-                    />
-                    <div 
-                      className="h-full bg-green-500 transition-all"
-                      style={{ width: `${getBarWidth(totalStock, tagStats[0]?.total || 1)}%` }}
-                      title={`Stock: ${formatCurrency(totalStock)}`}
+                      className={`h-full transition-all ${
+                        tipo === 'solicitud' ? 'bg-blue-500' : 
+                        tipo === 'stock' ? 'bg-green-500' : 'bg-gray-500'
+                      }`}
+                      style={{ width: `${getBarWidth(totalValor, tagStats[0]?.totalValor || 1)}%` }}
+                      title={`${tipo === 'solicitud' ? 'Solicitado' : tipo === 'stock' ? 'Stock' : 'Total'}: ${formatCurrency(totalValor)}`}
                     />
                   </div>
                 </div>
