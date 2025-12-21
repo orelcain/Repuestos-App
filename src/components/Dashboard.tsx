@@ -6,6 +6,7 @@ import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useToast } from '../hooks/useToast';
 import { useDolar } from '../hooks/useDolar';
 import { useTheme } from '../hooks/useTheme';
+import { usePDFPreloader, setGlobalPDFCache } from '../hooks/usePDFPreloader';
 import { Repuesto, RepuestoFormData, ImagenRepuesto, VinculoManual } from '../types';
 import { APP_VERSION } from '../version';
 
@@ -97,6 +98,9 @@ export function Dashboard() {
   const [targetPage, setTargetPage] = useState<number | undefined>();
   const [currentMarker, setCurrentMarker] = useState<VinculoManual | undefined>();
   const [markerRepuesto, setMarkerRepuesto] = useState<Repuesto | null>(null);
+  
+  // Precarga del PDF del manual (carga automática después de 3 segundos)
+  const pdfPreloader = usePDFPreloader(pdfUrl, 3000);
 
   // Estado móvil
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -135,6 +139,14 @@ export function Dashboard() {
       if (url) setPdfUrl(url);
     });
   }, [getManualURL]);
+
+  // Guardar PDF en cache global cuando el preloader termine
+  useEffect(() => {
+    if (pdfPreloader.isReady && pdfPreloader.pdf && pdfUrl) {
+      setGlobalPDFCache(pdfUrl, pdfPreloader.pdf, pdfPreloader.textContent);
+      console.log('[Dashboard] PDF manual guardado en cache global ✅');
+    }
+  }, [pdfPreloader.isReady, pdfPreloader.pdf, pdfPreloader.textContent, pdfUrl]);
 
   // Restaurar último repuesto seleccionado
   useEffect(() => {
@@ -596,8 +608,15 @@ export function Dashboard() {
                 setRightPanelMode(rightPanelMode === 'pdf' ? 'hidden' : 'pdf');
               }}
               icon={<BookOpen className="w-4 h-4" />}
+              className={pdfPreloader.isReady ? 'relative' : ''}
             >
               Manual
+              {pdfPreloader.isReady && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full" title="Manual precargado - apertura instantánea" />
+              )}
+              {pdfPreloader.loading && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-500 rounded-full animate-pulse" title="Precargando manual..." />
+              )}
             </Button>
 
             <Button
@@ -938,6 +957,8 @@ export function Dashboard() {
                     onEditMarker={selectedRepuesto ? (marker) => handleMarkInManual(selectedRepuesto, marker) : undefined}
                     onDeleteMarker={selectedRepuesto ? (marker) => handleDeleteMarker(selectedRepuesto, marker.id) : undefined}
                     onAddMarker={selectedRepuesto ? () => handleMarkInManual(selectedRepuesto) : undefined}
+                    preloadedPDF={pdfPreloader.pdf}
+                    preloadedText={pdfPreloader.textContent}
                   />
                 </Suspense>
               )}

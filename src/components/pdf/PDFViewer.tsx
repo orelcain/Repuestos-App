@@ -19,6 +19,7 @@ import {
   MapPin
 } from 'lucide-react';
 import { VinculoManual } from '../../types';
+import { getGlobalPDFCache } from '../../hooks/usePDFPreloader';
 
 // Configurar worker de PDF.js - usando versión específica estable
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
@@ -31,6 +32,10 @@ interface PDFViewerProps {
   onEditMarker?: (marker: VinculoManual) => void;
   onDeleteMarker?: (marker: VinculoManual) => void;
   onAddMarker?: () => void;
+  /** PDF precargado del cache global */
+  preloadedPDF?: pdfjsLib.PDFDocumentProxy | null;
+  /** Texto precargado para búsqueda */
+  preloadedText?: Map<number, {text: string; items: {str: string; transform: number[]}[]}>;
 }
 
 export function PDFViewer({ 
@@ -40,7 +45,9 @@ export function PDFViewer({
   onCapture,
   onEditMarker,
   onDeleteMarker,
-  onAddMarker
+  onAddMarker,
+  preloadedPDF,
+  preloadedText
 }: PDFViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
@@ -79,10 +86,34 @@ export function PDFViewer({
   const [allPagesText, setAllPagesText] = useState<Map<number, {text: string; items: {str: string; transform: number[]}[]}>>(new Map());
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Cargar PDF
+  // Cargar PDF - usar precargado si está disponible
   useEffect(() => {
     if (!pdfUrl) return;
 
+    // Verificar si hay PDF precargado (desde props o cache global)
+    const cachedPDF = getGlobalPDFCache();
+    const usePrecached = preloadedPDF || (cachedPDF && cachedPDF.url === pdfUrl);
+    
+    if (usePrecached) {
+      const pdfDoc = preloadedPDF || cachedPDF!.pdf;
+      const textData = preloadedText || cachedPDF?.textContent;
+      
+      console.log('[PDFViewer] Usando PDF precargado ⚡');
+      setPdf(pdfDoc);
+      setTotalPages(pdfDoc.numPages);
+      
+      if (textData && textData.size > 0) {
+        setAllPagesText(textData);
+      } else {
+        // Precargar texto si no viene del cache
+        preloadAllPagesText(pdfDoc);
+      }
+      
+      setLoading(false);
+      return;
+    }
+
+    // Cargar PDF normalmente
     setLoading(true);
     setError(null);
 
@@ -100,7 +131,7 @@ export function PDFViewer({
         setError('No se pudo cargar el manual PDF');
         setLoading(false);
       });
-  }, [pdfUrl]);
+  }, [pdfUrl, preloadedPDF, preloadedText]);
 
   // Precargar texto de todas las páginas
   const preloadAllPagesText = async (pdfDoc: pdfjsLib.PDFDocumentProxy) => {
