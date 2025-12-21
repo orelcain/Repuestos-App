@@ -4,7 +4,6 @@ import { useRepuestos } from '../hooks/useRepuestos';
 import { useStorage } from '../hooks/useStorage';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useToast } from '../hooks/useToast';
-import { useDolar } from '../hooks/useDolar';
 import { useTheme } from '../hooks/useTheme';
 import { usePDFPreloader, setGlobalPDFCache } from '../hooks/usePDFPreloader';
 import { Repuesto, RepuestoFormData, ImagenRepuesto, VinculoManual } from '../types';
@@ -78,7 +77,6 @@ export function Dashboard() {
   const { uploadImage, getManualURL } = useStorage();
   const { lastSelectedRepuestoId, setLastSelectedRepuesto } = useLocalStorage();
   const { toasts, removeToast, success, error } = useToast();
-  const { valor: tipoCambio } = useDolar();
   const { toggleTheme, isDark } = useTheme();
 
   // Estado de selección y modales
@@ -462,8 +460,7 @@ export function Dashboard() {
       incluirResumen: excelIncluirResumen,
       incluirSinStock: excelIncluirSinStock,
       incluirPorTags: excelIncluirPorTags,
-      incluirEstilos: excelIncluirEstilos,
-      tipoCambio: tipoCambio > 0 ? tipoCambio : undefined
+      incluirEstilos: excelIncluirEstilos
     });
     success(`Excel exportado con ${toExport.length} repuestos (formato ${excelFormato === 'simple' ? 'simple' : 'completo'})`);
     setShowExcelExportModal(false);

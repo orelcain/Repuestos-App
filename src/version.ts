@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '2.8.5';
+export const APP_VERSION = '2.9.0';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '2.9.0',
+    date: '2025-01-22',
+    changes: [
+      'Eliminada conversión USD a CLP - valores solo en USD',
+      'Simplificada la tabla al quitar columnas CLP',
+      'Exportación Excel solo con valores en USD',
+      'Removida dependencia de API externa mindicador.cl'
+    ]
+  },
   {
     version: '2.8.1',
     date: '2025-12-20',

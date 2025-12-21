@@ -35,18 +35,17 @@ export interface ExcelExportOptions {
   incluirSinStock?: boolean;
   incluirPorTags?: boolean;
   incluirEstilos?: boolean;
-  tipoCambio?: number; // USD a CLP
 }
 
 // Exportación simple: Solo datos básicos, sin estilos ni hojas adicionales
-async function exportToExcelSimple(repuestos: Repuesto[], filename: string, tipoCambio?: number) {
+async function exportToExcelSimple(repuestos: Repuesto[], filename: string) {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Baader 200 App';
   workbook.created = new Date();
 
   const ws = workbook.addWorksheet('Repuestos');
 
-  // Columnas básicas (con CLP si hay tipo de cambio)
+  // Columnas básicas (solo USD)
   const columns = [
     { header: 'Código SAP', key: 'codigoSAP', width: 14 },
     { header: 'Número Parte Manual', key: 'codigoBaader', width: 20 },
@@ -57,15 +56,9 @@ async function exportToExcelSimple(repuestos: Repuesto[], filename: string, tipo
     { header: 'Total Stock (USD)', key: 'totalStockUSD', width: 16 },
     { header: 'Valor Unitario (USD)', key: 'valorUnitario', width: 16 },
     { header: 'Total General (USD)', key: 'total', width: 16 },
+    { header: 'Tags', key: 'tags', width: 25 },
   ];
 
-  if (tipoCambio && tipoCambio > 0) {
-    columns.splice(5, 0, { header: `Total Solicitado (CLP) @${tipoCambio.toFixed(0)}`, key: 'totalSolicitadoCLP', width: 20 });
-    columns.splice(8, 0, { header: `Total Stock (CLP) @${tipoCambio.toFixed(0)}`, key: 'totalStockCLP', width: 18 });
-    columns.push({ header: `Total General (CLP) @${tipoCambio.toFixed(0)}`, key: 'totalCLP', width: 20 });
-  }
-
-  columns.push({ header: 'Tags', key: 'tags', width: 25 });
   ws.columns = columns;
 
   // Agregar datos sin formato
@@ -83,23 +76,12 @@ async function exportToExcelSimple(repuestos: Repuesto[], filename: string, tipo
       tags: r.tags?.join(', ') || ''
     };
 
-    if (tipoCambio && tipoCambio > 0) {
-      rowData.totalSolicitadoCLP = Math.round((r.valorUnitario * r.cantidadSolicitada) * tipoCambio);
-      rowData.totalStockCLP = Math.round((r.valorUnitario * (r.cantidadStockBodega || 0)) * tipoCambio);
-      rowData.totalCLP = Math.round((r.total || 0) * tipoCambio);
-    }
-
     const row = ws.addRow(rowData);
     // Solo formato de moneda básico
     row.getCell('valorUnitario').numFmt = '"$"#,##0.00';
     row.getCell('totalSolicitadoUSD').numFmt = '"$"#,##0.00';
     row.getCell('totalStockUSD').numFmt = '"$"#,##0.00';
     row.getCell('total').numFmt = '"$"#,##0.00';
-    if (tipoCambio && tipoCambio > 0) {
-      row.getCell('totalSolicitadoCLP').numFmt = '"$"#,##0';
-      row.getCell('totalStockCLP').numFmt = '"$"#,##0';
-      row.getCell('totalCLP').numFmt = '"$"#,##0';
-    }
   });
 
   // Guardar archivo
@@ -116,15 +98,14 @@ export async function exportToExcel(
 ) {
   // Si es formato simple, exportar solo datos básicos
   if (options.formato === 'simple') {
-    return exportToExcelSimple(repuestos, filename, options.tipoCambio);
+    return exportToExcelSimple(repuestos, filename);
   }
 
   const {
     incluirResumen = true,
     incluirSinStock = true,
     incluirPorTags = true,
-    incluirEstilos = true,
-    tipoCambio
+    incluirEstilos = true
   } = options;
 
   const workbook = new ExcelJS.Workbook();
@@ -136,7 +117,7 @@ export async function exportToExcel(
     views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }] // Congelar primera fila
   });
 
-  // Definir columnas (con CLP si hay tipo de cambio)
+  // Definir columnas (solo USD)
   const detalleColumns: { header: string; key: string; width: number }[] = [
     { header: 'Código SAP', key: 'codigoSAP', width: 14 },
     { header: 'Número Parte Manual', key: 'codigoBaader', width: 20 },
@@ -148,12 +129,6 @@ export async function exportToExcel(
     { header: 'Valor Unitario (USD)', key: 'valorUnitario', width: 16 },
     { header: 'Total General (USD)', key: 'total', width: 16 },
   ];
-
-  if (tipoCambio && tipoCambio > 0) {
-    detalleColumns.splice(5, 0, { header: `Total Solicitado (CLP) @${tipoCambio.toFixed(0)}`, key: 'totalSolicitadoCLP', width: 20 });
-    detalleColumns.splice(8, 0, { header: `Total Stock (CLP) @${tipoCambio.toFixed(0)}`, key: 'totalStockCLP', width: 18 });
-    detalleColumns.push({ header: `Total General (CLP) @${tipoCambio.toFixed(0)}`, key: 'totalCLP', width: 20 });
-  }
 
   detalleColumns.push(
     { header: 'Tags', key: 'tags', width: 25 },
@@ -194,12 +169,6 @@ export async function exportToExcel(
       fotosReales: r.fotosReales.length
     };
 
-    if (tipoCambio && tipoCambio > 0) {
-      rowData.totalSolicitadoCLP = Math.round((r.valorUnitario * r.cantidadSolicitada) * tipoCambio);
-      rowData.totalStockCLP = Math.round((r.valorUnitario * (r.cantidadStockBodega || 0)) * tipoCambio);
-      rowData.totalCLP = Math.round((r.total || 0) * tipoCambio);
-    }
-
     const row = wsDetalle.addRow(rowData);
 
     if (incluirEstilos) {
@@ -223,11 +192,6 @@ export async function exportToExcel(
     row.getCell('totalStockUSD').numFmt = '"$"#,##0.00';
     row.getCell('valorUnitario').numFmt = '"$"#,##0.00';
     row.getCell('total').numFmt = '"$"#,##0.00';
-    if (tipoCambio && tipoCambio > 0) {
-      row.getCell('totalSolicitadoCLP').numFmt = '"$"#,##0';
-      row.getCell('totalStockCLP').numFmt = '"$"#,##0';
-      row.getCell('totalCLP').numFmt = '"$"#,##0';
-    }
   });
 
   // Fila de totales
@@ -240,22 +204,12 @@ export async function exportToExcel(
     stockBodega: { formula: `SUM(F2:F${repuestos.length + 1})` },
     totalStockUSD: { formula: `SUM(G2:G${repuestos.length + 1})` },
     valorUnitario: null,
-    total: { formula: `SUM(H2:H${repuestos.length + 1})` },
+    total: { formula: `SUM(I2:I${repuestos.length + 1})` },
     tags: null,
     ultimaAct: null,
+    imgManual: { formula: `SUM(L2:L${repuestos.length + 1})` },
+    fotosReales: { formula: `SUM(M2:M${repuestos.length + 1})` }
   };
-
-  // Ajustar columnas de imgManual y fotosReales según si hay CLP
-  if (tipoCambio && tipoCambio > 0) {
-    totalRowData.totalSolicitadoCLP = { formula: `SUM(I2:I${repuestos.length + 1})` };
-    totalRowData.totalStockCLP = { formula: `SUM(J2:J${repuestos.length + 1})` };
-    totalRowData.totalCLP = { formula: `SUM(K2:K${repuestos.length + 1})` };
-    totalRowData.imgManual = { formula: `SUM(N2:N${repuestos.length + 1})` };
-    totalRowData.fotosReales = { formula: `SUM(O2:O${repuestos.length + 1})` };
-  } else {
-    totalRowData.imgManual = { formula: `SUM(L2:L${repuestos.length + 1})` };
-    totalRowData.fotosReales = { formula: `SUM(M2:M${repuestos.length + 1})` };
-  }
 
   const totalRow = wsDetalle.addRow(totalRowData);
   if (incluirEstilos) {
@@ -265,11 +219,6 @@ export async function exportToExcel(
   totalRow.getCell('totalSolicitadoUSD').numFmt = '"$"#,##0.00';
   totalRow.getCell('totalStockUSD').numFmt = '"$"#,##0.00';
   totalRow.getCell('total').numFmt = '"$"#,##0.00';
-  if (tipoCambio && tipoCambio > 0) {
-    totalRow.getCell('totalSolicitadoCLP').numFmt = '"$"#,##0';
-    totalRow.getCell('totalStockCLP').numFmt = '"$"#,##0';
-    totalRow.getCell('totalCLP').numFmt = '"$"#,##0';
-  }
 
   // Agregar filtros automáticos
   wsDetalle.autoFilter = {

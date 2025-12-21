@@ -25,7 +25,6 @@ import {
 } from 'lucide-react';
 import { Repuesto } from '../../types';
 import { useChartData } from '../../hooks/useChartData';
-import { useDolar } from '../../hooks/useDolar';
 
 interface ReportsModalProps {
   isOpen: boolean;
@@ -38,7 +37,6 @@ type TabType = 'resumen' | 'valor' | 'stock' | 'precios';
 export default function ReportsModal({ isOpen, onClose, repuestos }: ReportsModalProps) {
   const [activeTab, setActiveTab] = useState<TabType>('resumen');
   const chartData = useChartData(repuestos);
-  const { valor: tipoCambio, formatClp } = useDolar();
 
   if (!isOpen) return null;
 
@@ -112,7 +110,6 @@ export default function ReportsModal({ isOpen, onClose, repuestos }: ReportsModa
                   icon={<DollarSign className="w-5 h-5" />}
                   label="Total USD"
                   value={`$${chartData.totales.totalUSD.toLocaleString('es-CL', { maximumFractionDigits: 0 })}`}
-                  subValue={formatClp(chartData.totales.totalUSD * (tipoCambio || 900))}
                   color="green"
                 />
                 <StatCard
@@ -310,12 +307,6 @@ export default function ReportsModal({ isOpen, onClose, repuestos }: ReportsModa
                       <span className="text-gray-500 dark:text-gray-400">Valor más bajo</span>
                       <span className="font-semibold text-purple-600 dark:text-purple-400">
                         ${Math.min(...repuestos.filter(r => (r.total || 0) > 0).map(r => r.total || 0)).toLocaleString('es-CL', { maximumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                    <div className="flex justify-between py-2">
-                      <span className="text-gray-500 dark:text-gray-400">Tipo de cambio</span>
-                      <span className="font-semibold dark:text-gray-200">
-                        ${tipoCambio?.toLocaleString('es-CL') || 'N/A'} CLP
                       </span>
                     </div>
                   </div>

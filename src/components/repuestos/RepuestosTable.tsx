@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Repuesto, HistorialCambio } from '../../types';
-import { useDolar } from '../../hooks/useDolar';
 import { useTableColumns } from '../../hooks/useTableColumns';
 import { 
   Search, 
@@ -156,9 +155,9 @@ export function RepuestosTable({
   // Columnas a ocultar en modo compacto (panel lateral abierto)
   const compactHiddenColumns = [
     'nombreManual', 'tags',
-    'totalSolicitadoUSD', 'totalSolicitadoCLP', 
-    'totalStockUSD', 'totalStockCLP',
-    'valorUnitario', 'totalUSD', 'totalCLP'
+    'totalSolicitadoUSD', 
+    'totalStockUSD',
+    'valorUnitario', 'totalUSD'
   ];
   
   // Función que considera el modo compacto para visibilidad de columnas
@@ -457,9 +456,6 @@ export function RepuestosTable({
     return Array.from(tags);
   }, [repuestos]);
 
-  // Hook para tipo de cambio
-  const { valor: tipoCambio, loading: dolarLoading, formatClp } = useDolar();
-
   // Calcular totales de repuestos filtrados
   const totales = useMemo(() => {
     const totalSolicitado = filteredRepuestos.reduce((sum, r) => sum + (r.cantidadSolicitada || 0), 0);
@@ -467,22 +463,14 @@ export function RepuestosTable({
     const totalSolicitadoUSD = filteredRepuestos.reduce((sum, r) => sum + (r.valorUnitario * r.cantidadSolicitada), 0);
     const totalStockUSD = filteredRepuestos.reduce((sum, r) => sum + (r.valorUnitario * (r.cantidadStockBodega || 0)), 0);
     const totalUSD = totalSolicitadoUSD + totalStockUSD;
-    // Usar tipoCambio con fallback a 900 si no está disponible
-    const tasaCambio = tipoCambio || 900;
-    const totalSolicitadoCLP = Math.round(totalSolicitadoUSD * tasaCambio);
-    const totalStockCLP = Math.round(totalStockUSD * tasaCambio);
-    const totalCLP = Math.round(totalUSD * tasaCambio);
     return { 
       totalSolicitado, 
       totalBodega, 
       totalSolicitadoUSD,
       totalStockUSD,
-      totalUSD, 
-      totalSolicitadoCLP,
-      totalStockCLP,
-      totalCLP 
+      totalUSD
     };
-  }, [filteredRepuestos, tipoCambio]);
+  }, [filteredRepuestos]);
 
   // Renderizar encabezado de columna con drag & drop
   const renderColumnHeader = (columnKey: string) => {
@@ -495,8 +483,7 @@ export function RepuestosTable({
                        'cantidadSolicitada', 'cantidadStockBodega', 'valorUnitario', 'totalUSD'].includes(columnKey);
     
     const alignment = ['cantidadSolicitada', 'cantidadStockBodega', 'acciones'].includes(columnKey) ? 'center' :
-                     ['valorUnitario', 'totalUSD', 'totalCLP', 'totalSolicitadoUSD', 'totalSolicitadoCLP', 
-                      'totalStockUSD', 'totalStockCLP'].includes(columnKey) ? 'right' : 'left';
+                     ['valorUnitario', 'totalUSD', 'totalSolicitadoUSD', 'totalStockUSD'].includes(columnKey) ? 'right' : 'left';
 
     return (
       <th
@@ -806,21 +793,7 @@ export function RepuestosTable({
                 ${totales.totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </div>
             </div>
-            <div className="text-center">
-              <div className="text-xs text-gray-500 dark:text-gray-400 uppercase flex items-center gap-1 justify-center">
-                Total CLP
-                <span className="text-[10px] text-gray-400 dark:text-gray-500">(@{(tipoCambio || 900).toFixed(0)})</span>
-              </div>
-              <div className="text-xl font-bold text-green-700 dark:text-green-300">
-                {formatClp(totales.totalCLP)}
-              </div>
-            </div>
           </div>
-          
-          {/* Indicador de tipo de cambio */}
-          {dolarLoading && (
-            <RefreshCw className="w-4 h-4 text-gray-400 animate-spin ml-auto" />
-          )}
         </div>
 
         {/* Barra de búsqueda con botón de filtros avanzados */}
@@ -984,13 +957,10 @@ export function RepuestosTable({
               {isColumnVisible('tags') && renderColumnHeader('tags')}
               {isColumnVisible('cantidadSolicitada') && renderColumnHeader('cantidadSolicitada')}
               {isColumnVisible('totalSolicitadoUSD') && renderColumnHeader('totalSolicitadoUSD')}
-              {isColumnVisible('totalSolicitadoCLP') && renderColumnHeader('totalSolicitadoCLP')}
               {isColumnVisible('cantidadStockBodega') && renderColumnHeader('cantidadStockBodega')}
               {isColumnVisible('totalStockUSD') && renderColumnHeader('totalStockUSD')}
-              {isColumnVisible('totalStockCLP') && renderColumnHeader('totalStockCLP')}
               {isColumnVisible('valorUnitario') && renderColumnHeader('valorUnitario')}
               {isColumnVisible('totalUSD') && renderColumnHeader('totalUSD')}
-              {isColumnVisible('totalCLP') && renderColumnHeader('totalCLP')}
               {isColumnVisible('acciones') && renderColumnHeader('acciones')}
             </tr>
           </thead>
@@ -1205,15 +1175,6 @@ export function RepuestosTable({
                   </td>
                   )}
 
-                  {/* Total Solicitado CLP */}
-                  {isColumnVisible('totalSolicitadoCLP') && (
-                  <td className="px-4 py-4 text-right">
-                    <span className="text-sm font-semibold text-green-600">
-                      {formatClp((repuesto.valorUnitario * repuesto.cantidadSolicitada) * (tipoCambio || 900))}
-                    </span>
-                  </td>
-                  )}
-
                   {/* Stock Bodega - clickeable para ver historial */}
                   {isColumnVisible('cantidadStockBodega') && (
                   <td className="px-4 py-4 text-center">
@@ -1245,15 +1206,6 @@ export function RepuestosTable({
                   </td>
                   )}
 
-                  {/* Total Stock CLP */}
-                  {isColumnVisible('totalStockCLP') && (
-                  <td className="px-4 py-4 text-right">
-                    <span className="text-sm font-medium text-amber-600">
-                      {formatClp((repuesto.valorUnitario * (repuesto.cantidadStockBodega || 0)) * (tipoCambio || 900))}
-                    </span>
-                  </td>
-                  )}
-
                   {/* Valor unitario */}
                   {isColumnVisible('valorUnitario') && (
                   <td className="px-4 py-4 text-right">
@@ -1268,15 +1220,6 @@ export function RepuestosTable({
                   <td className="px-4 py-4 text-right">
                     <span className="text-base font-bold text-gray-800">
                       ${((repuesto.valorUnitario * repuesto.cantidadSolicitada) + (repuesto.valorUnitario * (repuesto.cantidadStockBodega || 0))).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                  </td>
-                  )}
-
-                  {/* Total CLP */}
-                  {isColumnVisible('totalCLP') && (
-                  <td className="px-4 py-4 text-right">
-                    <span className="text-sm font-medium text-green-700">
-                      {formatClp(Math.round(((repuesto.valorUnitario * repuesto.cantidadSolicitada) + (repuesto.valorUnitario * (repuesto.cantidadStockBodega || 0))) * (tipoCambio || 900)))}
                     </span>
                   </td>
                   )}
@@ -1402,15 +1345,6 @@ export function RepuestosTable({
                   </td>
                 )}
                 
-                {/* Total Solicitado CLP */}
-                {isColumnVisible('totalSolicitadoCLP') && (
-                  <td className="px-4 py-4 text-right">
-                    <span className="text-blue-700 font-bold">
-                      {formatClp(totales.totalSolicitadoCLP)}
-                    </span>
-                  </td>
-                )}
-                
                 {/* Cantidad Stock Bodega */}
                 {isColumnVisible('cantidadStockBodega') && (
                   <td className="px-4 py-4 text-center">
@@ -1429,15 +1363,6 @@ export function RepuestosTable({
                   </td>
                 )}
                 
-                {/* Total Stock CLP */}
-                {isColumnVisible('totalStockCLP') && (
-                  <td className="px-4 py-4 text-right">
-                    <span className="text-green-700 font-bold">
-                      {formatClp(totales.totalStockCLP)}
-                    </span>
-                  </td>
-                )}
-                
                 {/* Valor Unitario */}
                 {isColumnVisible('valorUnitario') && <td className="px-4 py-4"></td>}
                 
@@ -1446,15 +1371,6 @@ export function RepuestosTable({
                   <td className="px-4 py-4 text-right">
                     <span className="text-purple-700 font-bold text-lg" title="Total Solicitado + Total Stock">
                       ${totales.totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                  </td>
-                )}
-                
-                {/* Total General CLP */}
-                {isColumnVisible('totalCLP') && (
-                  <td className="px-4 py-4 text-right">
-                    <span className="text-purple-700 font-bold text-lg">
-                      {formatClp(totales.totalCLP)}
                     </span>
                   </td>
                 )}
