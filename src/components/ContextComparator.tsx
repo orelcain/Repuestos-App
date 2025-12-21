@@ -26,22 +26,34 @@ interface ContextComparatorProps {
 }
 
 // Tipos de ordenamiento
-type SortField = 'codigoSAP' | 'textoBreve' | 'valorUnitario' | 'diferencia' | 'tag1' | 'tag2';
+type SortField = 'codigoSAP' | 'textoBreve' | 'valorUnitario' | 'diferencia' | 'tag1' | 'tag2' | `tag${number}`;
 type SortDirection = 'asc' | 'desc';
 
 // Tipos de filtro
 type FilterType = 'todos' | 'con-diferencia' | 'solo-primero' | 'solo-segundo' | 'en-ambos' | 'faltante-alguno';
 
-// Obtener todos los tags únicos de todos los repuestos
-function getAllUniqueTags(repuestos: Repuesto[]): string[] {
-  const tagsSet = new Set<string>();
+// Obtener todos los tags únicos de todos los repuestos, separados por tipo
+function getAllUniqueTagsByType(repuestos: Repuesto[]): { solicitud: string[]; stock: string[] } {
+  const solicitudSet = new Set<string>();
+  const stockSet = new Set<string>();
+  
   repuestos.forEach(r => {
     r.tags?.forEach(tag => {
       const nombre = getTagNombre(tag);
-      if (nombre) tagsSet.add(nombre);
+      if (!nombre) return;
+      const tipo = getTagTipo(tag);
+      if (tipo === 'stock') {
+        stockSet.add(nombre);
+      } else {
+        solicitudSet.add(nombre);
+      }
     });
   });
-  return Array.from(tagsSet).sort();
+  
+  return {
+    solicitud: Array.from(solicitudSet).sort(),
+    stock: Array.from(stockSet).sort()
+  };
 }
 
 // Obtener cantidad de un tag específico para un repuesto
@@ -65,7 +77,8 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
   const [showFilters, setShowFilters] = useState(false);
   const [compactView, setCompactView] = useState(false);
   
-  const allTags = useMemo(() => getAllUniqueTags(repuestos), [repuestos]);
+  const tagsByType = useMemo(() => getAllUniqueTagsByType(repuestos), [repuestos]);
+  const allTags = useMemo(() => [...tagsByType.solicitud, ...tagsByType.stock], [tagsByType]);
   
   // Obtener repuestos que tienen al menos uno de los tags seleccionados
   const repuestosConTags = useMemo(() => {
@@ -364,8 +377,8 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2">
-      <div className={`${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white'} rounded-xl shadow-2xl w-[95vw] max-w-[1600px] h-[95vh] overflow-hidden flex flex-col`}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-1">
+      <div className={`${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white'} rounded-xl shadow-2xl w-[98vw] max-w-[2200px] h-[96vh] overflow-hidden flex flex-col`}>
         {/* Header */}
         <div className={`flex items-center justify-between p-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
           <div className="flex items-center gap-3">
@@ -392,39 +405,86 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
           </div>
         </div>
 
-        {/* Selector de Tags */}
+        {/* Selector de Tags - Separado por tipo */}
         <div className={`p-4 border-b ${isDarkMode ? 'border-gray-700 bg-gray-750' : 'border-gray-200 bg-gray-50'}`}>
-          <p className="text-sm text-gray-500 mb-3">Selecciona 2 o más contextos/eventos para comparar:</p>
-          <div className="flex flex-wrap gap-2">
-            {allTags.map(tag => {
-              const isSelected = selectedTags.includes(tag);
-              const tipo = repuestos.find(r => r.tags?.some(t => getTagNombre(t) === tag))?.tags?.find(t => getTagNombre(t) === tag);
-              const tipoTag = tipo ? getTagTipo(tipo) : 'solicitud';
-              const index = selectedTags.indexOf(tag);
-              
-              return (
-                <button
-                  key={tag}
-                  onClick={() => toggleTag(tag)}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-2
-                    ${isSelected 
-                      ? tipoTag === 'stock'
-                        ? 'bg-green-500 text-white'
-                        : 'bg-blue-500 text-white'
-                      : isDarkMode 
-                        ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                >
-                  {isSelected && (
-                    <span className="w-4 h-4 rounded-full bg-white/30 flex items-center justify-center text-xs font-bold">
-                      {index + 1}
-                    </span>
-                  )}
-                  {tag}
-                </button>
-              );
-            })}
+          <p className="text-sm text-gray-500 mb-3">Selecciona 2 o más contextos/eventos para comparar (puedes mezclar solicitudes y stock):</p>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Tags de Solicitud */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-3 h-3 rounded-full bg-blue-500" />
+                <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">Solicitudes ({tagsByType.solicitud.length})</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {tagsByType.solicitud.map(tag => {
+                  const isSelected = selectedTags.includes(tag);
+                  const index = selectedTags.indexOf(tag);
+                  
+                  return (
+                    <button
+                      key={tag}
+                      onClick={() => toggleTag(tag)}
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-2
+                        ${isSelected 
+                          ? 'bg-blue-500 text-white ring-2 ring-blue-300'
+                          : isDarkMode 
+                            ? 'bg-gray-700 text-gray-300 hover:bg-blue-900/50 hover:text-blue-300'
+                            : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'
+                        }`}
+                    >
+                      {isSelected && (
+                        <span className="w-4 h-4 rounded-full bg-white/30 flex items-center justify-center text-xs font-bold">
+                          {index + 1}
+                        </span>
+                      )}
+                      {tag}
+                    </button>
+                  );
+                })}
+                {tagsByType.solicitud.length === 0 && (
+                  <span className="text-sm text-gray-400 italic">No hay eventos de solicitud</span>
+                )}
+              </div>
+            </div>
+
+            {/* Tags de Stock */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-3 h-3 rounded-full bg-green-500" />
+                <span className="text-sm font-semibold text-green-600 dark:text-green-400">Stock ({tagsByType.stock.length})</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {tagsByType.stock.map(tag => {
+                  const isSelected = selectedTags.includes(tag);
+                  const index = selectedTags.indexOf(tag);
+                  
+                  return (
+                    <button
+                      key={tag}
+                      onClick={() => toggleTag(tag)}
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-2
+                        ${isSelected 
+                          ? 'bg-green-500 text-white ring-2 ring-green-300'
+                          : isDarkMode 
+                            ? 'bg-gray-700 text-gray-300 hover:bg-green-900/50 hover:text-green-300'
+                            : 'bg-green-50 text-green-700 hover:bg-green-100 border border-green-200'
+                        }`}
+                    >
+                      {isSelected && (
+                        <span className="w-4 h-4 rounded-full bg-white/30 flex items-center justify-center text-xs font-bold">
+                          {index + 1}
+                        </span>
+                      )}
+                      {tag}
+                    </button>
+                  );
+                })}
+                {tagsByType.stock.length === 0 && (
+                  <span className="text-sm text-gray-400 italic">No hay eventos de stock</span>
+                )}
+              </div>
+            </div>
           </div>
           
           {selectedTags.length > 0 && selectedTags.length < 2 && (
@@ -432,6 +492,41 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
               <AlertTriangle className="w-4 h-4" />
               Selecciona al menos 2 contextos para comparar
             </p>
+          )}
+          
+          {selectedTags.length > 0 && (
+            <div className="mt-3 flex items-center gap-2">
+              <span className="text-xs text-gray-500">Orden de comparación:</span>
+              <div className="flex flex-wrap gap-1">
+                {selectedTags.map((tag, idx) => {
+                  const isSolicitud = tagsByType.solicitud.includes(tag);
+                  return (
+                    <span 
+                      key={tag}
+                      className={`px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1
+                        ${isSolicitud ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}
+                    >
+                      <span className="w-4 h-4 rounded-full bg-current/20 flex items-center justify-center text-[10px]">{idx + 1}</span>
+                      {tag}
+                      <button 
+                        onClick={() => setSelectedTags(prev => prev.filter(t => t !== tag))}
+                        className="hover:text-red-500 ml-1"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+              {selectedTags.length > 0 && (
+                <button
+                  onClick={() => setSelectedTags([])}
+                  className="text-xs text-red-500 hover:text-red-600 ml-2"
+                >
+                  Limpiar todo
+                </button>
+              )}
+            </div>
           )}
         </div>
 
@@ -528,24 +623,29 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
         {/* Estadísticas mejoradas */}
         {selectedTags.length >= 2 && (
           <div className={`p-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
-              {selectedTags.slice(0, 2).map((tag, idx) => (
-                <div key={tag} className={`p-3 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold
-                      ${idx === 0 ? 'bg-blue-500 text-white' : 'bg-green-500 text-white'}`}>
-                      {idx + 1}
-                    </span>
-                    <p className="text-xs text-gray-500 truncate flex-1" title={tag}>{tag}</p>
+            <div className="flex flex-wrap gap-3">
+              {selectedTags.map((tag, idx) => {
+                const isSolicitud = tagsByType.solicitud.includes(tag);
+                return (
+                  <div key={tag} className={`p-3 rounded-lg min-w-[160px] ${isSolicitud ? 'bg-blue-50 dark:bg-blue-900/20' : 'bg-green-50 dark:bg-green-900/20'}`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold
+                        ${isSolicitud ? 'bg-blue-500 text-white' : 'bg-green-500 text-white'}`}>
+                        {idx + 1}
+                      </span>
+                      <p className="text-xs text-gray-500 truncate flex-1" title={tag}>{tag}</p>
+                    </div>
+                    <p className="text-lg font-bold">{stats[tag]?.count || 0} <span className="text-sm font-normal">repuestos</span></p>
+                    <p className="text-sm">{stats[tag]?.total || 0} unidades</p>
+                    <p className={`text-sm font-medium ${isSolicitud ? 'text-blue-600' : 'text-green-600'}`}>
+                      ${(stats[tag]?.totalUSD || 0).toLocaleString('es-CL', { minimumFractionDigits: 2 })}
+                    </p>
                   </div>
-                  <p className="text-lg font-bold">{stats[tag]?.count || 0} <span className="text-sm font-normal">repuestos</span></p>
-                  <p className="text-sm">{stats[tag]?.total || 0} unidades</p>
-                  <p className="text-sm text-green-600 font-medium">${(stats[tag]?.totalUSD || 0).toLocaleString('es-CL', { minimumFractionDigits: 2 })}</p>
-                </div>
-              ))}
+                );
+              })}
               
-              {/* Diferencias */}
-              {diffStats && (
+              {/* Diferencias - solo si hay exactamente 2 tags */}
+              {diffStats && selectedTags.length === 2 && (
                 <div className={`p-3 rounded-lg border-2 ${isDarkMode ? 'bg-gray-750 border-gray-600' : 'bg-white border-gray-300'}`}>
                   <p className="text-xs text-gray-500 flex items-center gap-1 mb-1">
                     <Percent className="w-3 h-3" /> Diferencias
@@ -568,7 +668,7 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
               )}
 
               {/* Resumen diferencia */}
-              {diffStats && (
+              {diffStats && selectedTags.length === 2 && (
                 <div className={`p-3 rounded-lg ${diffStats.sumDiff >= 0 ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'}`}>
                   <p className="text-xs text-gray-500 flex items-center gap-1 mb-1">
                     <BarChart3 className="w-3 h-3" /> Balance
@@ -617,39 +717,46 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
                       Valor {getSortIcon('valorUnitario')}
                     </span>
                   </th>
-                  {selectedTags.slice(0, 2).map((tag, idx) => (
-                    <th 
-                      key={tag} 
-                      className="text-center p-2 font-semibold min-w-[100px] cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
-                      onClick={() => handleSort(idx === 0 ? 'tag1' : 'tag2')}
-                    >
-                      <span className="flex items-center justify-center gap-1">
-                        <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold
-                          ${idx === 0 ? 'bg-blue-500 text-white' : 'bg-green-500 text-white'}`}>
-                          {idx + 1}
+                  {selectedTags.map((tag, idx) => {
+                    const isSolicitud = tagsByType.solicitud.includes(tag);
+                    return (
+                      <th 
+                        key={tag} 
+                        className={`text-center p-2 font-semibold min-w-[90px] cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700
+                          ${isSolicitud ? 'bg-blue-50 dark:bg-blue-900/20' : 'bg-green-50 dark:bg-green-900/20'}`}
+                        onClick={() => handleSort(`tag${idx + 1}` as SortField)}
+                      >
+                        <span className="flex items-center justify-center gap-1">
+                          <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold
+                            ${isSolicitud ? 'bg-blue-500 text-white' : 'bg-green-500 text-white'}`}>
+                            {idx + 1}
+                          </span>
                         </span>
-                        {getSortIcon(idx === 0 ? 'tag1' : 'tag2')}
-                      </span>
-                      <span className="text-xs block truncate opacity-70" title={tag}>{tag.substring(0, 20)}</span>
-                    </th>
-                  ))}
-                  <th 
-                    className="text-center p-2 font-semibold cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
-                    onClick={() => handleSort('diferencia')}
-                  >
-                    <span className="flex items-center justify-center gap-1">
-                      Dif. {getSortIcon('diferencia')}
-                    </span>
-                  </th>
-                  {!compactView && (
-                    <th className="text-center p-2 font-semibold">Dif. USD</th>
+                        <span className="text-xs block truncate opacity-70" title={tag}>{tag.substring(0, 15)}</span>
+                      </th>
+                    );
+                  })}
+                  {selectedTags.length === 2 && (
+                    <>
+                      <th 
+                        className="text-center p-2 font-semibold cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                        onClick={() => handleSort('diferencia')}
+                      >
+                        <span className="flex items-center justify-center gap-1">
+                          Dif. {getSortIcon('diferencia')}
+                        </span>
+                      </th>
+                      {!compactView && (
+                        <th className="text-center p-2 font-semibold">Dif. USD</th>
+                      )}
+                    </>
                   )}
                 </tr>
               </thead>
               <tbody>
                 {repuestosConTags.map((r, idx) => {
-                  const cantidades = selectedTags.slice(0, 2).map(tag => getCantidadTag(r, tag) ?? 0);
-                  const diferencia = cantidades[0] - cantidades[1];
+                  const cantidades = selectedTags.map(tag => getCantidadTag(r, tag) ?? 0);
+                  const diferencia = selectedTags.length === 2 ? cantidades[0] - cantidades[1] : 0;
                   const difUSD = diferencia * r.valorUnitario;
                   
                   return (
@@ -664,34 +771,39 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
                         <td className="p-2 truncate max-w-[200px]" title={r.textoBreve}>{r.textoBreve}</td>
                       )}
                       <td className="p-2 text-right text-xs">${r.valorUnitario.toFixed(2)}</td>
-                      {selectedTags.slice(0, 2).map((tag, i) => {
+                      {selectedTags.map((tag, i) => {
                         const cantidad = getCantidadTag(r, tag);
                         const noTiene = cantidad === null || cantidad === 0;
+                        const isSolicitud = tagsByType.solicitud.includes(tag);
                         
                         return (
                           <td 
                             key={tag} 
                             className={`p-2 text-center font-medium
                               ${noTiene ? 'text-gray-300 dark:text-gray-600' : ''}
-                              ${!noTiene && i === 0 ? 'text-blue-600' : ''}
-                              ${!noTiene && i === 1 ? 'text-green-600' : ''}
+                              ${!noTiene && isSolicitud ? 'text-blue-600' : ''}
+                              ${!noTiene && !isSolicitud ? 'text-green-600' : ''}
                             `}
                           >
                             {noTiene ? <Minus className="w-4 h-4 mx-auto opacity-30" /> : cantidad}
                           </td>
                         );
                       })}
-                      <td className={`p-2 text-center font-bold
-                        ${diferencia > 0 ? 'text-green-600' : diferencia < 0 ? 'text-red-600' : 'text-gray-400'}
-                      `}>
-                        {diferencia > 0 ? `+${diferencia}` : diferencia === 0 ? '=' : diferencia}
-                      </td>
-                      {!compactView && (
-                        <td className={`p-2 text-center text-xs
-                          ${difUSD > 0 ? 'text-green-600' : difUSD < 0 ? 'text-red-600' : 'text-gray-400'}
-                        `}>
-                          {difUSD !== 0 ? `${difUSD > 0 ? '+' : ''}$${difUSD.toFixed(2)}` : '-'}
-                        </td>
+                      {selectedTags.length === 2 && (
+                        <>
+                          <td className={`p-2 text-center font-bold
+                            ${diferencia > 0 ? 'text-green-600' : diferencia < 0 ? 'text-red-600' : 'text-gray-400'}
+                          `}>
+                            {diferencia > 0 ? `+${diferencia}` : diferencia === 0 ? '=' : diferencia}
+                          </td>
+                          {!compactView && (
+                            <td className={`p-2 text-center text-xs
+                              ${difUSD > 0 ? 'text-green-600' : difUSD < 0 ? 'text-red-600' : 'text-gray-400'}
+                            `}>
+                              {difUSD !== 0 ? `${difUSD > 0 ? '+' : ''}$${difUSD.toFixed(2)}` : '-'}
+                            </td>
+                          )}
+                        </>
                       )}
                     </tr>
                   );
@@ -700,18 +812,22 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
               <tfoot className={`sticky bottom-0 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} font-bold border-t-2 ${isDarkMode ? 'border-gray-600' : 'border-gray-300'}`}>
                 <tr>
                   <td className="p-2" colSpan={compactView ? 2 : 3}>TOTALES ({repuestosConTags.length})</td>
-                  {selectedTags.slice(0, 2).map(tag => (
+                  {selectedTags.map(tag => (
                     <td key={tag} className="p-2 text-center">
                       {stats[tag]?.total || 0}
                     </td>
                   ))}
-                  <td className={`p-2 text-center ${(diffStats?.sumDiff || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {(diffStats?.sumDiff || 0) >= 0 ? '+' : ''}{diffStats?.sumDiff || 0}
-                  </td>
-                  {!compactView && (
-                    <td className={`p-2 text-center ${(diffStats?.sumDiffUSD || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      ${(diffStats?.sumDiffUSD || 0).toLocaleString('es-CL', { minimumFractionDigits: 2 })}
-                    </td>
+                  {selectedTags.length === 2 && (
+                    <>
+                      <td className={`p-2 text-center ${(diffStats?.sumDiff || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {(diffStats?.sumDiff || 0) >= 0 ? '+' : ''}{diffStats?.sumDiff || 0}
+                      </td>
+                      {!compactView && (
+                        <td className={`p-2 text-center ${(diffStats?.sumDiffUSD || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          ${(diffStats?.sumDiffUSD || 0).toLocaleString('es-CL', { minimumFractionDigits: 2 })}
+                        </td>
+                      )}
+                    </>
                   )}
                 </tr>
               </tfoot>
