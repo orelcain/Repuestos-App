@@ -1,8 +1,22 @@
 // Versión de la aplicación
-export const APP_VERSION = '3.4.3';
+export const APP_VERSION = '3.4.4';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '3.4.4',
+    date: '2025-12-21',
+    changes: [
+      'UI: Tabla desktop con columnas mejor distribuidas - descripciones más legibles',
+      'UI: Valores numéricos centrados, más grandes y destacados en tabla',
+      'PWA: Vista móvil ahora muestra cantidades según contexto/tag activo',
+      'PWA: Tarjetas con dark mode completo y diseño mejorado',
+      'PWA: Filtrado de tags muestra solo tag activo cuando hay contexto',
+      'GALERÍA: Botón de cámara separado para captura directa en móvil',
+      'GALERÍA: Indicador de optimización WebP automática',
+      'MEJORA: Total USD destacado con fondo amarillo'
+    ]
+  },
   {
     version: '3.4.3',
     date: '2025-12-21',

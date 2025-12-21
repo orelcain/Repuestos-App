@@ -11,7 +11,9 @@ import {
   StarOff,
   ZoomIn,
   X,
-  Upload
+  Upload,
+  Camera,
+  Image as ImageIcon
 } from 'lucide-react';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 
@@ -37,7 +39,9 @@ export function ImageGallery({
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [currentFileIndex, setCurrentFileIndex] = useState(0);
   const [showQualityModal, setShowQualityModal] = useState(false);
+  const [showUploadOptions, setShowUploadOptions] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const imagenes = tipo === 'manual' ? repuesto?.imagenesManual : repuesto?.fotosReales;
   const sortedImages = [...(imagenes || [])].sort((a, b) => a.orden - b.orden);
@@ -106,31 +110,65 @@ export function ImageGallery({
   }
 
   return (
-    <div className="h-full flex flex-col bg-white rounded-lg border border-gray-200 overflow-hidden animate-slideInRight">
+    <div className="h-full flex flex-col bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden animate-slideInRight">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="font-semibold text-gray-800">
+            <h3 className="font-semibold text-gray-800 dark:text-gray-200">
               {tipo === 'manual' ? 'Imágenes del Manual' : 'Fotos Reales'}
             </h3>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
               {repuesto.codigoBaader} - {repuesto.textoBreve.substring(0, 30)}...
             </p>
           </div>
-          <Button
-            size="sm"
-            onClick={() => fileInputRef.current?.click()}
-            loading={uploading}
-            icon={<Plus className="w-4 h-4" />}
-          >
-            Agregar
-          </Button>
+          
+          {/* Botones de agregar con opciones para móvil */}
+          <div className="relative">
+            <div className="flex items-center gap-1">
+              {/* Botón Galería */}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                loading={uploading}
+                icon={<ImageIcon className="w-4 h-4" />}
+                title="Seleccionar de galería"
+              >
+                <span className="hidden sm:inline">Galería</span>
+              </Button>
+              
+              {/* Botón Cámara - solo para fotos reales y en móvil */}
+              {tipo === 'real' && (
+                <Button
+                  size="sm"
+                  onClick={() => cameraInputRef.current?.click()}
+                  loading={uploading}
+                  icon={<Camera className="w-4 h-4" />}
+                  title="Tomar foto con cámara"
+                >
+                  <span className="hidden sm:inline">Cámara</span>
+                </Button>
+              )}
+            </div>
+          </div>
+          
+          {/* Input para galería */}
           <input
             ref={fileInputRef}
             type="file"
             accept="image/*"
             multiple
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+          
+          {/* Input para cámara - captura directa y optimizada */}
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
             onChange={handleFileSelect}
             className="hidden"
           />
@@ -141,19 +179,39 @@ export function ImageGallery({
       <div className="flex-1 flex flex-col">
         {sortedImages.length === 0 ? (
           <div 
-            className="flex-1 flex flex-col items-center justify-center p-8 missing-image-indicator cursor-pointer"
-            onClick={() => fileInputRef.current?.click()}
+            className="flex-1 flex flex-col items-center justify-center p-8 missing-image-indicator"
           >
             <Upload className="w-12 h-12 text-amber-500 mb-3" />
-            <p className="text-amber-700 font-medium mb-1">Sin imágenes</p>
-            <p className="text-sm text-amber-600 text-center">
-              Haz clic para agregar {tipo === 'manual' ? 'imágenes del manual' : 'fotos reales'}
+            <p className="text-amber-700 dark:text-amber-400 font-medium mb-3">Sin imágenes</p>
+            
+            {/* Opciones de carga para móvil */}
+            <div className="flex flex-col sm:flex-row gap-2 w-full max-w-xs">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl text-gray-700 dark:text-gray-300 font-medium transition-colors"
+              >
+                <ImageIcon className="w-5 h-5" />
+                <span>Galería</span>
+              </button>
+              {tipo === 'real' && (
+                <button
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-primary-100 dark:bg-primary-900/50 hover:bg-primary-200 dark:hover:bg-primary-900/70 rounded-xl text-primary-700 dark:text-primary-300 font-medium transition-colors"
+                >
+                  <Camera className="w-5 h-5" />
+                  <span>Cámara</span>
+                </button>
+              )}
+            </div>
+            
+            <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-3">
+              Las imágenes se optimizarán automáticamente a WebP
             </p>
           </div>
         ) : (
           <>
             {/* Main Image */}
-            <div className="relative flex-1 bg-gray-100 flex items-center justify-center min-h-[200px]">
+            <div className="relative flex-1 bg-gray-100 dark:bg-gray-900 flex items-center justify-center min-h-[200px]">
               <img
                 src={sortedImages[currentIndex]?.url}
                 alt={sortedImages[currentIndex]?.descripcion || 'Imagen del repuesto'}

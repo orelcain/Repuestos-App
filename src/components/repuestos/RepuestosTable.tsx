@@ -1178,9 +1178,9 @@ export function RepuestosTable({
                 >
                   {/* Código SAP con botón copiar */}
                   {isColumnVisible('codigoSAP') && (
-                  <td className="px-4 py-4">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm bg-gray-100 px-3 py-1.5 rounded-lg font-semibold text-gray-800">
+                  <td className="px-3 py-3 whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono text-sm bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded font-bold text-gray-800 dark:text-gray-200">
                         {repuesto.codigoSAP}
                       </span>
                       <button
@@ -1203,9 +1203,9 @@ export function RepuestosTable({
 
                   {/* Código Baader con botón copiar */}
                   {isColumnVisible('codigoBaader') && (
-                  <td className="px-4 py-4">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm text-primary-700 font-semibold">
+                  <td className="px-3 py-3 whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono text-sm text-primary-700 dark:text-primary-400 font-bold">
                         {repuesto.codigoBaader}
                       </span>
                       <button
@@ -1228,9 +1228,9 @@ export function RepuestosTable({
 
                   {/* Descripción SAP (textoBreve) */}
                   {isColumnVisible('textoBreve') && (
-                  <td className="px-4 py-4">
+                  <td className="px-3 py-3 min-w-[200px] max-w-[300px]">
                     <div className="flex items-center gap-1">
-                      <span className="text-sm text-gray-800 truncate max-w-[150px]" title={repuesto.textoBreve}>
+                      <span className="text-sm text-gray-800 dark:text-gray-200 line-clamp-2" title={repuesto.textoBreve}>
                         {repuesto.textoBreve}
                       </span>
                       <button
@@ -1253,12 +1253,12 @@ export function RepuestosTable({
 
                   {/* Descripción Extendida */}
                   {isColumnVisible('descripcion') && (
-                  <td className="px-4 py-4">
+                  <td className="px-3 py-3 min-w-[250px] max-w-[400px]">
                     <div className="space-y-1">
                       <div className="flex items-center gap-1">
                         {repuesto.descripcion ? (
                           <>
-                            <span className="text-sm text-gray-700 truncate max-w-[150px]" title={repuesto.descripcion}>
+                            <span className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2" title={repuesto.descripcion}>
                               {repuesto.descripcion}
                             </span>
                             <button
@@ -1379,40 +1379,40 @@ export function RepuestosTable({
 
                   {/* Cantidad Solicitada - según contexto activo */}
                   {isColumnVisible('cantidadSolicitada') && (
-                  <td className="px-4 py-4 text-center">
+                  <td className="px-2 py-3 text-center">
                     {activeContextTag ? (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleViewFieldHistory(repuesto, 'cantidadSolicitada');
                         }}
-                        className="text-base font-semibold px-3 py-1.5 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                        className="text-xl font-bold px-4 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-700 dark:text-blue-400 transition-colors min-w-[60px]"
                         title={`Cantidad en "${activeContextTag}" - Ver historial`}
                       >
                         {getCantidadPorContexto(repuesto, 'solicitud')}
                       </button>
                     ) : (
-                      <span className="text-xs text-gray-400 italic">--</span>
+                      <span className="text-sm text-gray-400 dark:text-gray-500">--</span>
                     )}
                   </td>
                   )}
 
                   {/* Total Solicitado USD */}
                   {isColumnVisible('totalSolicitadoUSD') && (
-                  <td className="px-4 py-4 text-right">
+                  <td className="px-2 py-3 text-center">
                     {activeContextTag ? (
-                      <span className="text-sm font-semibold text-blue-600">
+                      <span className="text-base font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
                         ${(repuesto.valorUnitario * getCantidadPorContexto(repuesto, 'solicitud')).toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     ) : (
-                      <span className="text-xs text-gray-400">--</span>
+                      <span className="text-sm text-gray-400 dark:text-gray-500">--</span>
                     )}
                   </td>
                   )}
 
                   {/* Stock Bodega - según contexto activo */}
                   {isColumnVisible('cantidadStockBodega') && (
-                  <td className="px-4 py-4 text-center">
+                  <td className="px-2 py-3 text-center">
                     {activeContextTag ? (() => {
                       const stockEnContexto = getCantidadPorContexto(repuesto, 'stock');
                       return (
@@ -1422,10 +1422,10 @@ export function RepuestosTable({
                             handleViewFieldHistory(repuesto, 'cantidadStockBodega');
                           }}
                           className={`
-                            px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors
+                            px-4 py-2 rounded-lg text-xl font-bold transition-colors min-w-[60px]
                             ${stockEnContexto > 0 
-                              ? 'bg-green-100 text-green-700 hover:bg-green-200' 
-                              : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                              ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/60' 
+                              : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
                             }
                           `}
                           title={`Stock en "${activeContextTag}" - Ver historial`}
@@ -1434,28 +1434,28 @@ export function RepuestosTable({
                         </button>
                       );
                     })() : (
-                      <span className="text-xs text-gray-400 italic">--</span>
+                      <span className="text-sm text-gray-400 dark:text-gray-500">--</span>
                     )}
                   </td>
                   )}
 
                   {/* Total Stock USD */}
                   {isColumnVisible('totalStockUSD') && (
-                  <td className="px-4 py-4 text-right">
+                  <td className="px-2 py-3 text-center">
                     {activeContextTag ? (
-                      <span className="text-sm font-medium text-purple-600">
+                      <span className="text-base font-bold text-green-600 dark:text-green-400 whitespace-nowrap">
                         ${(repuesto.valorUnitario * getCantidadPorContexto(repuesto, 'stock')).toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     ) : (
-                      <span className="text-xs text-gray-400">--</span>
+                      <span className="text-sm text-gray-400 dark:text-gray-500">--</span>
                     )}
                   </td>
                   )}
 
                   {/* Valor unitario */}
                   {isColumnVisible('valorUnitario') && (
-                  <td className="px-4 py-4 text-right">
-                    <span className="text-base text-gray-600 font-medium">
+                  <td className="px-2 py-3 text-center">
+                    <span className="text-lg font-bold text-gray-700 dark:text-gray-300 whitespace-nowrap">
                       ${repuesto.valorUnitario?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
                     </span>
                   </td>
@@ -1463,13 +1463,13 @@ export function RepuestosTable({
 
                   {/* Total USD */}
                   {isColumnVisible('totalUSD') && (
-                  <td className="px-4 py-4 text-right">
+                  <td className="px-2 py-3 text-center">
                     {activeContextTag ? (
-                      <span className="text-base font-bold text-gray-800">
+                      <span className="text-lg font-black text-gray-900 dark:text-white whitespace-nowrap bg-yellow-50 dark:bg-yellow-900/30 px-3 py-1 rounded-lg">
                         ${((repuesto.valorUnitario * getCantidadPorContexto(repuesto, 'solicitud')) + (repuesto.valorUnitario * getCantidadPorContexto(repuesto, 'stock'))).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     ) : (
-                      <span className="text-xs text-gray-400">--</span>
+                      <span className="text-sm text-gray-400 dark:text-gray-500">--</span>
                     )}
                   </td>
                   )}
@@ -1679,25 +1679,36 @@ export function RepuestosTable({
         <div className="p-3 space-y-3">
           {paginatedRepuestos.map((repuesto) => {
             const hasManualMarker = repuesto.vinculosManual && repuesto.vinculosManual.length > 0;
+            const isLastEdited = ultimoRepuestoEditado?.id === repuesto.id;
             
             return (
               <div
                 key={repuesto.id}
                 onClick={() => onSelect(selectedRepuesto?.id === repuesto.id ? null : repuesto)}
                 className={`
-                  bg-white rounded-xl border-2 p-4 cursor-pointer transition-all
-                  ${selectedRepuesto?.id === repuesto.id 
-                    ? 'border-primary-500 shadow-lg' 
-                    : 'border-gray-200 hover:border-gray-300 hover:shadow'
+                  bg-white dark:bg-gray-800 rounded-2xl border-2 p-4 cursor-pointer transition-all shadow-sm
+                  ${isLastEdited
+                    ? 'border-orange-400 dark:border-orange-500 bg-orange-50 dark:bg-orange-900/20 shadow-orange-200 dark:shadow-orange-900/30 shadow-md'
+                    : selectedRepuesto?.id === repuesto.id 
+                      ? 'border-primary-500 dark:border-primary-400 shadow-lg shadow-primary-200 dark:shadow-primary-900/30' 
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-md'
                   }
                 `}
               >
+                {/* Badge de último editado */}
+                {isLastEdited && (
+                  <div className="flex items-center gap-1 text-xs font-medium text-orange-600 dark:text-orange-400 mb-2">
+                    <span className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
+                    Último editado
+                  </div>
+                )}
+                
                 {/* Header con códigos */}
                 <div className="flex items-start justify-between gap-2 mb-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-medium text-gray-500">SAP:</span>
-                      <span className="font-mono text-sm bg-gray-100 px-2 py-0.5 rounded font-semibold text-gray-800">
+                  <div className="flex-1 min-w-0 space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide">SAP</span>
+                      <span className="font-mono text-sm bg-gray-100 dark:bg-gray-700 px-2.5 py-1 rounded-lg font-bold text-gray-800 dark:text-gray-200">
                         {repuesto.codigoSAP}
                       </span>
                       <button
@@ -1705,18 +1716,18 @@ export function RepuestosTable({
                           e.stopPropagation();
                           handleCopy(repuesto.codigoSAP, `sap-m-${repuesto.id}`);
                         }}
-                        className="p-1 rounded hover:bg-gray-200 text-gray-400"
+                        className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-400 transition-colors"
                       >
                         {copiedId === `sap-m-${repuesto.id}` ? (
-                          <Check className="w-3.5 h-3.5 text-green-500" />
+                          <Check className="w-4 h-4 text-green-500" />
                         ) : (
-                          <Copy className="w-3.5 h-3.5" />
+                          <Copy className="w-4 h-4" />
                         )}
                       </button>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-gray-500">Baader:</span>
-                      <span className="font-mono text-sm text-primary-700 font-semibold">
+                      <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide">Part#</span>
+                      <span className="font-mono text-sm text-primary-600 dark:text-primary-400 font-bold">
                         {repuesto.codigoBaader}
                       </span>
                       <button
@@ -1724,10 +1735,10 @@ export function RepuestosTable({
                           e.stopPropagation();
                           handleCopy(repuesto.codigoBaader, `baader-m-${repuesto.id}`);
                         }}
-                        className="p-1 rounded hover:bg-gray-200 text-gray-400"
+                        className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-400 transition-colors"
                       >
                         {copiedId === `baader-m-${repuesto.id}` ? (
-                          <Check className="w-3.5 h-3.5 text-green-500" />
+                          <Check className="w-4 h-4 text-green-500" />
                         ) : (
                           <Copy className="w-3.5 h-3.5" />
                         )}
@@ -1740,89 +1751,141 @@ export function RepuestosTable({
                         e.stopPropagation();
                         onMarkInManual(repuesto);
                       }}
-                      className="p-2 rounded-lg bg-amber-100 text-amber-600"
+                      className="p-2.5 rounded-xl bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400"
                       title="Marcar en manual"
                     >
-                      <MapPin className="w-4 h-4" />
+                      <MapPin className="w-5 h-5" />
                     </button>
                   )}
                 </div>
 
-                {/* Descripciones (3 campos) */}
-                <div className="space-y-2 mb-3">
+                {/* Descripciones con mejor legibilidad */}
+                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3 mb-3 space-y-1.5">
                   {/* Descripción SAP */}
                   {repuesto.textoBreve && (
-                    <div className="flex items-start gap-2">
-                      <span className="text-xs text-gray-400 font-medium min-w-[60px]">SAP:</span>
-                      <span className="text-sm text-gray-700 line-clamp-1 flex-1">{repuesto.textoBreve}</span>
-                    </div>
+                    <p className="text-sm text-gray-800 dark:text-gray-200 font-medium line-clamp-2">
+                      {repuesto.textoBreve}
+                    </p>
                   )}
                   {/* Descripción Extendida */}
                   {repuesto.descripcion && (
-                    <div className="flex items-start gap-2">
-                      <span className="text-xs text-gray-400 font-medium min-w-[60px]">Extendida:</span>
-                      <span className="text-sm text-gray-600 line-clamp-2 flex-1">{repuesto.descripcion}</span>
-                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                      {repuesto.descripcion}
+                    </p>
                   )}
-                  {/* Nombre Manual */}
-                  {repuesto.nombreManual && (
-                    <div className="flex items-start gap-2">
-                      <span className="text-xs text-gray-400 font-medium min-w-[60px]">Manual:</span>
-                      <span className="text-sm text-gray-600 line-clamp-1 flex-1">{repuesto.nombreManual}</span>
-                    </div>
+                  {/* Nombre Manual - si es diferente */}
+                  {repuesto.nombreManual && repuesto.nombreManual !== repuesto.textoBreve && (
+                    <p className="text-xs text-primary-600 dark:text-primary-400 italic">
+                      Manual: {repuesto.nombreManual}
+                    </p>
                   )}
                   {/* Si no hay ninguna descripción */}
                   {!repuesto.textoBreve && !repuesto.descripcion && !repuesto.nombreManual && (
-                    <p className="text-sm text-gray-400 italic">Sin descripción</p>
+                    <p className="text-sm text-gray-400 dark:text-gray-500 italic">Sin descripción</p>
                   )}
                 </div>
 
-                {/* Tags */}
+                {/* Tags - mostrar solo los del contexto activo si hay contexto */}
                 {repuesto.tags && repuesto.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {repuesto.tags.map((tag, index) => (
-                      <span key={`${getTagNombre(tag)}-${index}`} className="inline-flex items-center px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs font-medium">
-                        {isTagAsignado(tag) ? `${tag.nombre} (${tag.cantidad})` : tag}
-                      </span>
-                    ))}
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {repuesto.tags
+                      .filter(tag => {
+                        if (!activeContextTag) return true; // Sin contexto: mostrar todos
+                        if (!isTagAsignado(tag)) return false;
+                        return tag.nombre === activeContextTag; // Con contexto: solo el tag activo
+                      })
+                      .map((tag, index) => {
+                        const tagInfo = isTagAsignado(tag) ? tag : null;
+                        const isSolicitud = tagInfo?.tipo === 'solicitud';
+                        return (
+                          <span 
+                            key={`${getTagNombre(tag)}-${index}`} 
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold ${
+                              isSolicitud 
+                                ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700' 
+                                : 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-700'
+                            }`}
+                          >
+                            {isSolicitud ? <ShoppingCart className="w-3 h-3" /> : <Package className="w-3 h-3" />}
+                            {tagInfo ? `${tag.nombre} (${tag.cantidad})` : tag}
+                          </span>
+                        );
+                      })}
                   </div>
                 )}
 
-                {/* Grid de datos numéricos */}
+                {/* Grid de datos numéricos - usar cantidades del contexto activo */}
                 <div className="grid grid-cols-2 gap-2 mb-3">
-                  <div className="bg-gray-50 rounded-lg p-2">
-                    <span className="text-xs text-gray-500 block">Cant. Solicitada</span>
-                    <span className="text-lg font-bold text-gray-800">{repuesto.cantidadSolicitada}</span>
-                  </div>
-                  <div className={`rounded-lg p-2 ${repuesto.cantidadStockBodega > 0 ? 'bg-green-50' : 'bg-gray-50'}`}>
-                    <span className="text-xs text-gray-500 block">Stock Bodega</span>
-                    <span className={`text-lg font-bold ${repuesto.cantidadStockBodega > 0 ? 'text-green-700' : 'text-gray-500'}`}>
-                      {repuesto.cantidadStockBodega}
-                    </span>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-2">
-                    <span className="text-xs text-gray-500 block">V. Unitario</span>
-                    <span className="text-sm font-semibold text-gray-700">
+                  {/* Cantidad Solicitada - solo si hay contexto y es de tipo solicitud o sin contexto */}
+                  {(!activeContextTag || activeContextTipo === 'solicitud' || !activeContextTipo) && (
+                    <div className={`rounded-xl p-3 ${activeContextTag ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'}`}>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 block font-medium">
+                        {activeContextTag ? `Solicitada "${activeContextTag}"` : 'Cant. Solicitada'}
+                      </span>
+                      <span className={`text-2xl font-black ${activeContextTag ? 'text-blue-700' : 'text-gray-800'}`}>
+                        {activeContextTag ? getCantidadPorContexto(repuesto, 'solicitud') : '--'}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {/* Stock Bodega - solo si hay contexto y es de tipo stock o sin contexto */}
+                  {(!activeContextTag || activeContextTipo === 'stock' || !activeContextTipo) && (() => {
+                    const stockValue = activeContextTag ? getCantidadPorContexto(repuesto, 'stock') : 0;
+                    return (
+                      <div className={`rounded-xl p-3 ${
+                        activeContextTag 
+                          ? stockValue > 0 ? 'bg-green-50 border border-green-200' : 'bg-orange-50 border border-orange-200' 
+                          : 'bg-gray-50'
+                      }`}>
+                        <span className="text-xs text-gray-500 dark:text-gray-400 block font-medium">
+                          {activeContextTag ? `Stock "${activeContextTag}"` : 'Stock Bodega'}
+                        </span>
+                        <span className={`text-2xl font-black ${
+                          activeContextTag 
+                            ? stockValue > 0 ? 'text-green-700' : 'text-orange-600'
+                            : 'text-gray-500'
+                        }`}>
+                          {activeContextTag ? stockValue : '--'}
+                        </span>
+                      </div>
+                    );
+                  })()}
+                  
+                  {/* Valor Unitario */}
+                  <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-3">
+                    <span className="text-xs text-gray-500 dark:text-gray-400 block font-medium">V. Unitario</span>
+                    <span className="text-lg font-bold text-gray-700 dark:text-gray-200">
                       ${repuesto.valorUnitario?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
                     </span>
                   </div>
-                  <div className="bg-primary-50 rounded-lg p-2">
-                    <span className="text-xs text-gray-500 block">Total General USD</span>
-                    <span className="text-sm font-bold text-primary-700">
-                      ${((repuesto.valorUnitario * repuesto.cantidadSolicitada) + (repuesto.valorUnitario * (repuesto.cantidadStockBodega || 0))).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  
+                  {/* Total USD - según contexto */}
+                  <div className={`rounded-xl p-3 ${activeContextTag ? 'bg-yellow-50 border border-yellow-300' : 'bg-primary-50'}`}>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 block font-medium">
+                      {activeContextTag ? 'Total Contexto' : 'Total General USD'}
+                    </span>
+                    <span className={`text-lg font-black ${activeContextTag ? 'text-yellow-700 dark:text-yellow-400' : 'text-primary-700 dark:text-primary-400'}`}>
+                      {activeContextTag 
+                        ? `$${((repuesto.valorUnitario * getCantidadPorContexto(repuesto, 'solicitud')) + (repuesto.valorUnitario * getCantidadPorContexto(repuesto, 'stock'))).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                        : '--'
+                      }
                     </span>
                   </div>
                 </div>
 
-                {/* Acciones */}
-                <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                  <div className="flex items-center gap-1">
+                {/* Acciones con mejor estilo PWA */}
+                <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-600">
+                  <div className="flex items-center gap-1.5">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         onViewManual(repuesto);
                       }}
-                      className={`p-2 rounded-lg ${hasManualMarker ? 'bg-primary-100 text-primary-600' : 'bg-gray-100 text-gray-400'}`}
+                      className={`p-2.5 rounded-xl transition-colors ${
+                        hasManualMarker 
+                          ? 'bg-primary-100 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400' 
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500'
+                      }`}
                       title="Ver en manual"
                     >
                       <FileText className="w-5 h-5" />
@@ -1832,7 +1895,11 @@ export function RepuestosTable({
                         e.stopPropagation();
                         onViewPhotos(repuesto);
                       }}
-                      className={`p-2 rounded-lg ${repuesto.fotosReales?.length > 0 ? 'bg-gray-100 text-gray-600' : 'bg-gray-100 text-gray-300'}`}
+                      className={`p-2.5 rounded-xl transition-colors ${
+                        repuesto.fotosReales?.length > 0 
+                          ? 'bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-400' 
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-300 dark:text-gray-600'
+                      }`}
                       title="Fotos"
                     >
                       <Camera className="w-5 h-5" />
@@ -1842,19 +1909,19 @@ export function RepuestosTable({
                         e.stopPropagation();
                         onViewHistory(repuesto);
                       }}
-                      className="p-2 rounded-lg bg-gray-100 text-gray-500"
+                      className="p-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors"
                       title="Historial"
                     >
                       <History className="w-5 h-5" />
                     </button>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         onEdit(repuesto);
                       }}
-                      className="p-2 rounded-lg bg-blue-50 text-blue-600"
+                      className="p-2.5 rounded-xl bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 transition-colors"
                       title="Editar"
                     >
                       <Edit2 className="w-5 h-5" />
@@ -1864,7 +1931,7 @@ export function RepuestosTable({
                         e.stopPropagation();
                         onDelete(repuesto);
                       }}
-                      className="p-2 rounded-lg bg-red-50 text-red-600"
+                      className="p-2.5 rounded-xl bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 transition-colors"
                       title="Eliminar"
                     >
                       <Trash2 className="w-5 h-5" />
