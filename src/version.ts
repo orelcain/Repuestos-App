@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '2.7.1';
+export const APP_VERSION = '2.7.2';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '2.7.2',
+    date: '2025-12-20',
+    changes: [
+      'Destacado visual: Última fila editada se muestra con fondo naranja tenue',
+      'Nuevo botón "Último editado" en el header para navegar rápidamente',
+      'Scroll automático al último repuesto modificado',
+      'Mejora de UX para flujo de trabajo de edición secuencial'
+    ]
+  },
   {
     version: '2.7.1',
     date: '2025-12-20',

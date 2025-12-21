@@ -364,6 +364,34 @@ export function RepuestosTable({
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedRepuestos = filteredRepuestos.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
+  // Encontrar el último repuesto editado
+  const ultimoRepuestoEditado = useMemo(() => {
+    if (repuestos.length === 0) return null;
+    return repuestos.reduce((latest, current) => {
+      const latestDate = latest.updatedAt instanceof Date ? latest.updatedAt : new Date(latest.updatedAt);
+      const currentDate = current.updatedAt instanceof Date ? current.updatedAt : new Date(current.updatedAt);
+      return currentDate > latestDate ? current : latest;
+    });
+  }, [repuestos]);
+
+  // Función para navegar al último repuesto editado
+  const irAlUltimoEditado = () => {
+    if (!ultimoRepuestoEditado) return;
+    
+    const index = filteredRepuestos.findIndex(r => r.id === ultimoRepuestoEditado.id);
+    if (index === -1) return;
+    
+    const pageNumber = Math.floor(index / ITEMS_PER_PAGE) + 1;
+    setCurrentPage(pageNumber);
+    onSelect(ultimoRepuestoEditado);
+    
+    // Scroll suave hacia el elemento después de un pequeño delay
+    setTimeout(() => {
+      const element = document.getElementById(`repuesto-${ultimoRepuestoEditado.id}`);
+      element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+  };
+
   // Reset página al buscar o filtrar
   useEffect(() => {
     setCurrentPage(1);
@@ -469,6 +497,18 @@ export function RepuestosTable({
             </span>
           </h2>
           <div className="flex items-center gap-2">
+            {/* Botón último repuesto editado */}
+            {ultimoRepuestoEditado && (
+              <button
+                onClick={irAlUltimoEditado}
+                className="flex items-center gap-2 px-3 py-2.5 border border-orange-300 bg-orange-50 text-orange-700 rounded-lg hover:bg-orange-100 transition-colors"
+                title={`Ir a ${ultimoRepuestoEditado.codigoSAP}`}
+              >
+                <History className="w-4 h-4" />
+                <span className="hidden sm:inline text-sm font-medium">Último editado</span>
+              </button>
+            )}
+            
             {/* Filtro por tags (multi-selección) */}
             <div className="relative">
               <button
@@ -909,16 +949,20 @@ export function RepuestosTable({
           <tbody>
             {paginatedRepuestos.map((repuesto) => {
               const hasManualMarker = repuesto.vinculosManual && repuesto.vinculosManual.length > 0;
+              const isLastEdited = ultimoRepuestoEditado?.id === repuesto.id;
               
               return (
                 <tr
                   key={repuesto.id}
+                  id={`repuesto-${repuesto.id}`}
                   onClick={() => onSelect(selectedRepuesto?.id === repuesto.id ? null : repuesto)}
                   className={`
-                    border-b border-gray-100 cursor-pointer transition-colors
-                    ${selectedRepuesto?.id === repuesto.id 
-                      ? 'bg-primary-50 border-primary-200' 
-                      : 'hover:bg-gray-50'
+                    border-b cursor-pointer transition-colors
+                    ${isLastEdited
+                      ? 'bg-orange-100/50 border-orange-300 border-2' 
+                      : selectedRepuesto?.id === repuesto.id 
+                        ? 'bg-primary-50 border-primary-200' 
+                        : 'border-gray-100 hover:bg-gray-50'
                     }
                   `}
                 >
