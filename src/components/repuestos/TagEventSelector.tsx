@@ -152,7 +152,14 @@ export function TagEventSelector({ tags, onTagsChange, valorUnitario }: TagEvent
                   {tag.fecha && (
                     <span className="text-xs text-gray-400 flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
-                      {new Date(tag.fecha).toLocaleDateString('es-CL')}
+                      {(() => {
+                        try {
+                          const fecha = tag.fecha instanceof Date ? tag.fecha : new Date(tag.fecha);
+                          return isNaN(fecha.getTime()) ? '' : fecha.toLocaleDateString('es-CL');
+                        } catch {
+                          return '';
+                        }
+                      })()}
                     </span>
                   )}
                 </div>

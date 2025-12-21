@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '3.4.1';
+export const APP_VERSION = '3.4.2';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '3.4.2',
+    date: '2025-12-21',
+    changes: [
+      'LIMPIEZA: Removidos campos legacy "Cantidad Solicitada" y "Stock Bodega"',
+      'El formulario ahora solo tiene Valor Unitario + Tags con cantidades',
+      'Las cantidades se manejan 100% desde los tags/eventos',
+      'Corregido error "Invalid Date" al mostrar fechas de tags'
+    ]
+  },
   {
     version: '3.4.1',
     date: '2025-12-21',

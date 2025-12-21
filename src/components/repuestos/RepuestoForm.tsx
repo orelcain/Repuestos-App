@@ -136,18 +136,8 @@ export function RepuestoForm({ isOpen, onClose, onSave, repuesto }: RepuestoForm
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Cantidad Solicitada */}
-          <Input
-            label="Cantidad Solicitada"
-            type="number"
-            min="0"
-            value={formData.cantidadSolicitada}
-            onChange={(e) => handleChange('cantidadSolicitada', parseInt(e.target.value) || 0)}
-            required
-          />
-
-          {/* Valor Unitario */}
+        <div className="grid grid-cols-1 gap-4">
+          {/* Valor Unitario - El único campo numérico necesario */}
           <Input
             label="Valor Unitario (USD)"
             type="number"
@@ -157,20 +147,9 @@ export function RepuestoForm({ isOpen, onClose, onSave, repuesto }: RepuestoForm
             onChange={(e) => handleChange('valorUnitario', parseFloat(e.target.value) || 0)}
             required
           />
-
-          {/* Stock Bodega - LEGACY, se usa para compatibilidad */}
-          <Input
-            label="Stock Bodega (legacy)"
-            type="number"
-            min="0"
-            value={formData.cantidadStockBodega}
-            onChange={(e) => handleChange('cantidadStockBodega', parseInt(e.target.value) || 0)}
-            disabled
-            className="opacity-50"
-          />
         </div>
 
-        {/* Tags/Eventos Section - Nuevo sistema */}
+        {/* Tags/Eventos Section - Sistema principal de cantidades */}
         <TagEventSelector
           tags={formData.tags || []}
           onTagsChange={handleTagsChange}
