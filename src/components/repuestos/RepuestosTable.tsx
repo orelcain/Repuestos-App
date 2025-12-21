@@ -418,7 +418,7 @@ export function RepuestosTable({
   const totales = useMemo(() => {
     const totalSolicitado = filteredRepuestos.reduce((sum, r) => sum + (r.cantidadSolicitada || 0), 0);
     const totalBodega = filteredRepuestos.reduce((sum, r) => sum + (r.cantidadStockBodega || 0), 0);
-    const totalUSD = filteredRepuestos.reduce((sum, r) => sum + (r.total || 0), 0);
+    const totalUSD = filteredRepuestos.reduce((sum, r) => sum + ((r.valorUnitario * r.cantidadSolicitada) + (r.valorUnitario * (r.cantidadStockBodega || 0))), 0);
     const totalCLP = convertToClp(totalUSD);
     return { totalSolicitado, totalBodega, totalUSD, totalCLP };
   }, [filteredRepuestos, convertToClp]);
@@ -1171,7 +1171,7 @@ export function RepuestosTable({
                   {isColumnVisible('totalUSD') && (
                   <td className="px-4 py-4 text-right">
                     <span className="text-base font-bold text-gray-800">
-                      ${repuesto.total?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
+                      ${((repuesto.valorUnitario * repuesto.cantidadSolicitada) + (repuesto.valorUnitario * (repuesto.cantidadStockBodega || 0))).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </td>
                   )}
@@ -1183,7 +1183,7 @@ export function RepuestosTable({
                       <span className="text-xs text-gray-400">...</span>
                     ) : tipoCambio > 0 ? (
                       <span className="text-sm font-medium text-green-700">
-                        {formatClp(convertToClp(repuesto.total || 0))}
+                        {formatClp(convertToClp((repuesto.valorUnitario * repuesto.cantidadSolicitada) + (repuesto.valorUnitario * (repuesto.cantidadStockBodega || 0))))}
                       </span>
                     ) : (
                       <span className="text-xs text-gray-400">-</span>
@@ -1420,9 +1420,9 @@ export function RepuestosTable({
                     </span>
                   </div>
                   <div className="bg-primary-50 rounded-lg p-2">
-                    <span className="text-xs text-gray-500 block">Total USD</span>
+                    <span className="text-xs text-gray-500 block">Total General USD</span>
                     <span className="text-sm font-bold text-primary-700">
-                      ${repuesto.total?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
+                      ${((repuesto.valorUnitario * repuesto.cantidadSolicitada) + (repuesto.valorUnitario * (repuesto.cantidadStockBodega || 0))).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
                 </div>

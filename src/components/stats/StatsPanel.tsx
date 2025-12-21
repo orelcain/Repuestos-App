@@ -38,7 +38,7 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
   const stats = useMemo(() => {
     const totalSolicitadoUSD = filteredRepuestos.reduce((sum, r) => sum + (r.valorUnitario * r.cantidadSolicitada), 0);
     const totalStockUSD = filteredRepuestos.reduce((sum, r) => sum + (r.valorUnitario * (r.cantidadStockBodega || 0)), 0);
-    const totalGeneralUSD = filteredRepuestos.reduce((sum, r) => sum + (r.total || 0), 0);
+    const totalGeneralUSD = filteredRepuestos.reduce((sum, r) => sum + ((r.valorUnitario * r.cantidadSolicitada) + (r.valorUnitario * (r.cantidadStockBodega || 0))), 0);
     const totalUnidades = filteredRepuestos.reduce((sum, r) => sum + (r.cantidadSolicitada || 0), 0);
     const totalStock = filteredRepuestos.reduce((sum, r) => sum + (r.cantidadStockBodega || 0), 0);
     const promedioValorUnitario = filteredRepuestos.length > 0 
@@ -76,9 +76,10 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
     repuestos.forEach(r => {
       (r.tags || []).forEach(tag => {
         const current = tagMap.get(tag) || { count: 0, total: 0, unidades: 0 };
+        const totalGeneral = (r.valorUnitario * r.cantidadSolicitada) + (r.valorUnitario * (r.cantidadStockBodega || 0));
         tagMap.set(tag, {
           count: current.count + 1,
-          total: current.total + (r.total || 0),
+          total: current.total + totalGeneral,
           unidades: current.unidades + (r.cantidadSolicitada || 0)
         });
       });
@@ -96,8 +97,8 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
       
       switch (sortBy) {
         case 'valorTotal':
-          valueA = a.total || 0;
-          valueB = b.total || 0;
+          valueA = (a.valorUnitario * a.cantidadSolicitada) + (a.valorUnitario * (a.cantidadStockBodega || 0));
+          valueB = (b.valorUnitario * b.cantidadSolicitada) + (b.valorUnitario * (b.cantidadStockBodega || 0));
           break;
         case 'valorUnitario':
           valueA = a.valorUnitario || 0;
@@ -144,7 +145,7 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
     return max > 0 ? Math.max(5, (value / max) * 100) : 0;
   };
 
-  const maxTotal = Math.max(...sortedRepuestos.map(r => r.total || 0));
+  const maxTotal = Math.max(...sortedRepuestos.map(r => (r.valorUnitario * r.cantidadSolicitada) + (r.valorUnitario * (r.cantidadStockBodega || 0))));
 
   return (
     <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
@@ -396,7 +397,8 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
 
           <div className="space-y-3">
             {sortedRepuestos.map((repuesto, index) => {
-              const value = sortBy === 'valorTotal' ? repuesto.total :
+              const totalGeneral = (repuesto.valorUnitario * repuesto.cantidadSolicitada) + (repuesto.valorUnitario * (repuesto.cantidadStockBodega || 0));
+              const value = sortBy === 'valorTotal' ? totalGeneral :
                            sortBy === 'valorUnitario' ? repuesto.valorUnitario :
                            sortBy === 'cantidad' ? repuesto.cantidadSolicitada :
                            repuesto.cantidadStockBodega;
@@ -427,9 +429,9 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
                           : formatCurrency(value || 0)}
                       </p>
                       <p className="text-xs text-gray-400">
-                        {sortBy === 'valorTotal' && `${repuesto.cantidadSolicitada} unid.`}
-                        {sortBy === 'valorUnitario' && `Total: ${formatCurrency(repuesto.total || 0)}`}
-                        {sortBy === 'cantidad' && formatCurrency(repuesto.total || 0)}
+                        {sortBy === 'valorTotal' && `${repuesto.cantidadSolicitada} solicitadas + ${repuesto.cantidadStockBodega || 0} stock`}
+                        {sortBy === 'valorUnitario' && `Total: ${formatCurrency(totalGeneral)}`}
+                        {sortBy === 'cantidad' && formatCurrency(totalGeneral)}
                         {sortBy === 'stock' && `Solicitado: ${repuesto.cantidadSolicitada}`}
                       </p>
                     </div>

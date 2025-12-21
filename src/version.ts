@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '2.7.0';
+export const APP_VERSION = '2.7.1';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '2.7.1',
+    date: '2025-12-20',
+    changes: [
+      'Fix: Total General ahora se calcula correctamente en el frontend',
+      'Fix: Conversión a CLP para Total General funcionando correctamente',
+      'Recálculo en tiempo real del Total General en todas las vistas',
+      'Total General = (Valor Unit. × Cant. Solicitada) + (Valor Unit. × Stock Bodega)'
+    ]
+  },
   {
     version: '2.7.0',
     date: '2025-12-20',
