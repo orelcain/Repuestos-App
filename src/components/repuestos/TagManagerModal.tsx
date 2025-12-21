@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Repuesto, getTagNombre } from '../../types';
+import { Repuesto, getTagNombre, TagGlobal } from '../../types';
 import { useTags } from '../../hooks/useTags';
-import { X, Tag, Edit2, Trash2, Check, AlertTriangle, Plus } from 'lucide-react';
+import { X, Tag, Edit2, Trash2, Check, AlertTriangle, Plus, ShoppingCart, Package } from 'lucide-react';
 
 interface TagManagerModalProps {
   isOpen: boolean;
@@ -18,7 +18,16 @@ export function TagManagerModal({
   onRenameTag,
   onDeleteTag
 }: TagManagerModalProps) {
-  const { tags: globalTags, addTag, removeTag, renameTag: renameGlobalTag, loading: tagsLoading, addMultipleTags } = useTags();
+  const { 
+    tags: globalTags, 
+    addTag, 
+    removeTag, 
+    renameTag: renameGlobalTag, 
+    changeTagTipo,
+    loading: tagsLoading, 
+    addMultipleTags 
+  } = useTags();
+  
   const [editingTag, setEditingTag] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [deletingTag, setDeletingTag] = useState<string | null>(null);
@@ -27,6 +36,7 @@ export function TagManagerModal({
   
   // Para agregar nuevo tag predefinido
   const [newTagName, setNewTagName] = useState('');
+  const [newTagTipo, setNewTagTipo] = useState<'solicitud' | 'stock'>('solicitud');
   const [showAddForm, setShowAddForm] = useState(false);
 
   // Obtener todos los tags en uso con su conteo
@@ -49,11 +59,18 @@ export function TagManagerModal({
   useEffect(() => {
     if (isOpen && !tagsLoading && tagsEnUso.length > 0) {
       const tagsEnUsoNames = tagsEnUso.map(t => t.name);
-      const tagsFaltantes = tagsEnUsoNames.filter(tagName => !globalTags.includes(tagName));
+      const tagsFaltantes = tagsEnUsoNames.filter(tagName => 
+        !globalTags.some(gt => gt.nombre === tagName)
+      );
       
       if (tagsFaltantes.length > 0) {
         console.log('Sincronizando tags faltantes:', tagsFaltantes);
-        addMultipleTags(tagsFaltantes);
+        // Inferir tipo basado en el nombre
+        const tagsToAdd = tagsFaltantes.map(nombre => ({
+          nombre,
+          tipo: nombre.toLowerCase().includes('stock') ? 'stock' as const : 'solicitud' as const
+        }));
+        addMultipleTags(tagsToAdd);
       }
     }
   }, [isOpen, tagsLoading, tagsEnUso, globalTags, addMultipleTags]);
@@ -81,7 +98,7 @@ export function TagManagerModal({
 
     // Verificar duplicados
     const existsInUse = tagsEnUso.some(t => t.name.toLowerCase() === newName.toLowerCase() && t.name !== editingTag);
-    const existsGlobal = globalTags.some(t => t.toLowerCase() === newName.toLowerCase() && t !== editingTag);
+    const existsGlobal = globalTags.some(t => t.nombre.toLowerCase() === newName.toLowerCase() && t.nombre !== editingTag);
     
     if (existsInUse || existsGlobal) {
       setMessage({ type: 'error', text: 'Ya existe un tag con ese nombre' });
@@ -147,7 +164,7 @@ export function TagManagerModal({
     if (!trimmed) return;
 
     const existsInUse = tagsEnUso.some(t => t.name.toLowerCase() === trimmed.toLowerCase());
-    const existsGlobal = globalTags.some(t => t.toLowerCase() === trimmed.toLowerCase());
+    const existsGlobal = globalTags.some(t => t.nombre.toLowerCase() === trimmed.toLowerCase());
     
     if (existsInUse || existsGlobal) {
       setMessage({ type: 'error', text: 'Ya existe un tag con ese nombre' });
@@ -156,10 +173,11 @@ export function TagManagerModal({
 
     setLoading(true);
     try {
-      await addTag(trimmed);
+      await addTag(trimmed, newTagTipo);
       setNewTagName('');
+      setNewTagTipo('solicitud');
       setShowAddForm(false);
-      setMessage({ type: 'success', text: 'Tag agregado exitosamente' });
+      setMessage({ type: 'success', text: `Tag "${trimmed}" agregado como ${newTagTipo === 'solicitud' ? 'Solicitud' : 'Stock'}` });
     } catch (err) {
       setMessage({ type: 'error', text: 'Error al agregar el tag' });
     } finally {
@@ -167,10 +185,24 @@ export function TagManagerModal({
     }
   };
 
+  const handleChangeTipo = async (tagNombre: string, nuevoTipo: 'solicitud' | 'stock') => {
+    setLoading(true);
+    try {
+      await changeTagTipo(tagNombre, nuevoTipo);
+      setMessage({ type: 'success', text: `Tag "${tagNombre}" cambiado a ${nuevoTipo === 'solicitud' ? 'Solicitud' : 'Stock'}` });
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Error al cambiar el tipo' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!isOpen) return null;
 
-  const renderTagItem = (name: string, count: number | null) => {
-    if (editingTag === name) {
+  const renderTagItem = (tag: TagGlobal, count: number | null) => {
+    const { nombre, tipo } = tag;
+    
+    if (editingTag === nombre) {
       return (
         <div className="flex items-center gap-2 flex-1">
           <input
@@ -204,11 +236,11 @@ export function TagManagerModal({
       );
     }
     
-    if (deletingTag === name) {
+    if (deletingTag === nombre) {
       return (
         <div className="flex items-center gap-3 flex-1">
           <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
-          <span className="text-sm text-gray-700">¿Eliminar "{name}"?</span>
+          <span className="text-sm text-gray-700">¿Eliminar "{nombre}"?</span>
           {count !== null && count > 0 && (
             <span className="text-xs text-amber-600">(se quitará de {count} repuesto{count !== 1 ? 's' : ''})</span>
           )}
@@ -234,9 +266,30 @@ export function TagManagerModal({
 
     return (
       <>
-        <div className="flex items-center gap-3">
-          <Tag className="w-4 h-4 text-primary-500" />
-          <span className="font-medium text-gray-800">{name}</span>
+        <div className="flex items-center gap-3 flex-1">
+          {/* Icono según tipo */}
+          {tipo === 'solicitud' ? (
+            <ShoppingCart className="w-4 h-4 text-blue-500" />
+          ) : (
+            <Package className="w-4 h-4 text-green-500" />
+          )}
+          
+          <span className="font-medium text-gray-800">{nombre}</span>
+          
+          {/* Badge de tipo */}
+          <button
+            onClick={() => handleChangeTipo(nombre, tipo === 'solicitud' ? 'stock' : 'solicitud')}
+            disabled={loading}
+            className={`px-2 py-0.5 rounded-full text-xs font-medium transition-colors ${
+              tipo === 'solicitud'
+                ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                : 'bg-green-100 text-green-700 hover:bg-green-200'
+            }`}
+            title="Click para cambiar tipo"
+          >
+            {tipo === 'solicitud' ? '🛒 Solicitud' : '📦 Stock'}
+          </button>
+          
           {count !== null && (
             <span className="text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full">
               {count} repuesto{count !== 1 ? 's' : ''}
@@ -245,14 +298,14 @@ export function TagManagerModal({
         </div>
         <div className="flex items-center gap-1">
           <button
-            onClick={() => handleStartEdit(name)}
+            onClick={() => handleStartEdit(nombre)}
             className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-            title="Editar"
+            title="Editar nombre"
           >
             <Edit2 className="w-4 h-4" />
           </button>
           <button
-            onClick={() => handleStartDelete(name)}
+            onClick={() => handleStartDelete(nombre)}
             className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
             title="Eliminar"
           >
@@ -262,6 +315,10 @@ export function TagManagerModal({
       </>
     );
   };
+
+  // Separar tags por tipo para mejor visualización
+  const tagsSolicitud = globalTags.filter(t => t.tipo === 'solicitud');
+  const tagsStock = globalTags.filter(t => t.tipo === 'stock');
 
   return (
     <div 
@@ -283,9 +340,9 @@ export function TagManagerModal({
               <Tag className="w-5 h-5 text-primary-600" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-gray-800">Gestor de Tags</h2>
+              <h2 className="text-lg font-semibold text-gray-800">Gestor de Tags/Eventos</h2>
               <p className="text-xs text-gray-500">
-                {globalTags.length} tags disponibles • {tagsEnUso.reduce((sum, t) => sum + t.count, 0)} asignaciones
+                {globalTags.length} tags ({tagsSolicitud.length} solicitudes, {tagsStock.length} stock) • {tagsEnUso.reduce((sum, t) => sum + t.count, 0)} asignaciones
               </p>
             </div>
           </div>
@@ -306,43 +363,80 @@ export function TagManagerModal({
 
         {/* Contenido */}
         <div className="flex-1 overflow-y-auto p-5">
-          <div className="space-y-4">
-            {/* Botón agregar nuevo */}
+          <div className="space-y-6">
+            {/* Formulario agregar nuevo */}
             {showAddForm ? (
-              <div className="flex items-center gap-2 p-3 bg-primary-50 rounded-lg border border-primary-200">
-                <input
-                  type="text"
-                  value={newTagName}
-                  onChange={(e) => setNewTagName(e.target.value)}
-                  placeholder="Nombre del nuevo tag..."
-                  className="flex-1 px-3 py-1.5 border border-primary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
-                  autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleAddNewTag();
-                    if (e.key === 'Escape') {
+              <div className="p-4 bg-primary-50 rounded-lg border border-primary-200">
+                <div className="flex items-center gap-3 mb-3">
+                  <input
+                    type="text"
+                    value={newTagName}
+                    onChange={(e) => setNewTagName(e.target.value)}
+                    placeholder="Nombre del nuevo tag/evento..."
+                    className="flex-1 px-3 py-2 border border-primary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleAddNewTag();
+                      if (e.key === 'Escape') {
+                        setShowAddForm(false);
+                        setNewTagName('');
+                      }
+                    }}
+                  />
+                </div>
+                
+                {/* Selector de tipo */}
+                <div className="flex items-center gap-4 mb-3">
+                  <span className="text-sm text-gray-600">Tipo:</span>
+                  <label className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                    newTagTipo === 'solicitud' ? 'bg-blue-100 border-2 border-blue-400' : 'bg-gray-100 border-2 border-transparent hover:bg-gray-200'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="newTagTipo"
+                      value="solicitud"
+                      checked={newTagTipo === 'solicitud'}
+                      onChange={() => setNewTagTipo('solicitud')}
+                      className="sr-only"
+                    />
+                    <ShoppingCart className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm font-medium">Solicitud</span>
+                  </label>
+                  <label className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                    newTagTipo === 'stock' ? 'bg-green-100 border-2 border-green-400' : 'bg-gray-100 border-2 border-transparent hover:bg-gray-200'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="newTagTipo"
+                      value="stock"
+                      checked={newTagTipo === 'stock'}
+                      onChange={() => setNewTagTipo('stock')}
+                      className="sr-only"
+                    />
+                    <Package className="w-4 h-4 text-green-600" />
+                    <span className="text-sm font-medium">Stock</span>
+                  </label>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleAddNewTag}
+                    disabled={loading || !newTagName.trim()}
+                    className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 text-sm font-medium"
+                  >
+                    Crear Tag
+                  </button>
+                  <button
+                    onClick={() => {
                       setShowAddForm(false);
                       setNewTagName('');
-                    }
-                  }}
-                />
-                <button
-                  onClick={handleAddNewTag}
-                  disabled={loading || !newTagName.trim()}
-                  className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors disabled:opacity-50"
-                  title="Guardar"
-                >
-                  <Check className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => {
-                    setShowAddForm(false);
-                    setNewTagName('');
-                  }}
-                  className="p-2 text-gray-500 hover:bg-gray-200 rounded-lg transition-colors"
-                  title="Cancelar"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+                      setNewTagTipo('solicitud');
+                    }}
+                    className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded-lg transition-colors text-sm"
+                  >
+                    Cancelar
+                  </button>
+                </div>
               </div>
             ) : (
               <button
@@ -350,11 +444,11 @@ export function TagManagerModal({
                 className="w-full flex items-center justify-center gap-2 p-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-primary-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
               >
                 <Plus className="w-4 h-4" />
-                Agregar nuevo tag
+                Agregar nuevo tag/evento
               </button>
             )}
 
-            {/* Lista unificada de todos los tags */}
+            {/* Lista de tags */}
             {tagsLoading ? (
               <div className="text-center py-8 text-gray-500">
                 Cargando tags...
@@ -363,34 +457,82 @@ export function TagManagerModal({
               <div className="text-center py-8 text-gray-500">
                 <Tag className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                 <p>No hay tags disponibles</p>
-                <p className="text-sm">Agrega tags para organizar tus repuestos</p>
+                <p className="text-sm">Crea tags de tipo Solicitud o Stock para organizar tus eventos</p>
               </div>
             ) : (
-              <div className="space-y-2">
-                {globalTags.map((name) => {
-                  const usageInfo = tagsEnUso.find(t => t.name === name);
-                  return (
-                    <div
-                      key={name}
-                      className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
-                        usageInfo 
-                          ? 'bg-blue-50 border-blue-200' 
-                          : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                      }`}
-                    >
-                      {renderTagItem(name, usageInfo?.count ?? null)}
+              <>
+                {/* Tags de Solicitud */}
+                {tagsSolicitud.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <ShoppingCart className="w-5 h-5 text-blue-600" />
+                      <h3 className="font-semibold text-gray-700">Solicitudes ({tagsSolicitud.length})</h3>
                     </div>
-                  );
-                })}
-              </div>
+                    <div className="space-y-2">
+                      {tagsSolicitud.map((tag) => {
+                        const usageInfo = tagsEnUso.find(t => t.name === tag.nombre);
+                        return (
+                          <div
+                            key={tag.nombre}
+                            className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                              usageInfo 
+                                ? 'bg-blue-50 border-blue-200' 
+                                : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                            }`}
+                          >
+                            {renderTagItem(tag, usageInfo?.count ?? null)}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tags de Stock */}
+                {tagsStock.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Package className="w-5 h-5 text-green-600" />
+                      <h3 className="font-semibold text-gray-700">Stock ({tagsStock.length})</h3>
+                    </div>
+                    <div className="space-y-2">
+                      {tagsStock.map((tag) => {
+                        const usageInfo = tagsEnUso.find(t => t.name === tag.nombre);
+                        return (
+                          <div
+                            key={tag.nombre}
+                            className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                              usageInfo 
+                                ? 'bg-green-50 border-green-200' 
+                                : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                            }`}
+                          >
+                            {renderTagItem(tag, usageInfo?.count ?? null)}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
 
         {/* Footer */}
         <div className="px-5 py-4 border-t border-gray-200 bg-gray-50 flex-shrink-0">
-          <p className="text-xs text-gray-500">
-            💡 Los tags con fondo azul están asignados a repuestos. Puedes editar o eliminar cualquier tag.
+          <div className="flex items-center gap-4 text-xs text-gray-500">
+            <span className="flex items-center gap-1">
+              <ShoppingCart className="w-3 h-3 text-blue-500" />
+              Solicitud = Cantidad a pedir
+            </span>
+            <span className="flex items-center gap-1">
+              <Package className="w-3 h-3 text-green-500" />
+              Stock = Inventario en bodega
+            </span>
+          </div>
+          <p className="text-xs text-gray-400 mt-1">
+            💡 Click en el badge de tipo para cambiar entre Solicitud y Stock
           </p>
         </div>
       </div>

@@ -1,9 +1,21 @@
+// Tag global con su tipo definido (solicitud o stock)
+export interface TagGlobal {
+  nombre: string;
+  tipo: 'solicitud' | 'stock';
+  createdAt?: Date;
+}
+
 // Tag asignado a un repuesto con cantidad específica del evento
 export interface TagAsignado {
   nombre: string;                    // Nombre del tag/evento
-  tipo: 'solicitud' | 'stock';       // A qué columna aplica
+  tipo: 'solicitud' | 'stock';       // A qué columna aplica (heredado del TagGlobal)
   cantidad: number;                  // Cantidad en este evento
   fecha: Date;                       // Cuándo se asignó/creó el evento
+}
+
+// Helper para verificar si es un TagGlobal
+export function isTagGlobal(tag: unknown): tag is TagGlobal {
+  return typeof tag === 'object' && tag !== null && 'nombre' in tag && 'tipo' in tag && !('cantidad' in tag);
 }
 
 // Tipo principal de Repuesto

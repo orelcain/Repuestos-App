@@ -18,14 +18,15 @@ const DEFAULT_COLUMNS: ColumnConfig[] = [
   { key: 'textoBreve', label: 'Descripción SAP', visible: true, group: 'general', order: 2 },
   { key: 'descripcion', label: 'Descripción Extendida', visible: true, group: 'general', order: 3 },
   { key: 'nombreManual', label: 'Nombre Manual', visible: true, group: 'general', order: 4 },
-  { key: 'tags', label: 'Tags', visible: true, group: 'general', order: 5 },
-  { key: 'cantidadSolicitada', label: 'Cantidad Solicitada', visible: true, group: 'solicitada', order: 6 },
-  { key: 'totalSolicitadoUSD', label: 'Total Solicitado USD', visible: true, group: 'solicitada', order: 7 },
-  { key: 'cantidadStockBodega', label: 'Stock en Bodega', visible: true, group: 'stock', order: 8 },
-  { key: 'totalStockUSD', label: 'Total Stock USD', visible: true, group: 'stock', order: 9 },
-  { key: 'valorUnitario', label: 'Valor Unitario', visible: true, group: 'general', order: 10 },
-  { key: 'totalUSD', label: 'Total General USD', visible: true, group: 'general', order: 11 },
-  { key: 'acciones', label: 'Acciones', visible: true, required: true, group: 'general', order: 12 },
+  { key: 'tagsSolicitud', label: 'Tags Solicitud', visible: true, group: 'solicitada', order: 5 },
+  { key: 'tagsStock', label: 'Tags Stock', visible: true, group: 'stock', order: 6 },
+  { key: 'cantidadSolicitada', label: 'Cantidad Solicitada', visible: true, group: 'solicitada', order: 7 },
+  { key: 'totalSolicitadoUSD', label: 'Total Solicitado USD', visible: true, group: 'solicitada', order: 8 },
+  { key: 'cantidadStockBodega', label: 'Stock en Bodega', visible: true, group: 'stock', order: 9 },
+  { key: 'totalStockUSD', label: 'Total Stock USD', visible: true, group: 'stock', order: 10 },
+  { key: 'valorUnitario', label: 'Valor Unitario', visible: true, group: 'general', order: 11 },
+  { key: 'totalUSD', label: 'Total General USD', visible: true, group: 'general', order: 12 },
+  { key: 'acciones', label: 'Acciones', visible: true, required: true, group: 'general', order: 13 },
 ];
 
 const STORAGE_KEY = 'table_columns_config';

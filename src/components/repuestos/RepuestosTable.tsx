@@ -1,6 +1,9 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Repuesto, HistorialCambio, isTagAsignado, getTagNombre } from '../../types';
+import { Repuesto, HistorialCambio, isTagAsignado, getTagNombre, TagAsignado } from '../../types';
 import { useTableColumns } from '../../hooks/useTableColumns';
+import { useTags } from '../../hooks/useTags';
+import { AddToListModal } from './AddToListModal';
+import { CreateContextModal } from './CreateContextModal';
 import { 
   Search, 
   Plus, 
@@ -30,7 +33,9 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  ShoppingCart
+  ShoppingCart,
+  PlusCircle,
+  ListPlus
 } from 'lucide-react';
 
 interface RepuestosTableProps {
@@ -47,6 +52,7 @@ interface RepuestosTableProps {
   getHistorial?: (repuestoId: string) => Promise<HistorialCambio[]>;
   onManageTags?: () => void;
   onFilteredChange?: (filtered: Repuesto[]) => void;
+  onAddToContext?: (repuestoId: string, tagName: string, cantidad: number, tipo: 'solicitud' | 'stock') => void;
   compactMode?: boolean; // Cuando el panel lateral está abierto
 }
 
@@ -130,6 +136,7 @@ export function RepuestosTable({
   getHistorial,
   onManageTags,
   onFilteredChange,
+  onAddToContext,
   compactMode = false
 }: RepuestosTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -146,6 +153,10 @@ export function RepuestosTable({
   const [precioMax, setPrecioMax] = useState<string>('');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   
+  // Estados para modales de contexto
+  const [showAddToListModal, setShowAddToListModal] = useState(false);
+  const [showCreateContextModal, setShowCreateContextModal] = useState(false);
+  
   // Estado para ordenamiento
   const [sortColumn, setSortColumn] = useState<string>('codigoSAP');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -153,19 +164,43 @@ export function RepuestosTable({
   // Hook para configuración de columnas
   const { columns, toggleColumn, resetColumns, isColumnVisible: baseIsColumnVisible, reorderColumns, getColumn } = useTableColumns();
   
+  // Hook para obtener información de tags globales
+  const { getTagTipo, tags: globalTags } = useTags();
+  
+  // Obtener el tipo del contexto activo
+  const activeContextTipo = useMemo(() => {
+    if (!activeContextTag) return null;
+    return getTagTipo(activeContextTag);
+  }, [activeContextTag, getTagTipo]);
+  
   // Columnas a ocultar en modo compacto (panel lateral abierto)
   const compactHiddenColumns = [
-    'nombreManual', 'tags',
+    'nombreManual', 'tagsSolicitud', 'tagsStock',
     'totalSolicitadoUSD', 
     'totalStockUSD',
     'valorUnitario', 'totalUSD'
   ];
   
-  // Función que considera el modo compacto para visibilidad de columnas
+  // Columnas de solicitud y stock para filtrar según tipo de contexto
+  const solicitudColumns = ['tagsSolicitud', 'cantidadSolicitada', 'totalSolicitadoUSD'];
+  const stockColumns = ['tagsStock', 'cantidadStockBodega', 'totalStockUSD'];
+  
+  // Función que considera el modo compacto y el tipo de contexto para visibilidad de columnas
   const isColumnVisible = (columnKey: string): boolean => {
     if (compactMode && compactHiddenColumns.includes(columnKey)) {
       return false;
     }
+    
+    // Si hay contexto activo, mostrar solo las columnas del tipo correspondiente
+    if (activeContextTipo) {
+      if (activeContextTipo === 'solicitud' && stockColumns.includes(columnKey)) {
+        return false; // Ocultar columnas de stock si es contexto de solicitud
+      }
+      if (activeContextTipo === 'stock' && solicitudColumns.includes(columnKey)) {
+        return false; // Ocultar columnas de solicitud si es contexto de stock
+      }
+    }
+    
     return baseIsColumnVisible(columnKey);
   };
   
@@ -246,6 +281,13 @@ export function RepuestosTable({
   // Filtrar repuestos
   const filteredRepuestos = useMemo(() => {
     let result = repuestos;
+    
+    // *** NUEVO: Filtrar por contexto activo - solo mostrar repuestos que tienen ese tag ***
+    if (activeContextTag) {
+      result = result.filter(r => {
+        return r.tags?.some(tag => getTagNombre(tag) === activeContextTag);
+      });
+    }
     
     // Filtrar por búsqueda
     if (searchTerm.trim()) {
@@ -607,7 +649,7 @@ export function RepuestosTable({
               >
                 <Filter className="w-4 h-4" />
                 <span className="hidden sm:inline text-sm">
-                  {selectedTags.length > 0 ? `${selectedTags.length} tag${selectedTags.length > 1 ? 's' : ''}` : 'Filtrar'}
+                  {selectedTags.length > 0 ? `${selectedTags.length} tag${selectedTags.length > 1 ? 's' : ''}` : 'Filtrar por Tag'}
                 </span>
                 {selectedTags.length > 0 && (
                   <span className="ml-1 px-1.5 py-0.5 bg-primary-200 dark:bg-primary-800 text-primary-800 dark:text-primary-200 rounded text-xs font-medium">
@@ -813,20 +855,45 @@ export function RepuestosTable({
           <div className="flex items-center gap-2 pr-4 border-r border-gray-300 dark:border-gray-600">
             <div className="text-center">
               <div className="text-xs text-gray-500 dark:text-gray-400 uppercase mb-1">Contexto/Evento</div>
-              <select
-                value={activeContextTag || ''}
-                onChange={(e) => setActiveContextTag(e.target.value || null)}
-                className={`px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors ${
-                  activeContextTag 
-                    ? 'bg-primary-100 dark:bg-primary-900/50 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300'
-                    : 'bg-amber-50 dark:bg-amber-900/30 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300'
-                }`}
-              >
-                <option value="">-- Seleccionar evento --</option>
-                {tagsEnUso.map(tag => (
-                  <option key={tag} value={tag}>{tag}</option>
-                ))}
-              </select>
+              <div className="flex items-center gap-2">
+                <select
+                  value={activeContextTag || ''}
+                  onChange={(e) => setActiveContextTag(e.target.value || null)}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors ${
+                    activeContextTag 
+                      ? activeContextTipo === 'solicitud'
+                        ? 'bg-blue-100 dark:bg-blue-900/50 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300'
+                        : 'bg-green-100 dark:bg-green-900/50 border-green-300 dark:border-green-700 text-green-700 dark:text-green-300'
+                      : 'bg-amber-50 dark:bg-amber-900/30 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300'
+                  }`}
+                >
+                  <option value="">-- Seleccionar evento --</option>
+                  {globalTags.map(tag => {
+                    const emoji = tag.tipo === 'stock' ? '📦' : '🛒';
+                    return (
+                      <option key={tag.nombre} value={tag.nombre}>{emoji} {tag.nombre}</option>
+                    );
+                  })}
+                </select>
+                {activeContextTipo && (
+                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                    activeContextTipo === 'solicitud'
+                      ? 'bg-blue-200 text-blue-800'
+                      : 'bg-green-200 text-green-800'
+                  }`}>
+                    {activeContextTipo === 'solicitud' ? '🛒 Solicitud' : '📦 Stock'}
+                  </span>
+                )}
+                {/* Botón crear nuevo contexto */}
+                <button
+                  onClick={() => setShowCreateContextModal(true)}
+                  className="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-primary-600 hover:bg-primary-50 rounded-lg transition-colors border border-primary-200"
+                  title="Crear nuevo contexto/evento"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  Nuevo
+                </button>
+              </div>
             </div>
           </div>
 
@@ -840,85 +907,86 @@ export function RepuestosTable({
             </div>
           ) : (
             <>
-              {/* Cantidades */}
-              <div className="flex items-center gap-4 pr-4 border-r border-gray-300 dark:border-gray-600">
-                <div className="text-center group relative cursor-help">
-                  <div className="text-xs text-blue-500 dark:text-blue-400 uppercase flex items-center gap-1 justify-center">
-                    <ShoppingCart className="w-3 h-3" />
-                    Solicitado
-                  </div>
-                  <div className="text-lg font-bold text-blue-600 dark:text-blue-400">{totales.totalSolicitado.toLocaleString()}</div>
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
-                    Unidades solicitadas en "{activeContextTag}"
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
-                  </div>
-                </div>
-                <div className="text-center group relative cursor-help">
-                  <div className="text-xs text-green-500 dark:text-green-400 uppercase flex items-center gap-1 justify-center">
-                    <Package className="w-3 h-3" />
-                    En Bodega
-                  </div>
-                  <div className={`text-lg font-bold ${totales.totalBodega > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`}>
-                    {totales.totalBodega.toLocaleString()}
-                  </div>
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
-                    Unidades en bodega en "{activeContextTag}"
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setFilterSinStock(!filterSinStock)}
-                  className={`text-center cursor-pointer rounded-lg px-2 py-1 transition-colors group relative ${
-                    filterSinStock ? 'bg-red-100 dark:bg-red-900/50' : 'hover:bg-red-50 dark:hover:bg-red-900/30'
-                  }`}
-                >
-                  <div className="text-xs text-red-500 dark:text-red-400 uppercase">Sin Stock</div>
-                  <div className="text-lg font-bold text-red-600 dark:text-red-400">
-                    {filteredRepuestos.filter(r => {
-                      const stock = getCantidadPorContexto(r, 'stock');
-                      return stock === 0;
-                    }).length}
-                  </div>
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
-                    Repuestos con stock = 0 (click para filtrar)
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
-                  </div>
-                </button>
+              {/* Info de lista */}
+              <div className="text-center px-3">
+                <div className="text-xs text-gray-500 uppercase">En lista</div>
+                <div className="text-lg font-bold text-gray-700">{filteredRepuestos.length}</div>
               </div>
               
-              {/* Totales monetarios USD */}
+              {/* Cantidades - mostrar solo la columna relevante según tipo */}
               <div className="flex items-center gap-4 pr-4 border-r border-gray-300 dark:border-gray-600">
-                <div className="text-center group relative cursor-help">
-                  <div className="text-xs text-blue-500 dark:text-blue-400 uppercase">Total Solicitado</div>
-                  <div className="text-base font-bold text-blue-700 dark:text-blue-300">
-                    ${totales.totalSolicitadoUSD.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                {/* Solicitado - solo si es tipo solicitud */}
+                {activeContextTipo === 'solicitud' && (
+                  <div className="text-center group relative cursor-help">
+                    <div className="text-xs text-blue-500 dark:text-blue-400 uppercase flex items-center gap-1 justify-center">
+                      <ShoppingCart className="w-3 h-3" />
+                      Solicitado
+                    </div>
+                    <div className="text-lg font-bold text-blue-600 dark:text-blue-400">{totales.totalSolicitado.toLocaleString()}</div>
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
+                      Unidades solicitadas en "{activeContextTag}"
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
+                    </div>
                   </div>
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
-                    Valor USD de unidades solicitadas
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
-                  </div>
-                </div>
-                <div className="text-center group relative cursor-help">
-                  <div className="text-xs text-green-500 dark:text-green-400 uppercase">Total Stock</div>
-                  <div className="text-base font-bold text-green-700 dark:text-green-300">
-                    ${totales.totalStockUSD.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                  </div>
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
-                    Valor USD de unidades en bodega
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
-                  </div>
-                </div>
+                )}
+                
+                {/* En Bodega - solo si es tipo stock */}
+                {activeContextTipo === 'stock' && (
+                  <>
+                    <div className="text-center group relative cursor-help">
+                      <div className="text-xs text-green-500 dark:text-green-400 uppercase flex items-center gap-1 justify-center">
+                        <Package className="w-3 h-3" />
+                        En Bodega
+                      </div>
+                      <div className={`text-lg font-bold ${totales.totalBodega > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`}>
+                        {totales.totalBodega.toLocaleString()}
+                      </div>
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
+                        Unidades en bodega en "{activeContextTag}"
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setFilterSinStock(!filterSinStock)}
+                      className={`text-center cursor-pointer rounded-lg px-2 py-1 transition-colors group relative ${
+                        filterSinStock ? 'bg-red-100 dark:bg-red-900/50' : 'hover:bg-red-50 dark:hover:bg-red-900/30'
+                      }`}
+                    >
+                      <div className="text-xs text-red-500 dark:text-red-400 uppercase">Sin Stock</div>
+                      <div className="text-lg font-bold text-red-600 dark:text-red-400">
+                        {filteredRepuestos.filter(r => {
+                          const stock = getCantidadPorContexto(r, 'stock');
+                          return stock === 0;
+                        }).length}
+                      </div>
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
+                        Repuestos con stock = 0 (click para filtrar)
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
+                      </div>
+                    </button>
+                  </>
+                )}
               </div>
               
-              {/* Total General */}
+              {/* Total monetario USD - solo del tipo relevante */}
               <div className="flex items-center gap-4">
                 <div className="text-center group relative cursor-help">
-                  <div className="text-xs text-purple-500 dark:text-purple-400 uppercase font-semibold">Total General USD</div>
-                  <div className="text-xl font-bold text-purple-700 dark:text-purple-300">
-                    ${totales.totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  <div className={`text-xs uppercase font-semibold ${
+                    activeContextTipo === 'solicitud' 
+                      ? 'text-blue-500 dark:text-blue-400' 
+                      : 'text-green-500 dark:text-green-400'
+                  }`}>
+                    Total USD {activeContextTipo === 'solicitud' ? 'Solicitado' : 'Stock'}
+                  </div>
+                  <div className={`text-xl font-bold ${
+                    activeContextTipo === 'solicitud' 
+                      ? 'text-blue-700 dark:text-blue-300' 
+                      : 'text-green-700 dark:text-green-300'
+                  }`}>
+                    ${(activeContextTipo === 'solicitud' ? totales.totalSolicitadoUSD : totales.totalStockUSD).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                   </div>
                   <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
-                    Solicitado + Stock en bodega
+                    {activeContextTipo === 'solicitud' ? 'Valor USD de unidades solicitadas' : 'Valor USD de unidades en bodega'}
                     <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
                   </div>
                 </div>
@@ -935,10 +1003,30 @@ export function RepuestosTable({
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar por código SAP, Baader o descripción..."
+              placeholder={activeContextTag 
+                ? `Buscar dentro de "${activeContextTag}"...` 
+                : "Buscar por código SAP, Baader o descripción..."
+              }
               className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
           </div>
+          
+          {/* Botón agregar más a la lista - solo visible con contexto activo */}
+          {activeContextTag && activeContextTipo && onAddToContext && (
+            <button
+              onClick={() => setShowAddToListModal(true)}
+              className={`flex items-center gap-2 px-4 py-3 rounded-xl font-medium transition-colors ${
+                activeContextTipo === 'solicitud'
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                  : 'bg-green-600 hover:bg-green-700 text-white'
+              }`}
+              title="Agregar repuestos a esta lista"
+            >
+              <ListPlus className="w-5 h-5" />
+              <span className="hidden sm:inline">Agregar a lista</span>
+            </button>
+          )}
+          
           <button
             onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
             className={`flex items-center gap-2 px-4 py-3 border rounded-xl transition-colors ${
@@ -1085,7 +1173,8 @@ export function RepuestosTable({
               {isColumnVisible('textoBreve') && renderColumnHeader('textoBreve')}
               {isColumnVisible('descripcion') && renderColumnHeader('descripcion')}
               {isColumnVisible('nombreManual') && renderColumnHeader('nombreManual')}
-              {isColumnVisible('tags') && renderColumnHeader('tags')}
+              {isColumnVisible('tagsSolicitud') && renderColumnHeader('tagsSolicitud')}
+              {isColumnVisible('tagsStock') && renderColumnHeader('tagsStock')}
               {isColumnVisible('cantidadSolicitada') && renderColumnHeader('cantidadSolicitada')}
               {isColumnVisible('totalSolicitadoUSD') && renderColumnHeader('totalSolicitadoUSD')}
               {isColumnVisible('cantidadStockBodega') && renderColumnHeader('cantidadStockBodega')}
@@ -1264,33 +1353,48 @@ export function RepuestosTable({
                   </td>
                   )}
 
-                  {/* Tags */}
-                  {isColumnVisible('tags') && (
+                  {/* Tags Solicitud */}
+                  {isColumnVisible('tagsSolicitud') && (
                   <td className="px-4 py-4">
-                    {repuesto.tags && repuesto.tags.length > 0 ? (
+                    {repuesto.tags && repuesto.tags.filter(t => isTagAsignado(t) && t.tipo === 'solicitud').length > 0 ? (
                       <div className="flex flex-wrap gap-1">
-                        {repuesto.tags.map((tag, idx) => {
-                          const tagNombre = getTagNombre(tag);
-                          const tagInfo = isTagAsignado(tag) ? tag : null;
+                        {repuesto.tags.filter(t => isTagAsignado(t) && t.tipo === 'solicitud').map((tag, idx) => {
+                          const tagInfo = tag as TagAsignado;
                           return (
                             <span 
-                              key={`${tagNombre}-${idx}`} 
-                              className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium ${
-                                tagInfo?.tipo === 'stock' 
-                                  ? 'bg-green-50 text-green-700 border border-green-200' 
-                                  : 'bg-blue-50 text-blue-700 border border-blue-200'
-                              }`}
-                              title={tagInfo ? `${tagNombre} (${tagInfo.tipo}: ${tagInfo.cantidad})` : tagNombre}
+                              key={`${tagInfo.nombre}-${idx}`} 
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200"
+                              title={`${tagInfo.nombre} (solicitud: ${tagInfo.cantidad})`}
                             >
-                              {tagInfo?.tipo === 'stock' ? (
-                                <Package className="w-3 h-3" />
-                              ) : (
-                                <ShoppingCart className="w-3 h-3" />
-                              )}
-                              {tagNombre.length > 15 ? tagNombre.substring(0, 15) + '...' : tagNombre}
-                              {tagInfo && (
-                                <span className="text-[10px] opacity-70">({tagInfo.cantidad})</span>
-                              )}
+                              <ShoppingCart className="w-3 h-3" />
+                              {tagInfo.nombre.length > 15 ? tagInfo.nombre.substring(0, 15) + '...' : tagInfo.nombre}
+                              <span className="text-[10px] opacity-70">({tagInfo.cantidad})</span>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400 italic">-</span>
+                    )}
+                  </td>
+                  )}
+
+                  {/* Tags Stock */}
+                  {isColumnVisible('tagsStock') && (
+                  <td className="px-4 py-4">
+                    {repuesto.tags && repuesto.tags.filter(t => isTagAsignado(t) && t.tipo === 'stock').length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {repuesto.tags.filter(t => isTagAsignado(t) && t.tipo === 'stock').map((tag, idx) => {
+                          const tagInfo = tag as TagAsignado;
+                          return (
+                            <span 
+                              key={`${tagInfo.nombre}-${idx}`} 
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-green-50 text-green-700 border border-green-200"
+                              title={`${tagInfo.nombre} (stock: ${tagInfo.cantidad})`}
+                            >
+                              <Package className="w-3 h-3" />
+                              {tagInfo.nombre.length > 15 ? tagInfo.nombre.substring(0, 15) + '...' : tagInfo.nombre}
+                              <span className="text-[10px] opacity-70">({tagInfo.cantidad})</span>
                             </span>
                           );
                         })}
@@ -1501,8 +1605,11 @@ export function RepuestosTable({
                 {/* Nombre Manual */}
                 {isColumnVisible('nombreManual') && <td className="px-4 py-4"></td>}
                 
-                {/* Tags */}
-                {isColumnVisible('tags') && <td className="px-4 py-4"></td>}
+                {/* Tags Solicitud */}
+                {isColumnVisible('tagsSolicitud') && <td className="px-4 py-4"></td>}
+                
+                {/* Tags Stock */}
+                {isColumnVisible('tagsStock') && <td className="px-4 py-4"></td>}
                 
                 {/* Cantidad Solicitada */}
                 {isColumnVisible('cantidadSolicitada') && (
@@ -1874,6 +1981,30 @@ export function RepuestosTable({
         onClose={() => setHistorialModal({ ...historialModal, isOpen: false })}
         campo={historialModal.campo}
         historial={historialModal.historial}
+      />
+
+      {/* Modal para agregar repuestos a la lista actual */}
+      {activeContextTag && activeContextTipo && onAddToContext && (
+        <AddToListModal
+          isOpen={showAddToListModal}
+          onClose={() => setShowAddToListModal(false)}
+          allRepuestos={repuestos}
+          currentContextTag={activeContextTag}
+          currentContextTipo={activeContextTipo}
+          onAddToList={(repuestoId, cantidad) => {
+            onAddToContext(repuestoId, activeContextTag, cantidad, activeContextTipo);
+          }}
+        />
+      )}
+
+      {/* Modal para crear nuevo contexto/evento */}
+      <CreateContextModal
+        isOpen={showCreateContextModal}
+        onClose={() => setShowCreateContextModal(false)}
+        onContextCreated={(nombre: string, _tipo: 'solicitud' | 'stock') => {
+          setActiveContextTag(nombre);
+          setShowCreateContextModal(false);
+        }}
       />
     </div>
   );
