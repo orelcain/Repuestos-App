@@ -1,8 +1,17 @@
 // Versión de la aplicación
-export const APP_VERSION = '3.6.1';
+export const APP_VERSION = '3.6.2';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '3.6.2',
+    date: '2025-01-21',
+    changes: [
+      'FIX: Selector de tags en formulario ahora muestra TODOS los tags',
+      'Combina tags globales (Firestore) con tags en uso en los repuestos',
+      'Tags como "Cantidad Solicitada Dic 2025" ahora aparecen al crear repuesto nuevo'
+    ]
+  },
   {
     version: '3.6.1',
     date: '2025-01-21',

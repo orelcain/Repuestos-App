@@ -1151,6 +1151,7 @@ export function Dashboard() {
         onClose={() => setShowForm(false)}
         onSave={handleSave}
         repuesto={editRepuesto}
+        allRepuestos={repuestos}
       />
 
       <HistorialModal

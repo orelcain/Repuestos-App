@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { TagGlobal } from '../types';
+import { TagGlobal, Repuesto, isTagAsignado } from '../types';
 
 // Tags iniciales por defecto (se usan si no hay datos en Firestore)
 const DEFAULT_TAGS: TagGlobal[] = [
@@ -30,10 +30,45 @@ function migrateOldTags(tags: (string | TagGlobal)[]): TagGlobal[] {
   });
 }
 
-export function useTags() {
+export function useTags(repuestos?: Repuesto[]) {
   const [tags, setTags] = useState<TagGlobal[]>(DEFAULT_TAGS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Extraer tags únicos de los repuestos que no están en la lista global
+  const tagsEnUso = useMemo(() => {
+    if (!repuestos) return [];
+    
+    const tagMap = new Map<string, TagGlobal>();
+    
+    repuestos.forEach(rep => {
+      (rep.tags || []).forEach(tag => {
+        const nombre = isTagAsignado(tag) ? tag.nombre : tag;
+        const tipo = isTagAsignado(tag) ? tag.tipo : (nombre.toLowerCase().includes('stock') ? 'stock' : 'solicitud');
+        
+        if (!tagMap.has(nombre)) {
+          tagMap.set(nombre, { nombre, tipo });
+        }
+      });
+    });
+    
+    return Array.from(tagMap.values());
+  }, [repuestos]);
+
+  // Combinar tags globales con tags en uso
+  const allTags = useMemo(() => {
+    const combined = [...tags];
+    
+    tagsEnUso.forEach(tagEnUso => {
+      if (!combined.some(t => t.nombre === tagEnUso.nombre)) {
+        combined.push(tagEnUso);
+      }
+    });
+    
+    return combined.sort((a, b) => 
+      a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' })
+    );
+  }, [tags, tagsEnUso]);
 
   // Escuchar cambios en tiempo real
   useEffect(() => {
@@ -154,15 +189,23 @@ export function useTags() {
     return await saveTags(updatedTags);
   }, [tags, saveTags]);
 
+  // Obtener tipo de cualquier tag (global o en uso)
+  const getTagTipoAll = useCallback((tagNombre: string): 'solicitud' | 'stock' | null => {
+    const tag = allTags.find(t => t.nombre === tagNombre);
+    return tag ? tag.tipo : null;
+  }, [allTags]);
+
   return {
-    tags,
+    tags: allTags,  // Retornar todos los tags (globales + en uso)
+    tagsGlobales: tags,  // Solo los guardados en Firestore
+    tagsEnUso,  // Solo los encontrados en repuestos
     loading,
     error,
     addTag,
     removeTag,
     renameTag,
     changeTagTipo,
-    getTagTipo,
+    getTagTipo: getTagTipoAll,  // Usar la versión que busca en todos
     addMultipleTags,
     saveTags,
     DEFAULT_TAGS

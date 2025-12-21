@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { TagAsignado, isTagAsignado } from '../../types';
+import { TagAsignado, isTagAsignado, Repuesto } from '../../types';
 import { useTags } from '../../hooks/useTags';
 import { Tag, X, Plus, Package, ShoppingCart, Calendar } from 'lucide-react';
 
@@ -7,10 +7,11 @@ interface TagEventSelectorProps {
   tags: (string | TagAsignado)[];
   onTagsChange: (tags: TagAsignado[]) => void;
   valorUnitario: number;  // Para mostrar cálculo de total
+  allRepuestos?: Repuesto[];  // Para obtener todos los tags en uso
 }
 
-export function TagEventSelector({ tags, onTagsChange, valorUnitario }: TagEventSelectorProps) {
-  const { tags: globalTags, addTag: addGlobalTag, getTagTipo } = useTags();
+export function TagEventSelector({ tags, onTagsChange, valorUnitario, allRepuestos }: TagEventSelectorProps) {
+  const { tags: globalTags, addTag: addGlobalTag, getTagTipo } = useTags(allRepuestos);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTagNombre, setNewTagNombre] = useState('');
   const [newTagCantidad, setNewTagCantidad] = useState(0);
