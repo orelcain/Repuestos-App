@@ -48,6 +48,7 @@ interface RepuestosTableProps {
   getHistorial?: (repuestoId: string) => Promise<HistorialCambio[]>;
   onManageTags?: () => void;
   onFilteredChange?: (filtered: Repuesto[]) => void;
+  compactMode?: boolean; // Cuando el panel lateral está abierto
 }
 
 const ITEMS_PER_PAGE = 15;
@@ -129,7 +130,8 @@ export function RepuestosTable({
   onMarkInManual,
   getHistorial,
   onManageTags,
-  onFilteredChange
+  onFilteredChange,
+  compactMode = false
 }: RepuestosTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -149,7 +151,23 @@ export function RepuestosTable({
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   
   // Hook para configuración de columnas
-  const { columns, toggleColumn, resetColumns, isColumnVisible, reorderColumns, getColumn } = useTableColumns();
+  const { columns, toggleColumn, resetColumns, isColumnVisible: baseIsColumnVisible, reorderColumns, getColumn } = useTableColumns();
+  
+  // Columnas a ocultar en modo compacto (panel lateral abierto)
+  const compactHiddenColumns = [
+    'textoBreve', 'descripcion', 'nombreManual', 'tags',
+    'totalSolicitadoUSD', 'totalSolicitadoCLP', 
+    'totalStockUSD', 'totalStockCLP',
+    'valorUnitario', 'totalUSD', 'totalCLP'
+  ];
+  
+  // Función que considera el modo compacto para visibilidad de columnas
+  const isColumnVisible = (columnKey: string): boolean => {
+    if (compactMode && compactHiddenColumns.includes(columnKey)) {
+      return false;
+    }
+    return baseIsColumnVisible(columnKey);
+  };
   
   // Estado para drag & drop de columnas
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
@@ -450,7 +468,7 @@ export function RepuestosTable({
     const totalStockUSD = filteredRepuestos.reduce((sum, r) => sum + (r.valorUnitario * (r.cantidadStockBodega || 0)), 0);
     const totalUSD = totalSolicitadoUSD + totalStockUSD;
     // Usar tipoCambio con fallback a 900 si no está disponible
-    const tasaCambio = tipoCambio || 995;
+    const tasaCambio = tipoCambio || 900;
     const totalSolicitadoCLP = Math.round(totalSolicitadoUSD * tasaCambio);
     const totalStockCLP = Math.round(totalStockUSD * tasaCambio);
     const totalCLP = Math.round(totalUSD * tasaCambio);
@@ -791,7 +809,7 @@ export function RepuestosTable({
             <div className="text-center">
               <div className="text-xs text-gray-500 dark:text-gray-400 uppercase flex items-center gap-1 justify-center">
                 Total CLP
-                <span className="text-[10px] text-gray-400 dark:text-gray-500">(@{(tipoCambio || 995).toFixed(0)})</span>
+                <span className="text-[10px] text-gray-400 dark:text-gray-500">(@{(tipoCambio || 900).toFixed(0)})</span>
               </div>
               <div className="text-xl font-bold text-green-700 dark:text-green-300">
                 {formatClp(totales.totalCLP)}
@@ -1191,7 +1209,7 @@ export function RepuestosTable({
                   {isColumnVisible('totalSolicitadoCLP') && (
                   <td className="px-4 py-4 text-right">
                     <span className="text-sm font-semibold text-green-600">
-                      {formatClp((repuesto.valorUnitario * repuesto.cantidadSolicitada) * (tipoCambio || 995))}
+                      {formatClp((repuesto.valorUnitario * repuesto.cantidadSolicitada) * (tipoCambio || 900))}
                     </span>
                   </td>
                   )}
@@ -1231,7 +1249,7 @@ export function RepuestosTable({
                   {isColumnVisible('totalStockCLP') && (
                   <td className="px-4 py-4 text-right">
                     <span className="text-sm font-medium text-amber-600">
-                      {formatClp((repuesto.valorUnitario * (repuesto.cantidadStockBodega || 0)) * (tipoCambio || 995))}
+                      {formatClp((repuesto.valorUnitario * (repuesto.cantidadStockBodega || 0)) * (tipoCambio || 900))}
                     </span>
                   </td>
                   )}
@@ -1258,7 +1276,7 @@ export function RepuestosTable({
                   {isColumnVisible('totalCLP') && (
                   <td className="px-4 py-4 text-right">
                     <span className="text-sm font-medium text-green-700">
-                      {formatClp(Math.round(((repuesto.valorUnitario * repuesto.cantidadSolicitada) + (repuesto.valorUnitario * (repuesto.cantidadStockBodega || 0))) * (tipoCambio || 995)))}
+                      {formatClp(Math.round(((repuesto.valorUnitario * repuesto.cantidadSolicitada) + (repuesto.valorUnitario * (repuesto.cantidadStockBodega || 0))) * (tipoCambio || 900)))}
                     </span>
                   </td>
                   )}

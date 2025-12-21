@@ -830,6 +830,7 @@ export function Dashboard() {
                   getHistorial={getHistorial}
                   onManageTags={() => setShowTagManager(true)}
                   onFilteredChange={setFilteredRepuestos}
+                  compactMode={rightPanelMode !== 'hidden'}
                 />
               </div>
 

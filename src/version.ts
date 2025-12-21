@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '2.8.0';
+export const APP_VERSION = '2.8.1';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '2.8.1',
+    date: '2025-12-20',
+    changes: [
+      'Modo oscuro mejorado: mejor contraste de textos y fondos',
+      'Auto-ocultación de columnas de valores cuando el panel lateral está abierto',
+      'Solo se muestran Código SAP, Número Parte, Cantidad Solicitada, Stock y Acciones en modo compacto',
+      'Mejoras globales de CSS para dark mode'
+    ]
+  },
   {
     version: '2.8.0',
     date: '2025-12-20',
