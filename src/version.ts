@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '2.7.2';
+export const APP_VERSION = '2.7.3';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '2.7.3',
+    date: '2025-12-20',
+    changes: [
+      'Nueva fila de TOTALES al final de la tabla con todos los valores calculados',
+      'Totales desglosados: Cantidad Solicitada, Total Solicitado USD/CLP, Cantidad Stock, Total Stock USD/CLP, Total General USD/CLP',
+      'Fondo degradado púrpura-azul para destacar fila de totales',
+      'Fix: Total CLP ahora muestra conversión correcta usando API del dólar'
+    ]
+  },
   {
     version: '2.7.2',
     date: '2025-12-20',

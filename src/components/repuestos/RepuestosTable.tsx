@@ -446,9 +446,22 @@ export function RepuestosTable({
   const totales = useMemo(() => {
     const totalSolicitado = filteredRepuestos.reduce((sum, r) => sum + (r.cantidadSolicitada || 0), 0);
     const totalBodega = filteredRepuestos.reduce((sum, r) => sum + (r.cantidadStockBodega || 0), 0);
-    const totalUSD = filteredRepuestos.reduce((sum, r) => sum + ((r.valorUnitario * r.cantidadSolicitada) + (r.valorUnitario * (r.cantidadStockBodega || 0))), 0);
+    const totalSolicitadoUSD = filteredRepuestos.reduce((sum, r) => sum + (r.valorUnitario * r.cantidadSolicitada), 0);
+    const totalStockUSD = filteredRepuestos.reduce((sum, r) => sum + (r.valorUnitario * (r.cantidadStockBodega || 0)), 0);
+    const totalUSD = totalSolicitadoUSD + totalStockUSD;
+    const totalSolicitadoCLP = convertToClp(totalSolicitadoUSD);
+    const totalStockCLP = convertToClp(totalStockUSD);
     const totalCLP = convertToClp(totalUSD);
-    return { totalSolicitado, totalBodega, totalUSD, totalCLP };
+    return { 
+      totalSolicitado, 
+      totalBodega, 
+      totalSolicitadoUSD,
+      totalStockUSD,
+      totalUSD, 
+      totalSolicitadoCLP,
+      totalStockCLP,
+      totalCLP 
+    };
   }, [filteredRepuestos, convertToClp]);
 
   // Renderizar encabezado de columna con drag & drop
@@ -1312,6 +1325,111 @@ export function RepuestosTable({
                 </tr>
               );
             })}
+            
+            {/* Fila de totales */}
+            {paginatedRepuestos.length > 0 && (
+              <tr className="bg-gradient-to-r from-purple-50 to-blue-50 border-t-2 border-purple-300 font-bold">
+                {/* Código SAP */}
+                {isColumnVisible('codigoSAP') && (
+                  <td className="px-4 py-4 text-left">
+                    <span className="text-purple-700 font-bold">TOTALES</span>
+                  </td>
+                )}
+                
+                {/* Código Baader */}
+                {isColumnVisible('codigoBaader') && <td className="px-4 py-4"></td>}
+                
+                {/* Texto Breve */}
+                {isColumnVisible('textoBreve') && <td className="px-4 py-4"></td>}
+                
+                {/* Descripción */}
+                {isColumnVisible('descripcion') && <td className="px-4 py-4"></td>}
+                
+                {/* Nombre Manual */}
+                {isColumnVisible('nombreManual') && <td className="px-4 py-4"></td>}
+                
+                {/* Tags */}
+                {isColumnVisible('tags') && <td className="px-4 py-4"></td>}
+                
+                {/* Cantidad Solicitada */}
+                {isColumnVisible('cantidadSolicitada') && (
+                  <td className="px-4 py-4 text-center">
+                    <span className="inline-block px-4 py-2 bg-blue-100 text-blue-800 rounded-lg font-bold">
+                      {totales.totalSolicitado}
+                    </span>
+                  </td>
+                )}
+                
+                {/* Total Solicitado USD */}
+                {isColumnVisible('totalSolicitadoUSD') && (
+                  <td className="px-4 py-4 text-right">
+                    <span className="text-blue-700 font-bold">
+                      ${totales.totalSolicitadoUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </td>
+                )}
+                
+                {/* Total Solicitado CLP */}
+                {isColumnVisible('totalSolicitadoCLP') && (
+                  <td className="px-4 py-4 text-right">
+                    <span className="text-blue-700 font-bold">
+                      {formatClp(totales.totalSolicitadoCLP)}
+                    </span>
+                  </td>
+                )}
+                
+                {/* Cantidad Stock Bodega */}
+                {isColumnVisible('cantidadStockBodega') && (
+                  <td className="px-4 py-4 text-center">
+                    <span className="inline-block px-4 py-2 bg-green-100 text-green-800 rounded-lg font-bold">
+                      {totales.totalBodega}
+                    </span>
+                  </td>
+                )}
+                
+                {/* Total Stock USD */}
+                {isColumnVisible('totalStockUSD') && (
+                  <td className="px-4 py-4 text-right">
+                    <span className="text-green-700 font-bold">
+                      ${totales.totalStockUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </td>
+                )}
+                
+                {/* Total Stock CLP */}
+                {isColumnVisible('totalStockCLP') && (
+                  <td className="px-4 py-4 text-right">
+                    <span className="text-green-700 font-bold">
+                      {formatClp(totales.totalStockCLP)}
+                    </span>
+                  </td>
+                )}
+                
+                {/* Valor Unitario */}
+                {isColumnVisible('valorUnitario') && <td className="px-4 py-4"></td>}
+                
+                {/* Total General USD */}
+                {isColumnVisible('totalUSD') && (
+                  <td className="px-4 py-4 text-right">
+                    <span className="text-purple-700 font-bold text-lg">
+                      ${totales.totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </td>
+                )}
+                
+                {/* Total General CLP */}
+                {isColumnVisible('totalCLP') && (
+                  <td className="px-4 py-4 text-right">
+                    <span className="text-purple-700 font-bold text-lg">
+                      {formatClp(totales.totalCLP)}
+                    </span>
+                  </td>
+                )}
+                
+                {/* Acciones */}
+                {isColumnVisible('acciones') && <td className="px-4 py-4"></td>}
+              </tr>
+            )}
           </tbody>
         </table>
 
