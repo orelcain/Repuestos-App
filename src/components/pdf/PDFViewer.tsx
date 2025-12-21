@@ -414,6 +414,24 @@ export function PDFViewer({
     };
   }, []);
 
+  // Prevenir scroll nativo del navegador cuando el mouse está sobre el visor PDF
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const preventScroll = (e: WheelEvent) => {
+      // Prevenir el scroll del navegador para que solo haga zoom
+      e.preventDefault();
+    };
+
+    // Agregar listener con passive: false para poder prevenir
+    container.addEventListener('wheel', preventScroll, { passive: false });
+    
+    return () => {
+      container.removeEventListener('wheel', preventScroll);
+    };
+  }, []);
+
   // NOTA: Scroll del ratón ahora hace zoom directamente (handleWheel en el contenedor)
   // La navegación entre páginas se hace con los botones < > o el buscador de página
 
@@ -448,9 +466,11 @@ export function PDFViewer({
     });
   };
 
-  // Zoom con wheel (sin Ctrl)
+  // Zoom con wheel - solo zoom, previene scroll de página
   const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
+    // Prevenir que el evento se propague y haga scroll en la página
+    e.stopPropagation();
+    
     const delta = e.deltaY > 0 ? -SCALE_STEP : SCALE_STEP;
     setScale(prev => {
       const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, prev + delta));
@@ -1245,10 +1265,10 @@ export function PDFViewer({
         </div>
       )}
 
-      {/* Canvas Container */}
+      {/* Canvas Container - overflow:scroll para permitir drag bidireccional */}
       <div 
         ref={scrollContainerRef}
-        className="flex-1 overflow-auto pdf-container flex items-center justify-center p-4"
+        className="flex-1 overflow-scroll pdf-container p-4"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -1262,16 +1282,24 @@ export function PDFViewer({
           userSelect: 'none'
         }}
       >
-        <div className="relative">
-          <canvas
-            ref={canvasRef}
-            className="pdf-page bg-white shadow-lg"
-            style={{ maxWidth: 'none' }} /* Permitir que el canvas crezca más allá del contenedor */
-          />
-          <canvas
-            ref={overlayRef}
-            className="absolute top-0 left-0 pointer-events-none"
-          />
+        {/* Wrapper para centrar el canvas y permitir scroll en ambas direcciones */}
+        <div 
+          className="min-w-full min-h-full flex items-center justify-center"
+          style={{ 
+            minWidth: 'max-content',
+            minHeight: 'max-content'
+          }}
+        >
+          <div className="relative">
+            <canvas
+              ref={canvasRef}
+              className="pdf-page bg-white shadow-lg"
+            />
+            <canvas
+              ref={overlayRef}
+              className="absolute top-0 left-0 pointer-events-none"
+            />
+          </div>
         </div>
       </div>
 
@@ -1280,7 +1308,7 @@ export function PDFViewer({
         {isMobile ? (
           <span>📱 Pellizca para zoom • Desliza para navegar</span>
         ) : (
-          <span>💡 Usa la rueda del ratón para hacer zoom</span>
+          <span>💡 Scroll = Zoom • Arrastra con clic = Mover</span>
         )}
       </div>
     </div>
