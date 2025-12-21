@@ -29,13 +29,28 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [showTopCount, setShowTopCount] = useState(10);
 
-  // Obtener cantidad por contexto de un repuesto
-  const getCantidadPorContexto = (repuesto: Repuesto, tipo: 'solicitud' | 'stock'): number => {
+  // Detectar el tipo del tag seleccionado (solicitud o stock)
+  const selectedTagTipo = useMemo((): 'solicitud' | 'stock' | null => {
+    if (!selectedTag) return null;
+    
+    // Buscar en todos los repuestos para encontrar el tipo de este tag
+    for (const r of repuestos) {
+      const tag = r.tags?.find(t => isTagAsignado(t) && t.nombre === selectedTag);
+      if (tag && isTagAsignado(tag)) {
+        return tag.tipo;
+      }
+    }
+    return null;
+  }, [selectedTag, repuestos]);
+
+  // Obtener cantidad de un repuesto para el tag seleccionado
+  // SOLO devuelve cantidad si el repuesto tiene el tag con el tipo correcto
+  const getCantidadDelTag = (repuesto: Repuesto): number => {
     if (!selectedTag) return 0;
     
     const tagEncontrado = repuesto.tags?.find(tag => {
       if (isTagAsignado(tag)) {
-        return tag.nombre === selectedTag && tag.tipo === tipo;
+        return tag.nombre === selectedTag;
       }
       return false;
     });
@@ -44,39 +59,40 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
       return tagEncontrado.cantidad;
     }
     
-    // Fallback para tags string antiguos
-    const tieneTagAntiguo = repuesto.tags?.some(tag => 
-      typeof tag === 'string' && tag === selectedTag
-    );
-    if (tieneTagAntiguo) {
-      return tipo === 'solicitud' ? (repuesto.cantidadSolicitada || 0) : (repuesto.cantidadStockBodega || 0);
-    }
-    
     return 0;
   };
 
-  // Filtrar por tag si está seleccionado
+  // Filtrar por tag si está seleccionado - SOLO repuestos que tienen ese tag con cantidad > 0
   const filteredRepuestos = useMemo(() => {
     if (!selectedTag) return repuestos;
-    return repuestos.filter(r => r.tags?.some(t => getTagNombre(t) === selectedTag));
+    return repuestos.filter(r => {
+      const tag = r.tags?.find(t => isTagAsignado(t) && t.nombre === selectedTag);
+      if (tag && isTagAsignado(tag)) {
+        return tag.cantidad > 0; // Solo incluir si tiene cantidad asignada
+      }
+      return false;
+    });
   }, [repuestos, selectedTag]);
 
   // Estadísticas generales - adaptadas al contexto
   const stats = useMemo(() => {
-    // Si hay tag seleccionado, usar cantidades del contexto
-    const totalSolicitadoUSD = selectedTag 
-      ? filteredRepuestos.reduce((sum, r) => sum + (r.valorUnitario * getCantidadPorContexto(r, 'solicitud')), 0)
+    // Si hay tag seleccionado, calcular según el tipo del tag
+    const totalUSD = selectedTag 
+      ? filteredRepuestos.reduce((sum, r) => sum + (r.valorUnitario * getCantidadDelTag(r)), 0)
       : 0;
-    const totalStockUSD = selectedTag
-      ? filteredRepuestos.reduce((sum, r) => sum + (r.valorUnitario * getCantidadPorContexto(r, 'stock')), 0)
-      : 0;
-    const totalGeneralUSD = totalSolicitadoUSD + totalStockUSD;
+    
     const totalUnidades = selectedTag
-      ? filteredRepuestos.reduce((sum, r) => sum + getCantidadPorContexto(r, 'solicitud'), 0)
+      ? filteredRepuestos.reduce((sum, r) => sum + getCantidadDelTag(r), 0)
       : 0;
-    const totalStock = selectedTag
-      ? filteredRepuestos.reduce((sum, r) => sum + getCantidadPorContexto(r, 'stock'), 0)
-      : 0;
+    
+    // Para el desglose solicitud/stock, solo mostrar el que corresponde al tipo del tag
+    const totalSolicitadoUSD = selectedTagTipo === 'solicitud' ? totalUSD : 0;
+    const totalStockUSD = selectedTagTipo === 'stock' ? totalUSD : 0;
+    const totalGeneralUSD = totalUSD;
+    
+    const totalSolicitadoUnidades = selectedTagTipo === 'solicitud' ? totalUnidades : 0;
+    const totalStockUnidades = selectedTagTipo === 'stock' ? totalUnidades : 0;
+    
     const promedioValorUnitario = filteredRepuestos.length > 0 
       ? filteredRepuestos.reduce((sum, r) => sum + (r.valorUnitario || 0), 0) / filteredRepuestos.length 
       : 0;
@@ -87,12 +103,12 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
       ? Math.min(...filteredRepuestos.filter(r => r.valorUnitario > 0).map(r => r.valorUnitario))
       : 0;
     
-    // Contar con stock según contexto
-    const conStock = selectedTag 
-      ? filteredRepuestos.filter(r => getCantidadPorContexto(r, 'stock') > 0).length
+    // Contar con/sin cantidad en el contexto
+    const conCantidad = selectedTag 
+      ? filteredRepuestos.filter(r => getCantidadDelTag(r) > 0).length
       : filteredRepuestos.filter(r => r.cantidadStockBodega > 0).length;
-    const sinStock = selectedTag
-      ? filteredRepuestos.filter(r => getCantidadPorContexto(r, 'stock') === 0).length
+    const sinCantidad = selectedTag
+      ? filteredRepuestos.filter(r => getCantidadDelTag(r) === 0).length
       : filteredRepuestos.filter(r => r.cantidadStockBodega === 0).length;
     const conImagenes = filteredRepuestos.filter(r => (r.imagenesManual?.length || 0) > 0 || (r.fotosReales?.length || 0) > 0).length;
     const conMarcador = filteredRepuestos.filter(r => (r.vinculosManual?.length || 0) > 0).length;
@@ -101,13 +117,13 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
       totalSolicitadoUSD,
       totalStockUSD,
       totalGeneralUSD,
-      totalUnidades,
-      totalStock,
+      totalUnidades: totalSolicitadoUnidades,
+      totalStock: totalStockUnidades,
       promedioValorUnitario,
       maxValorUnitario,
       minValorUnitario,
-      conStock,
-      sinStock,
+      conStock: conCantidad,
+      sinStock: sinCantidad,
       conImagenes,
       conMarcador,
       total: filteredRepuestos.length
@@ -168,7 +184,7 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
       .sort((a, b) => b.totalValor - a.totalValor);
   }, [repuestos]);
 
-  // Top repuestos ordenados - usar cantidades del contexto
+  // Top repuestos ordenados - usar cantidades del tag seleccionado
   const sortedRepuestos = useMemo(() => {
     const sorted = [...filteredRepuestos].sort((a, b) => {
       let valueA = 0, valueB = 0;
@@ -176,8 +192,8 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
       switch (sortBy) {
         case 'valorTotal':
           if (selectedTag) {
-            valueA = (a.valorUnitario * getCantidadPorContexto(a, 'solicitud')) + (a.valorUnitario * getCantidadPorContexto(a, 'stock'));
-            valueB = (b.valorUnitario * getCantidadPorContexto(b, 'solicitud')) + (b.valorUnitario * getCantidadPorContexto(b, 'stock'));
+            valueA = a.valorUnitario * getCantidadDelTag(a);
+            valueB = b.valorUnitario * getCantidadDelTag(b);
           } else {
             valueA = (a.valorUnitario * a.cantidadSolicitada) + (a.valorUnitario * (a.cantidadStockBodega || 0));
             valueB = (b.valorUnitario * b.cantidadSolicitada) + (b.valorUnitario * (b.cantidadStockBodega || 0));
@@ -188,12 +204,9 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
           valueB = b.valorUnitario || 0;
           break;
         case 'cantidad':
-          valueA = selectedTag ? getCantidadPorContexto(a, 'solicitud') : (a.cantidadSolicitada || 0);
-          valueB = selectedTag ? getCantidadPorContexto(b, 'solicitud') : (b.cantidadSolicitada || 0);
-          break;
         case 'stock':
-          valueA = selectedTag ? getCantidadPorContexto(a, 'stock') : (a.cantidadStockBodega || 0);
-          valueB = selectedTag ? getCantidadPorContexto(b, 'stock') : (b.cantidadStockBodega || 0);
+          valueA = selectedTag ? getCantidadDelTag(a) : (a.cantidadSolicitada || 0);
+          valueB = selectedTag ? getCantidadDelTag(b) : (b.cantidadSolicitada || 0);
           break;
       }
       
@@ -231,7 +244,7 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
   const maxTotal = sortedRepuestos.length > 0 
     ? Math.max(...sortedRepuestos.map(r => {
         if (selectedTag) {
-          return (r.valorUnitario * getCantidadPorContexto(r, 'solicitud')) + (r.valorUnitario * getCantidadPorContexto(r, 'stock'));
+          return r.valorUnitario * getCantidadDelTag(r);
         }
         return (r.valorUnitario * r.cantidadSolicitada) + (r.valorUnitario * (r.cantidadStockBodega || 0));
       }))
@@ -542,13 +555,13 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
 
           <div className="space-y-3">
             {sortedRepuestos.map((repuesto, index) => {
-              const cantSol = selectedTag ? getCantidadPorContexto(repuesto, 'solicitud') : repuesto.cantidadSolicitada;
-              const cantStock = selectedTag ? getCantidadPorContexto(repuesto, 'stock') : (repuesto.cantidadStockBodega || 0);
-              const totalGeneral = (repuesto.valorUnitario * cantSol) + (repuesto.valorUnitario * cantStock);
+              const cantidadTag = selectedTag ? getCantidadDelTag(repuesto) : 0;
+              const totalGeneral = selectedTag 
+                ? repuesto.valorUnitario * cantidadTag
+                : (repuesto.valorUnitario * repuesto.cantidadSolicitada) + (repuesto.valorUnitario * (repuesto.cantidadStockBodega || 0));
               const value = sortBy === 'valorTotal' ? totalGeneral :
                            sortBy === 'valorUnitario' ? repuesto.valorUnitario :
-                           sortBy === 'cantidad' ? cantSol :
-                           cantStock;
+                           cantidadTag;
               
               return (
                 <div key={repuesto.id} className="group">
@@ -580,10 +593,7 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
                       <p className="text-xs text-gray-400">
                         {selectedTag ? (
                           <>
-                            {sortBy === 'valorTotal' && `${cantSol} sol. + ${cantStock} stock`}
-                            {sortBy === 'valorUnitario' && `Total: ${formatCurrency(totalGeneral)}`}
-                            {sortBy === 'cantidad' && formatCurrency(totalGeneral)}
-                            {sortBy === 'stock' && `Solicitado: ${cantSol}`}
+                            {cantidadTag} {selectedTagTipo === 'solicitud' ? 'sol.' : 'stk.'} + ${formatCurrency(totalGeneral)}
                           </>
                         ) : (
                           sortBy === 'valorUnitario' ? `Unit: ${formatCurrency(repuesto.valorUnitario)}` : 'Selecciona contexto'
