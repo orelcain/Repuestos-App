@@ -1348,9 +1348,6 @@ export function RepuestosTable({
                 {/* Nombre Manual */}
                 {isColumnVisible('nombreManual') && <td className="px-4 py-4"></td>}
                 
-                {/* Tags */}
-                {isColumnVisible('tags') && <td className="px-4 py-4"></td>}
-                
                 {/* Cantidad Solicitada */}
                 {isColumnVisible('cantidadSolicitada') && (
                   <td className="px-4 py-4 text-center">
@@ -1363,7 +1360,7 @@ export function RepuestosTable({
                 {/* Total Solicitado USD */}
                 {isColumnVisible('totalSolicitadoUSD') && (
                   <td className="px-4 py-4 text-right">
-                    <span className="text-blue-700 font-bold">
+                    <span className="text-blue-700 font-bold" title="Σ (Valor Unitario × Cantidad Solicitada)">
                       ${totales.totalSolicitadoUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </td>
@@ -1390,7 +1387,7 @@ export function RepuestosTable({
                 {/* Total Stock USD */}
                 {isColumnVisible('totalStockUSD') && (
                   <td className="px-4 py-4 text-right">
-                    <span className="text-green-700 font-bold">
+                    <span className="text-green-700 font-bold" title="Σ (Valor Unitario × Stock en Bodega)">
                       ${totales.totalStockUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </td>
@@ -1411,7 +1408,7 @@ export function RepuestosTable({
                 {/* Total General USD */}
                 {isColumnVisible('totalUSD') && (
                   <td className="px-4 py-4 text-right">
-                    <span className="text-purple-700 font-bold text-lg">
+                    <span className="text-purple-700 font-bold text-lg" title="Total Solicitado + Total Stock">
                       ${totales.totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </td>

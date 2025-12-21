@@ -203,6 +203,7 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
             </div>
             <p className="text-2xl font-bold text-blue-700">{formatCurrency(stats.totalSolicitadoUSD)}</p>
             <p className="text-xs text-gray-400 mt-1">USD</p>
+            <p className="text-xs text-gray-400 mt-2 italic">Σ (Valor Unit. × Cant. Solicitada)</p>
           </div>
 
           {/* Total Stock USD */}
@@ -215,6 +216,7 @@ export function StatsPanel({ repuestos }: StatsPanelProps) {
             </div>
             <p className="text-2xl font-bold text-green-700">{formatCurrency(stats.totalStockUSD)}</p>
             <p className="text-xs text-gray-400 mt-1">USD</p>
+            <p className="text-xs text-gray-400 mt-2 italic">Σ (Valor Unit. × Stock Bodega)</p>
           </div>
 
           {/* Total General USD */}

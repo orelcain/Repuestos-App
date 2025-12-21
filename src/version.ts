@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '2.7.3';
+export const APP_VERSION = '2.7.4';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '2.7.4',
+    date: '2025-12-20',
+    changes: [
+      'Fix: Columnas de totales ahora están correctamente alineadas',
+      'Tooltips explicativos en totales: Σ (Valor Unit. × Cantidad)',
+      'Leyendas de cálculo en tarjetas de estadísticas',
+      'Total General CLP visible en fila de totales'
+    ]
+  },
   {
     version: '2.7.3',
     date: '2025-12-20',
