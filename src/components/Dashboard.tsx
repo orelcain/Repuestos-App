@@ -50,6 +50,8 @@ import { ImportModal } from './ImportModal';
 import { StatsPanel } from './stats/StatsPanel';
 import { ToastContainer, Button } from './ui';
 import ReportsModal from './reports/ReportsModal';
+import { BackupModal } from './backup/BackupModal';
+import { useBackupSystem } from '../hooks/useBackupSystem';
 
 import { exportToExcel, exportToPDF } from '../utils/exportUtils';
 
@@ -67,8 +69,6 @@ import {
   Package,
   Loader2,
   Database,
-  HardDriveDownload,
-  HardDriveUpload,
   Moon,
   Sun,
   Undo2,
@@ -102,10 +102,7 @@ export function Dashboard() {
     getHistorial,
     importRepuestos,
     renameTag,
-    deleteTag,
-    migrateTagsToNewSystem,
-    restoreTagsFromHistory,
-    addTagToRepuestosByCodigo
+    deleteTag
   } = useRepuestos();
   const { uploadImage, getManualURL } = useStorage();
   const { lastSelectedRepuestoId, setLastSelectedRepuesto } = useLocalStorage();
@@ -167,7 +164,32 @@ export function Dashboard() {
   
   // Modal de backup
   const [showBackupModal, setShowBackupModal] = useState(false);
-  const [backupLoading, setBackupLoading] = useState(false);
+  
+  // Sistema de backup automático
+  const backupSystem = useBackupSystem(repuestos);
+  
+  // Wrapper de updateRepuesto con backup automático
+  const updateRepuestoWithBackup = useCallback(async (
+    id: string, 
+    data: Partial<Repuesto>,
+    originalData?: Repuesto
+  ) => {
+    await updateRepuesto(id, data, originalData);
+    
+    // Registrar cambios en el sistema de backup
+    if (originalData && backupSystem.autoBackupEnabled) {
+      for (const key of Object.keys(data) as (keyof Repuesto)[]) {
+        if (data[key] !== originalData[key]) {
+          backupSystem.recordChange(
+            originalData,
+            key,
+            originalData[key],
+            data[key]
+          );
+        }
+      }
+    }
+  }, [updateRepuesto, backupSystem]);
   
   // Modal de reportes
   const [showReportsModal, setShowReportsModal] = useState(false);
@@ -322,7 +344,7 @@ export function Dashboard() {
           }
         }
         
-        await updateRepuesto(editRepuesto.id, data, editRepuesto);
+        await updateRepuestoWithBackup(editRepuesto.id, data, editRepuesto);
         success('Repuesto actualizado correctamente');
       } else {
         await createRepuesto(data);
@@ -416,9 +438,9 @@ export function Dashboard() {
       const updatedVinculos = vinculosActuales.map(v => 
         v.id === editingMarker.id ? { ...marker, id: editingMarker.id } : v
       );
-      await updateRepuesto(markerRepuesto.id, {
+      await updateRepuestoWithBackup(markerRepuesto.id, {
         vinculosManual: updatedVinculos
-      });
+      }, markerRepuesto);
       success('Marcador actualizado correctamente');
       setCurrentMarker({ ...marker, id: editingMarker.id });
     } else {
@@ -427,9 +449,9 @@ export function Dashboard() {
         ...marker,
         id: Date.now().toString()
       };
-      await updateRepuesto(markerRepuesto.id, {
+      await updateRepuestoWithBackup(markerRepuesto.id, {
         vinculosManual: [...vinculosActuales, newMarker]
-      });
+      }, markerRepuesto);
       success('Marcador guardado - Ahora puedes ver este repuesto en el manual');
       setCurrentMarker(newMarker);
     }
@@ -445,9 +467,9 @@ export function Dashboard() {
     const vinculosActuales = repuesto.vinculosManual || [];
     const updatedVinculos = vinculosActuales.filter(v => v.id !== markerId);
     
-    await updateRepuesto(repuesto.id, {
+    await updateRepuestoWithBackup(repuesto.id, {
       vinculosManual: updatedVinculos
-    });
+    }, repuesto);
     
     success('Marcador eliminado');
     setCurrentMarker(undefined);
@@ -466,9 +488,9 @@ export function Dashboard() {
       const imagenes = tipo === 'manual' ? repuesto.imagenesManual : repuesto.fotosReales;
       const updatedImages = [...imagenes, { ...imagen, orden: imagenes.length }];
       
-      await updateRepuesto(repuestoId, {
+      await updateRepuestoWithBackup(repuestoId, {
         [tipo === 'manual' ? 'imagenesManual' : 'fotosReales']: updatedImages
-      });
+      }, repuesto);
       
       success('Imagen agregada correctamente');
     }
@@ -481,9 +503,9 @@ export function Dashboard() {
     const imagenes = tipo === 'manual' ? repuesto.imagenesManual : repuesto.fotosReales;
     const updatedImages = imagenes.filter(img => img.id !== imagen.id);
     
-    await updateRepuesto(repuesto.id, {
+    await updateRepuestoWithBackup(repuesto.id, {
       [tipo === 'manual' ? 'imagenesManual' : 'fotosReales']: updatedImages
-    });
+    }, repuesto);
     
     success('Imagen eliminada');
   };
@@ -496,16 +518,16 @@ export function Dashboard() {
       esPrincipal: img.id === imagen.id
     }));
     
-    await updateRepuesto(repuesto.id, {
+    await updateRepuestoWithBackup(repuesto.id, {
       [tipo === 'manual' ? 'imagenesManual' : 'fotosReales']: updatedImages
-    });
+    }, repuesto);
   };
 
   const handleUpdateImageOrder = async (repuesto: Repuesto, imagenes: ImagenRepuesto[]) => {
     const tipo = imagenes[0]?.tipo || 'manual';
-    await updateRepuesto(repuesto.id, {
+    await updateRepuestoWithBackup(repuesto.id, {
       [tipo === 'manual' ? 'imagenesManual' : 'fotosReales']: imagenes
-    });
+    }, repuesto);
   };
 
   // Captura desde PDF
@@ -521,7 +543,7 @@ export function Dashboard() {
     
     // Guardar referencia a la página
     const vinculosActuales = selectedRepuesto.vinculosManual || [];
-    await updateRepuesto(selectedRepuesto.id, {
+    await updateRepuestoWithBackup(selectedRepuesto.id, {
       vinculosManual: [...vinculosActuales, {
         id: Date.now().toString(),
         pagina: pageNumber,
@@ -529,10 +551,10 @@ export function Dashboard() {
         color: 'rgba(239, 68, 68, 0.4)',
         descripcion: `Página ${pageNumber}`
       }]
-    });
+    }, selectedRepuesto);
 
     success(`Captura de página ${pageNumber} guardada`);
-  }, [selectedRepuesto, updateRepuesto, success]);
+  }, [selectedRepuesto, updateRepuestoWithBackup, success, handleUploadImage]);
 
   // Callback para recibir cambios de contexto desde RepuestosTable
   const handleContextChange = (tag: string | null, tipo: 'solicitud' | 'stock' | null) => {
@@ -592,7 +614,7 @@ export function Dashboard() {
       // Restaurar el valor anterior
       const repuesto = repuestos.find(r => r.id === action.repuestoId);
       if (repuesto && action.campo) {
-        await updateRepuesto(action.repuestoId, {
+        await updateRepuestoWithBackup(action.repuestoId, {
           [action.campo]: action.valorAnterior
         }, repuesto);
         success(`Deshecho: ${getActionDescription(action)}`);
@@ -613,7 +635,7 @@ export function Dashboard() {
     try {
       const repuesto = repuestos.find(r => r.id === action.repuestoId);
       if (repuesto && action.campo) {
-        await updateRepuesto(action.repuestoId, {
+        await updateRepuestoWithBackup(action.repuestoId, {
           [action.campo]: action.valorNuevo
         }, repuesto);
         success(`Rehecho: ${getActionDescription(action)}`);
@@ -645,7 +667,7 @@ export function Dashboard() {
         valorNuevo: entry.valorAnterior
       });
 
-      await updateRepuesto(entry.repuestoId, {
+      await updateRepuestoWithBackup(entry.repuestoId, {
         [entry.campo]: entry.valorAnterior
       }, repuesto);
       
@@ -663,159 +685,6 @@ export function Dashboard() {
     } catch (err) {
       error('Error al importar repuestos');
       throw err;
-    }
-  };
-
-  // Migrar tags al nuevo sistema (sincronizar cantidades)
-  const handleMigrateTags = async () => {
-    try {
-      const result = await migrateTagsToNewSystem();
-      success(`Tags migrados: ${result.solicitudCount} solicitudes, ${result.stockCount} stock (${result.migratedCount} repuestos actualizados)`);
-    } catch (err) {
-      error('Error al migrar tags');
-    }
-  };
-
-  // Restaurar tags desde historial de Firebase
-  const handleRestoreTags = async () => {
-    if (!confirm('¿Restaurar tags desde el historial de Firebase? Esto buscará los valores anteriores guardados.')) {
-      return;
-    }
-    try {
-      const result = await restoreTagsFromHistory();
-      if (result.restoredCount > 0) {
-        success(`Tags restaurados: ${result.restoredCount} repuestos`);
-      } else {
-        error('No se encontró historial de tags para restaurar');
-      }
-      if (result.errors.length > 0) {
-        console.log('Errores:', result.errors);
-      }
-    } catch (err) {
-      error('Error al restaurar tags');
-    }
-  };
-
-  // Marcar los 14 repuestos que fueron eliminados del Excel original
-  // Estos son los que están en la app pero no tienen tag "Cantidad Solicitada Dic 2025"
-  const handleMarkEliminados = async () => {
-    const TAG_ELIMINADOS = 'Eliminados de Excel Original Dic 2025';
-    
-    // Los 14 códigos SAP que están en el Excel pero no tienen el tag de solicitud
-    const codigosEliminados: Record<string, number> = {
-      '3300011770': 2,  // RODAMIENTO 33136006
-      '3300011774': 4,  // RESORTE 38000081
-      '3300011820': 4,  // ESLABON 37310102
-      '3300012422': 4,  // RESORTE 38000367
-      '3300017044': 2,  // BULON GOLLETE 92461640
-      '3300017418': 1,  // CHAPA GUIA 2001202002
-      '3300035274': 1,  // DESVIADOR 2001202010
-      '3300035287': 1,  // CATALINA 631677
-      '3300037826': 1,  // EJE 512757
-      '3300038765': 2,  // POLEA DENTADA 513617
-      '3300038854': 1,  // DESVIADOR 2001202011
-      '3300051216': 4,  // POLEA DENTADA 513497
-      '3300051217': 2,  // ENGRANAJE 527467
-      '3300106403': 6,  // CUCHILLA CIRC 200MM
-    };
-
-    if (!confirm(`¿Agregar tag "${TAG_ELIMINADOS}" a los 14 repuestos identificados?\n\nEstos repuestos están en el Excel original pero no tienen el tag "Cantidad Solicitada Dic 2025".`)) {
-      return;
-    }
-
-    try {
-      const codigosSAP = Object.keys(codigosEliminados);
-      const result = await addTagToRepuestosByCodigo(
-        codigosSAP,
-        TAG_ELIMINADOS,
-        'solicitud',
-        codigosEliminados
-      );
-      
-      if (result.addedCount > 0) {
-        success(`Tag agregado a ${result.addedCount} repuestos`);
-      }
-      if (result.errors.length > 0) {
-        error(`No se encontraron: ${result.errors.join(', ')}`);
-      }
-    } catch (err) {
-      error('Error al agregar tags');
-    }
-  };
-
-  // Backup: Exportar todos los datos a JSON
-  const handleBackupExport = () => {
-    setBackupLoading(true);
-    try {
-      const backupData = {
-        version: APP_VERSION,
-        fecha: new Date().toISOString(),
-        totalRepuestos: repuestos.length,
-        repuestos: repuestos.map(r => ({
-          ...r,
-          // Excluir campos internos de Firebase
-          id: r.id
-        }))
-      };
-      
-      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `baader200_backup_${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      success(`Backup exportado: ${repuestos.length} repuestos`);
-      setShowBackupModal(false);
-    } catch (err) {
-      error('Error al crear backup');
-    } finally {
-      setBackupLoading(false);
-    }
-  };
-
-  // Restore: Importar datos desde JSON
-  const handleBackupImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    setBackupLoading(true);
-    try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-      
-      if (!data.repuestos || !Array.isArray(data.repuestos)) {
-        throw new Error('Formato de backup inválido');
-      }
-      
-      // Convertir a RepuestoFormData (sin id para crear nuevos)
-      const repuestosToImport: RepuestoFormData[] = data.repuestos.map((r: Repuesto) => ({
-        codigoSAP: r.codigoSAP || '',
-        codigoBaader: r.codigoBaader || '',
-        textoBreve: r.textoBreve || '',
-        descripcion: r.descripcion || '',
-        nombreManual: r.nombreManual || '',
-        cantidadSolicitada: r.cantidadSolicitada || 0,
-        cantidadStockBodega: r.cantidadStockBodega || 0,
-        valorUnitario: r.valorUnitario || 0,
-        tags: r.tags || [],
-        vinculosManual: r.vinculosManual || [],
-        imagenesManual: r.imagenesManual || [],
-        fotosReales: r.fotosReales || []
-      }));
-      
-      await importRepuestos(repuestosToImport);
-      success(`Backup restaurado: ${repuestosToImport.length} repuestos importados`);
-      setShowBackupModal(false);
-    } catch (err) {
-      error('Error al restaurar backup: archivo inválido');
-    } finally {
-      setBackupLoading(false);
-      // Limpiar input
-      e.target.value = '';
     }
   };
 
@@ -1505,105 +1374,15 @@ export function Dashboard() {
       )}
 
       {/* Modal de Backup/Restore */}
-      {showBackupModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowBackupModal(false)}>
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
-            <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                <Database className="w-5 h-5 text-primary-600" />
-                Backup / Restore
-              </h3>
-              <button onClick={() => setShowBackupModal(false)} className="p-2 rounded-lg hover:bg-gray-100">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="p-5 space-y-4">
-              {/* Exportar Backup */}
-              <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
-                <div className="flex items-start gap-3">
-                  <HardDriveDownload className="w-8 h-8 text-blue-600 flex-shrink-0" />
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-blue-800">Exportar Backup</h4>
-                    <p className="text-sm text-blue-600 mt-1">
-                      Descarga todos los datos en formato JSON ({repuestos.length} repuestos)
-                    </p>
-                    <button
-                      onClick={handleBackupExport}
-                      disabled={backupLoading}
-                      className="mt-3 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50"
-                    >
-                      {backupLoading ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Download className="w-4 h-4" />
-                      )}
-                      Descargar Backup
-                    </button>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Importar Backup */}
-              <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
-                <div className="flex items-start gap-3">
-                  <HardDriveUpload className="w-8 h-8 text-amber-600 flex-shrink-0" />
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-amber-800">Restaurar Backup</h4>
-                    <p className="text-sm text-amber-600 mt-1">
-                      Importar datos desde un archivo JSON de backup
-                    </p>
-                    <p className="text-xs text-amber-500 mt-1">
-                      ⚠️ Se agregarán nuevos repuestos (no reemplaza existentes)
-                    </p>
-                    <label className="mt-3 px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 transition-colors inline-flex items-center gap-2 cursor-pointer disabled:opacity-50">
-                      <input
-                        type="file"
-                        accept=".json"
-                        onChange={handleBackupImport}
-                        disabled={backupLoading}
-                        className="hidden"
-                      />
-                      {backupLoading ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Upload className="w-4 h-4" />
-                      )}
-                      Seleccionar archivo
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              {/* Acción especial: Marcar eliminados */}
-              <div className="p-4 bg-purple-50 rounded-xl border border-purple-100">
-                <div className="flex items-start gap-3">
-                  <Package className="w-8 h-8 text-purple-600 flex-shrink-0" />
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-purple-800">Marcar Eliminados Excel</h4>
-                    <p className="text-sm text-purple-600 mt-1">
-                      Agrega tag "Eliminados de Excel Original Dic 2025" a 14 repuestos que están en la app pero no en el Excel original de solicitud
-                    </p>
-                    <button
-                      onClick={handleMarkEliminados}
-                      className="mt-3 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
-                    >
-                      <Package className="w-4 h-4" />
-                      Marcar 14 repuestos
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="px-5 py-3 border-t border-gray-200 bg-gray-50">
-              <p className="text-xs text-gray-500 text-center">
-                Versión actual: {APP_VERSION} • {repuestos.length} repuestos en la base de datos
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+      <BackupModal
+        isOpen={showBackupModal}
+        onClose={() => setShowBackupModal(false)}
+        backupSystem={backupSystem}
+        repuestos={repuestos}
+        onRestore={importRepuestos}
+        onSuccess={success}
+        onError={error}
+      />
 
       {/* Modal de Reportes */}
       <ReportsModal 
@@ -1625,7 +1404,7 @@ export function Dashboard() {
         onClose={() => setShowContextComparator(false)}
         repuestos={repuestos}
         isDarkMode={isDark}
-        onViewInManual={(repuesto) => {
+        onViewInManual={(repuesto: Repuesto) => {
           setShowContextComparator(false);
           handleViewManual(repuesto);
         }}

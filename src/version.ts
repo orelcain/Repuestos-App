@@ -1,8 +1,34 @@
 // Versión de la aplicación
-export const APP_VERSION = '3.5.1';
+export const APP_VERSION = '3.6.1';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '3.6.1',
+    date: '2025-01-21',
+    changes: [
+      'FIX: Corregidos 5 errores de TypeScript en Dashboard',
+      'Eliminada variable no usada: addTagToRepuestosByCodigo',
+      'Agregado tipo explícito Repuesto en callback onViewInManual',
+      'Suprimidos warnings de funciones de migración (uso interno)'
+    ]
+  },
+  {
+    version: '3.6.0',
+    date: '2025-01-21',
+    changes: [
+      'NUEVO: Sistema de backup automático incremental - guarda solo cambios (~500 bytes vs ~500KB)',
+      'NUEVO: Historial de backups con fecha/hora y descripción de cambios',
+      'NUEVO: Modal de backup mejorado con pestañas: Historial, Exportar, Importar, Config',
+      'NUEVO: Toggle para activar/desactivar backup automático',
+      'NUEVO: Restaurar a cualquier punto en el historial de backups',
+      'NUEVO: Reportes mejorados - pestaña "Contextos" con análisis de tags por tipo',
+      'NUEVO: Reportes mejorados - pestaña "Manual" con progreso de marcadores',
+      'ELIMINADO: Función "Marcar Eliminados Excel" (ya no necesaria)',
+      'Almacenamiento eficiente en localStorage con límite de 50 backups',
+      'Backup completo cada 10 cambios incrementales para optimizar restauración'
+    ]
+  },
   {
     version: '3.5.1',
     date: '2025-01-21',
