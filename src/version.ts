@@ -1,8 +1,17 @@
 // Versión de la aplicación
-export const APP_VERSION = '3.1.0';
+export const APP_VERSION = '3.1.1';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '3.1.1',
+    date: '2025-12-21',
+    changes: [
+      'Botón "Gestor de Tags" simplificado - abre modal directamente',
+      'TagManagerModal: soporte completo dark mode',
+      'Estilos mejorados para todos los elementos del modal en dark mode'
+    ]
+  },
   {
     version: '3.1.0',
     date: '2025-12-21',
