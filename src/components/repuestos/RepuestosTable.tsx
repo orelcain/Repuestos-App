@@ -155,7 +155,7 @@ export function RepuestosTable({
   
   // Columnas a ocultar en modo compacto (panel lateral abierto)
   const compactHiddenColumns = [
-    'textoBreve', 'descripcion', 'nombreManual', 'tags',
+    'nombreManual', 'tags',
     'totalSolicitadoUSD', 'totalSolicitadoCLP', 
     'totalStockUSD', 'totalStockCLP',
     'valorUnitario', 'totalUSD', 'totalCLP'
@@ -1005,12 +1005,12 @@ export function RepuestosTable({
                   id={`repuesto-${repuesto.id}`}
                   onClick={() => onSelect(selectedRepuesto?.id === repuesto.id ? null : repuesto)}
                   className={`
-                    border-b cursor-pointer transition-colors
+                    border-b cursor-pointer transition-colors group
                     ${isLastEdited
-                      ? 'bg-orange-100/50 border-orange-300 border-2' 
+                      ? 'bg-orange-100/50 dark:bg-orange-900/30 border-orange-300 border-2' 
                       : selectedRepuesto?.id === repuesto.id 
-                        ? 'bg-primary-50 border-primary-200' 
-                        : 'border-gray-100 hover:bg-gray-50'
+                        ? 'bg-primary-50 dark:bg-primary-900/30 border-primary-200 dark:border-primary-700' 
+                        : 'border-gray-100 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'
                     }
                   `}
                 >
