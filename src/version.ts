@@ -1,8 +1,22 @@
 // Versión de la aplicación
-export const APP_VERSION = '3.0.1';
+export const APP_VERSION = '3.1.0';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '3.1.0',
+    date: '2025-12-21',
+    changes: [
+      'Columna Tags dividida en dos: "Tags Solicitud" (azul) y "Tags Stock" (verde)',
+      'Nuevo modal CreateContextModal: wizard para crear contextos/eventos con tipo',
+      'Nuevo modal AddToListModal: agregar repuestos del total a la lista actual',
+      'Filtrado por contexto: mostrar SOLO repuestos con el tag seleccionado',
+      'Botón "Nuevo" junto al selector para crear contextos rápidamente',
+      'Botón "Agregar a lista" junto al buscador cuando hay contexto activo',
+      'Columnas se ocultan/muestran según tipo de contexto (solicitud vs stock)',
+      'Dropdown de contexto personalizado con soporte completo dark mode'
+    ]
+  },
   {
     version: '3.0.1',
     date: '2025-12-21',
