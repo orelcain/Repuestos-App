@@ -1,8 +1,17 @@
 // Versión de la aplicación
-export const APP_VERSION = '3.4.0';
+export const APP_VERSION = '3.4.1';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '3.4.1',
+    date: '2025-12-21',
+    changes: [
+      'Limpieza: removidos botones temporales de migración de tags',
+      'Sistema de tags estabilizado con datos actuales (135 solicitudes, 63 stock)',
+      'Interfaz limpia y lista para uso en producción'
+    ]
+  },
   {
     version: '3.4.0',
     date: '2025-12-21',

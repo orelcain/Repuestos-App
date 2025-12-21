@@ -844,22 +844,6 @@ export function Dashboard() {
 
             <div className="w-px h-8 bg-gray-200 dark:bg-gray-700" />
 
-            {/* Botones TEMPORALES de tags - QUITAR DESPUÉS DE USAR */}
-            <button
-              onClick={handleRestoreTags}
-              className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-medium rounded-lg transition-colors"
-              title="Restaurar tags desde historial de Firebase"
-            >
-              ⬅️ Restaurar Tags
-            </button>
-            <button
-              onClick={handleMigrateTags}
-              className="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium rounded-lg transition-colors"
-              title="Sincronizar tags con cantidades del repuesto"
-            >
-              🔄 Migrar Tags
-            </button>
-
             {/* Toggle tema */}
             <button
               onClick={toggleTheme}
