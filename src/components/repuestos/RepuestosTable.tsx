@@ -35,7 +35,8 @@ import {
   ArrowDown,
   ShoppingCart,
   PlusCircle,
-  ListPlus
+  ListPlus,
+  ChevronDown
 } from 'lucide-react';
 
 interface RepuestosTableProps {
@@ -156,6 +157,7 @@ export function RepuestosTable({
   // Estados para modales de contexto
   const [showAddToListModal, setShowAddToListModal] = useState(false);
   const [showCreateContextModal, setShowCreateContextModal] = useState(false);
+  const [showContextDropdown, setShowContextDropdown] = useState(false);
   
   // Estado para ordenamiento
   const [sortColumn, setSortColumn] = useState<string>('codigoSAP');
@@ -851,35 +853,123 @@ export function RepuestosTable({
 
         {/* Panel de Totales con Selector de Contexto */}
         <div className="flex flex-wrap items-center gap-3 px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-xl border border-gray-200 dark:border-gray-700">
-          {/* Selector de Contexto (Tag activo) */}
+          {/* Selector de Contexto (Tag activo) - Dropdown personalizado */}
           <div className="flex items-center gap-2 pr-4 border-r border-gray-300 dark:border-gray-600">
             <div className="text-center">
               <div className="text-xs text-gray-500 dark:text-gray-400 uppercase mb-1">Contexto/Evento</div>
               <div className="flex items-center gap-2">
-                <select
-                  value={activeContextTag || ''}
-                  onChange={(e) => setActiveContextTag(e.target.value || null)}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors ${
-                    activeContextTag 
-                      ? activeContextTipo === 'solicitud'
-                        ? 'bg-blue-100 dark:bg-blue-900/50 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300'
-                        : 'bg-green-100 dark:bg-green-900/50 border-green-300 dark:border-green-700 text-green-700 dark:text-green-300'
-                      : 'bg-amber-50 dark:bg-amber-900/30 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300'
-                  }`}
-                >
-                  <option value="">-- Seleccionar evento --</option>
-                  {globalTags.map(tag => {
-                    const emoji = tag.tipo === 'stock' ? '📦' : '🛒';
-                    return (
-                      <option key={tag.nombre} value={tag.nombre}>{emoji} {tag.nombre}</option>
-                    );
-                  })}
-                </select>
+                {/* Dropdown personalizado para dark mode */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowContextDropdown(!showContextDropdown)}
+                    className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors min-w-[200px] justify-between ${
+                      activeContextTag 
+                        ? activeContextTipo === 'solicitud'
+                          ? 'bg-blue-100 dark:bg-blue-900/50 border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-300'
+                          : 'bg-green-100 dark:bg-green-900/50 border-green-300 dark:border-green-600 text-green-700 dark:text-green-300'
+                        : 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300'
+                    }`}
+                  >
+                    <span className="truncate">
+                      {activeContextTag ? (
+                        <>
+                          {activeContextTipo === 'stock' ? '📦' : '🛒'} {activeContextTag}
+                        </>
+                      ) : (
+                        '-- Seleccionar evento --'
+                      )}
+                    </span>
+                    <ChevronDown className={`w-4 h-4 transition-transform ${showContextDropdown ? 'rotate-180' : ''}`} />
+                  </button>
+                  
+                  {/* Dropdown menu */}
+                  {showContextDropdown && (
+                    <>
+                      {/* Overlay para cerrar al hacer click fuera */}
+                      <div 
+                        className="fixed inset-0 z-40" 
+                        onClick={() => setShowContextDropdown(false)}
+                      />
+                      <div className="absolute top-full left-0 mt-1 w-full min-w-[250px] max-h-[300px] overflow-y-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg z-50">
+                        {/* Opción para deseleccionar */}
+                        <button
+                          onClick={() => {
+                            setActiveContextTag(null);
+                            setShowContextDropdown(false);
+                          }}
+                          className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                            !activeContextTag ? 'bg-gray-100 dark:bg-gray-700 font-medium' : ''
+                          } text-gray-600 dark:text-gray-400`}
+                        >
+                          -- Sin contexto (ver todo) --
+                        </button>
+                        
+                        {/* Separador */}
+                        <div className="border-t border-gray-200 dark:border-gray-600 my-1" />
+                        
+                        {/* Tags de solicitud */}
+                        {globalTags.filter(t => t.tipo === 'solicitud').length > 0 && (
+                          <>
+                            <div className="px-3 py-1 text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase bg-blue-50 dark:bg-blue-900/30">
+                              🛒 Solicitudes
+                            </div>
+                            {globalTags.filter(t => t.tipo === 'solicitud').map(tag => (
+                              <button
+                                key={tag.nombre}
+                                onClick={() => {
+                                  setActiveContextTag(tag.nombre);
+                                  setShowContextDropdown(false);
+                                }}
+                                className={`w-full px-3 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors flex items-center gap-2 ${
+                                  activeContextTag === tag.nombre ? 'bg-blue-100 dark:bg-blue-900/50 font-medium' : ''
+                                } text-gray-700 dark:text-gray-200`}
+                              >
+                                <ShoppingCart className="w-4 h-4 text-blue-500" />
+                                {tag.nombre}
+                                {activeContextTag === tag.nombre && (
+                                  <Check className="w-4 h-4 ml-auto text-blue-600" />
+                                )}
+                              </button>
+                            ))}
+                          </>
+                        )}
+                        
+                        {/* Tags de stock */}
+                        {globalTags.filter(t => t.tipo === 'stock').length > 0 && (
+                          <>
+                            <div className="px-3 py-1 text-xs font-semibold text-green-600 dark:text-green-400 uppercase bg-green-50 dark:bg-green-900/30 mt-1">
+                              📦 Stock
+                            </div>
+                            {globalTags.filter(t => t.tipo === 'stock').map(tag => (
+                              <button
+                                key={tag.nombre}
+                                onClick={() => {
+                                  setActiveContextTag(tag.nombre);
+                                  setShowContextDropdown(false);
+                                }}
+                                className={`w-full px-3 py-2 text-left text-sm hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors flex items-center gap-2 ${
+                                  activeContextTag === tag.nombre ? 'bg-green-100 dark:bg-green-900/50 font-medium' : ''
+                                } text-gray-700 dark:text-gray-200`}
+                              >
+                                <Package className="w-4 h-4 text-green-500" />
+                                {tag.nombre}
+                                {activeContextTag === tag.nombre && (
+                                  <Check className="w-4 h-4 ml-auto text-green-600" />
+                                )}
+                              </button>
+                            ))}
+                          </>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+                
                 {activeContextTipo && (
                   <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                     activeContextTipo === 'solicitud'
-                      ? 'bg-blue-200 text-blue-800'
-                      : 'bg-green-200 text-green-800'
+                      ? 'bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200'
+                      : 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200'
                   }`}>
                     {activeContextTipo === 'solicitud' ? '🛒 Solicitud' : '📦 Stock'}
                   </span>
@@ -887,7 +977,7 @@ export function RepuestosTable({
                 {/* Botón crear nuevo contexto */}
                 <button
                   onClick={() => setShowCreateContextModal(true)}
-                  className="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-primary-600 hover:bg-primary-50 rounded-lg transition-colors border border-primary-200"
+                  className="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-lg transition-colors border border-primary-200 dark:border-primary-700"
                   title="Crear nuevo contexto/evento"
                 >
                   <PlusCircle className="w-4 h-4" />
