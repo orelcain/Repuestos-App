@@ -1096,19 +1096,6 @@ export function RepuestosTable({
                           </button>
                         )}
                       </div>
-                      {/* Tags del repuesto */}
-                      {repuesto.tags && repuesto.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {repuesto.tags.slice(0, 2).map(tag => (
-                            <span key={tag} className="inline-flex items-center px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-medium">
-                              {tag.length > 12 ? tag.substring(0, 12) + '...' : tag}
-                            </span>
-                          ))}
-                          {repuesto.tags.length > 2 && (
-                            <span className="text-[10px] text-gray-400">+{repuesto.tags.length - 2}</span>
-                          )}
-                        </div>
-                      )}
                     </div>
                   </td>
                   )}

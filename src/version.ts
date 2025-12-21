@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '2.7.5';
+export const APP_VERSION = '2.7.6';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '2.7.6',
+    date: '2025-12-20',
+    changes: [
+      'Fix: Columna Tags ahora visible y configurada correctamente',
+      'Tags eliminados de la celda Descripción Extendida',
+      'Tags se muestran en su propia columna dedicada',
+      'Configuración de columnas actualizada con orden correcto'
+    ]
+  },
   {
     version: '2.7.5',
     date: '2025-12-20',
