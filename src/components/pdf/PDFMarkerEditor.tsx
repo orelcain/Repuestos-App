@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
+import { getGlobalPDFCache } from '../../hooks/usePDFPreloader';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -112,9 +113,22 @@ export function PDFMarkerEditor({
   // Estado de repuesto actual
   const [currentDescription, setCurrentDescription] = useState(repuestoDescripcion);
 
-  // Cargar PDF
+  // Cargar PDF - usar precargado si está disponible
   useEffect(() => {
     if (!pdfUrl) return;
+
+    // Verificar si hay PDF precargado en cache global
+    const cachedPDF = getGlobalPDFCache();
+    
+    if (cachedPDF && cachedPDF.url === pdfUrl) {
+      console.log('[PDFMarkerEditor] Usando PDF precargado ⚡');
+      setPdf(cachedPDF.pdf);
+      setTotalPages(cachedPDF.pdf.numPages);
+      setLoading(false);
+      return;
+    }
+
+    // Cargar PDF normalmente si no hay cache
     setLoading(true);
     
     pdfjsLib.getDocument(pdfUrl).promise
