@@ -1,8 +1,19 @@
 // Versión de la aplicación
-export const APP_VERSION = '3.4.5';
+export const APP_VERSION = '3.4.6';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '3.4.6',
+    date: '2025-12-21',
+    changes: [
+      'NUEVO: Formato Excel "Informe" igual al archivo original Baader',
+      'MEJORA: Exportación simple ahora solo muestra 6 columnas esenciales',
+      'MEJORA: Columnas: CODIGO SAP, TEXTO BREVE, COD. BAADER, CANTIDAD, VALOR UN, TOTAL $',
+      'MEJORA: Exportación incluye fila de totales y hoja de información',
+      'MEJORA: Exportación Stock Bodega usa mismo formato limpio'
+    ]
+  },
   {
     version: '3.4.5',
     date: '2025-12-21',

@@ -82,9 +82,151 @@ export interface ExcelExportOptions {
   incluirPorTags?: boolean;
   incluirEstilos?: boolean;
   contextTag?: string | null;  // Tag de contexto para cantidades
+  tipoContexto?: 'solicitud' | 'stock' | null; // Tipo del contexto para determinar columnas
 }
 
-// Exportación simple: Solo datos básicos, sin estilos ni hojas adicionales
+// Exportación formato informe: Igual al "Informe Baader 200 v2.xlsx"
+// Solo 6 columnas: CODIGO SAP, TEXTO BREVE, COD. BAADER, CANTIDAD, VALOR UN, TOTAL $
+async function exportToExcelInforme(
+  repuestos: Repuesto[], 
+  filename: string, 
+  contextTag: string | null,
+  tipoContexto: 'solicitud' | 'stock' | null
+) {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'Baader 200 App';
+  workbook.created = new Date();
+
+  // Determinar el tipo de cantidad a mostrar
+  const esSolicitud = tipoContexto === 'solicitud' || !tipoContexto;
+  const cantidadLabel = contextTag 
+    ? (esSolicitud ? `CANTIDAD (${contextTag})` : `STOCK (${contextTag})`)
+    : (esSolicitud ? 'CANTIDAD SOLICITADA' : 'STOCK BODEGA');
+  
+  const sheetName = contextTag 
+    ? contextTag.substring(0, 31) // Excel limita a 31 caracteres
+    : (esSolicitud ? 'Cantidad Solicitada' : 'Stock Bodega');
+
+  const ws = workbook.addWorksheet(sheetName);
+
+  // === COLUMNAS EXACTAS DEL INFORME ===
+  ws.columns = [
+    { header: 'CODIGO SAP', key: 'codigoSAP', width: 14 },
+    { header: 'TEXTO BREVE', key: 'textoBreve', width: 50 },
+    { header: 'COD. BAADER', key: 'codBaader', width: 16 },
+    { header: cantidadLabel, key: 'cantidad', width: 18 },
+    { header: 'VALOR UN', key: 'valorUn', width: 14 },
+    { header: 'TOTAL $', key: 'total', width: 16 },
+  ];
+
+  // === ESTILO DEL HEADER ===
+  const headerRow = ws.getRow(1);
+  headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E40AF' } };
+  headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+  headerRow.height = 22;
+
+  // === AGREGAR DATOS ===
+  let totalGeneral = 0;
+  let totalCantidad = 0;
+
+  repuestos.forEach((r, index) => {
+    // Obtener cantidad según tipo de contexto
+    const cantidad = contextTag 
+      ? getCantidadPorContexto(r, contextTag, esSolicitud ? 'solicitud' : 'stock')
+      : (esSolicitud ? getTotalCantidadesRepuesto(r).solicitud : getTotalCantidadesRepuesto(r).stock);
+    
+    const total = r.valorUnitario * cantidad;
+    totalGeneral += total;
+    totalCantidad += cantidad;
+
+    const row = ws.addRow({
+      codigoSAP: r.codigoSAP,
+      textoBreve: r.textoBreve,
+      codBaader: r.codigoBaader,
+      cantidad: cantidad,
+      valorUn: r.valorUnitario,
+      total: total
+    });
+
+    // Alternar colores de fila
+    if (index % 2 === 1) {
+      row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } };
+    }
+
+    // Formato de moneda
+    row.getCell('valorUn').numFmt = '"$"#,##0.00';
+    row.getCell('total').numFmt = '"$"#,##0.00';
+    
+    // Alineación
+    row.getCell('codigoSAP').alignment = { horizontal: 'center' };
+    row.getCell('codBaader').alignment = { horizontal: 'center' };
+    row.getCell('cantidad').alignment = { horizontal: 'center' };
+    row.getCell('valorUn').alignment = { horizontal: 'right' };
+    row.getCell('total').alignment = { horizontal: 'right' };
+  });
+
+  // === FILA DE TOTALES ===
+  const totalRow = ws.addRow({
+    codigoSAP: '',
+    textoBreve: 'TOTALES',
+    codBaader: '',
+    cantidad: totalCantidad,
+    valorUn: '',
+    total: totalGeneral
+  });
+  totalRow.font = { bold: true };
+  totalRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDBEAFE' } };
+  totalRow.getCell('total').numFmt = '"$"#,##0.00';
+  totalRow.getCell('textoBreve').alignment = { horizontal: 'right' };
+  totalRow.getCell('cantidad').alignment = { horizontal: 'center' };
+  totalRow.getCell('total').alignment = { horizontal: 'right' };
+
+  // === BORDES ===
+  ws.eachRow((row) => {
+    row.eachCell((cell) => {
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+        left: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+        bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+        right: { style: 'thin', color: { argb: 'FFE5E7EB' } }
+      };
+    });
+  });
+
+  // === FILTROS AUTOMÁTICOS ===
+  ws.autoFilter = {
+    from: { row: 1, column: 1 },
+    to: { row: repuestos.length + 1, column: 6 }
+  };
+
+  // === INFO DEL CONTEXTO EN NUEVA HOJA ===
+  const wsInfo = workbook.addWorksheet('Info');
+  wsInfo.columns = [
+    { header: 'Campo', key: 'campo', width: 25 },
+    { header: 'Valor', key: 'valor', width: 40 },
+  ];
+  wsInfo.addRow({ campo: 'Contexto/Evento', valor: contextTag || 'Todos' });
+  wsInfo.addRow({ campo: 'Tipo', valor: esSolicitud ? 'Solicitud' : 'Stock Bodega' });
+  wsInfo.addRow({ campo: 'Total Repuestos', valor: repuestos.length });
+  wsInfo.addRow({ campo: 'Total Cantidad', valor: totalCantidad });
+  wsInfo.addRow({ campo: 'Total USD', valor: totalGeneral });
+  wsInfo.addRow({ campo: 'Fecha Exportación', valor: new Date().toLocaleDateString('es-CL') });
+  wsInfo.getRow(1).font = { bold: true };
+  wsInfo.getCell('B5').numFmt = '"$"#,##0.00';
+
+  // Guardar archivo
+  const tipoSufijo = esSolicitud ? 'solicitud' : 'stock';
+  const finalFilename = contextTag 
+    ? `${filename}_${contextTag.replace(/[^a-zA-Z0-9]/g, '_')}`
+    : `${filename}_${tipoSufijo}`;
+    
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  saveAs(blob, `${finalFilename}.xlsx`);
+}
+
+// Exportación simple: Solo datos básicos, sin estilos ni hojas adicionales (legacy)
 async function exportToExcelSimple(repuestos: Repuesto[], filename: string, contextTag?: string | null) {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Baader 200 App';
@@ -149,9 +291,9 @@ export async function exportToExcel(
   options: ExcelExportOptions = { formato: 'completo' },
   filename: string = 'repuestos_baader_200'
 ) {
-  // Si es formato simple, exportar solo datos básicos
+  // Si es formato simple, usar el nuevo formato informe (6 columnas)
   if (options.formato === 'simple') {
-    return exportToExcelSimple(repuestos, filename, options.contextTag);
+    return exportToExcelInforme(repuestos, filename, options.contextTag || null, options.tipoContexto || null);
   }
 
   const {

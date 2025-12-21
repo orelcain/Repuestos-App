@@ -513,7 +513,8 @@ export function Dashboard() {
       incluirSinStock: excelIncluirSinStock,
       incluirPorTags: excelIncluirPorTags,
       incluirEstilos: excelIncluirEstilos,
-      contextTag: contextName // Pasar el contexto activo
+      contextTag: contextName, // Pasar el contexto activo
+      tipoContexto: activeContextTipo // Pasar el tipo de contexto (solicitud/stock)
     });
     
     const contextInfo = activeContextTag ? ` (contexto: ${activeContextTag})` : '';
