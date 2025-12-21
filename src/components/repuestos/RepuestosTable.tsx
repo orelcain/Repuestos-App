@@ -153,6 +153,7 @@ export function RepuestosTable({
   const [showColumnConfig, setShowColumnConfig] = useState(false);
   const [filterSinStock, setFilterSinStock] = useState(false);
   const [filterConManual, setFilterConManual] = useState<boolean | null>(null); // null=todos, true=con marcador, false=sin marcador
+  const [filterSinTags, setFilterSinTags] = useState<boolean | null>(null); // null=todos, true=sin tags, false=con tags
   const [precioMin, setPrecioMin] = useState<string>('');
   const [precioMax, setPrecioMax] = useState<string>('');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
@@ -384,6 +385,14 @@ export function RepuestosTable({
       });
     }
     
+    // Filtrar por tags asignados
+    if (filterSinTags !== null) {
+      result = result.filter(r => {
+        const tieneTags = r.tags && r.tags.length > 0;
+        return filterSinTags ? !tieneTags : tieneTags;
+      });
+    }
+    
     // Filtrar por rango de precio
     const minPrice = parseFloat(precioMin) || 0;
     const maxPrice = parseFloat(precioMax) || Infinity;
@@ -452,7 +461,7 @@ export function RepuestosTable({
     });
     
     return result;
-  }, [repuestos, searchTerm, selectedTags, tagFilterMode, filterSinStock, filterConManual, precioMin, precioMax, sortColumn, sortDirection, activeContexts, hasAnyContext]);
+  }, [repuestos, searchTerm, selectedTags, tagFilterMode, filterSinStock, filterConManual, filterSinTags, precioMin, precioMax, sortColumn, sortDirection, activeContexts, hasAnyContext]);
 
   // Función para manejar click en header de columna
   const handleSort = (column: string) => {
@@ -510,7 +519,7 @@ export function RepuestosTable({
   // Reset página al buscar o filtrar
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedTags, tagFilterMode, filterSinStock, filterConManual, precioMin, precioMax, sortColumn, sortDirection]);
+  }, [searchTerm, selectedTags, tagFilterMode, filterSinStock, filterConManual, filterSinTags, precioMin, precioMax, sortColumn, sortDirection]);
 
   // Notificar al padre cuando cambian los repuestos filtrados
   useEffect(() => {
@@ -975,7 +984,7 @@ export function RepuestosTable({
           <button
             onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
             className={`flex items-center gap-2 px-4 py-3 border rounded-xl transition-colors ${
-              showAdvancedFilters || filterConManual !== null || precioMin || precioMax
+              showAdvancedFilters || filterConManual !== null || filterSinTags !== null || precioMin || precioMax
                 ? 'border-primary-500 bg-primary-50 text-primary-700' 
                 : 'border-gray-300 hover:bg-gray-50'
             }`}
@@ -996,6 +1005,7 @@ export function RepuestosTable({
               <button
                 onClick={() => {
                   setFilterConManual(null);
+                  setFilterSinTags(null);
                   setPrecioMin('');
                   setPrecioMax('');
                 }}
@@ -1046,8 +1056,48 @@ export function RepuestosTable({
                 </div>
               </div>
               
+              {/* Filtro por tags asignados */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-2">
+                  <Tag className="w-3 h-3 inline mr-1" />
+                  Contexto/Evento Asignado
+                </label>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setFilterSinTags(null)}
+                    className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-colors ${
+                      filterSinTags === null
+                        ? 'bg-primary-100 border-primary-500 text-primary-700'
+                        : 'bg-white border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    Todos
+                  </button>
+                  <button
+                    onClick={() => setFilterSinTags(false)}
+                    className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-colors ${
+                      filterSinTags === false
+                        ? 'bg-green-100 border-green-500 text-green-700'
+                        : 'bg-white border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    Con tag
+                  </button>
+                  <button
+                    onClick={() => setFilterSinTags(true)}
+                    className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-colors ${
+                      filterSinTags === true
+                        ? 'bg-red-100 border-red-500 text-red-700'
+                        : 'bg-white border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    Sin tag
+                  </button>
+                </div>
+              </div>
+              
               {/* Filtro por rango de precio */}
-              <div className="sm:col-span-2 lg:col-span-2">
+              <div>
                 <label className="block text-xs font-medium text-gray-600 mb-2">
                   <DollarSign className="w-3 h-3 inline mr-1" />
                   Rango de Precio (USD)
