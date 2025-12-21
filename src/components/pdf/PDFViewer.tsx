@@ -54,6 +54,10 @@ export function PDFViewer({
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   
+  // Ref para cancelar renderizado en curso
+  const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null);
+  const isRenderingRef = useRef(false);
+  
   // Detectar si es móvil/PWA
   const isMobile = typeof window !== 'undefined' && (
     window.matchMedia('(max-width: 1024px)').matches || 
@@ -185,17 +189,14 @@ export function PDFViewer({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showSearchPanel]);
 
-  // Navegar a página específica cuando cambia targetPage O cuando el PDF termina de cargar
+  // Navegar a página específica cuando cambia targetPage y el PDF está listo
   useEffect(() => {
-    if (targetPage && targetPage > 0 && totalPages > 0 && targetPage <= totalPages) {
-      setCurrentPage(targetPage);
-    }
-  }, [targetPage, totalPages]);
-  
-  // Cuando el PDF carga por primera vez, ir a targetPage si existe
-  useEffect(() => {
-    if (!loading && pdf && targetPage && targetPage > 0 && targetPage <= totalPages) {
-      setCurrentPage(targetPage);
+    if (!loading && pdf && targetPage && targetPage > 0 && totalPages > 0 && targetPage <= totalPages) {
+      // Usar setTimeout para evitar múltiples renders simultáneos
+      const timer = setTimeout(() => {
+        setCurrentPage(targetPage);
+      }, 50);
+      return () => clearTimeout(timer);
     }
   }, [loading, pdf, targetPage, totalPages]);
 
@@ -203,11 +204,38 @@ export function PDFViewer({
   const renderPage = useCallback(async (pageNum: number) => {
     if (!pdf || !canvasRef.current) return;
 
+    // Cancelar renderizado anterior si existe
+    if (renderTaskRef.current) {
+      try {
+        renderTaskRef.current.cancel();
+      } catch (e) {
+        // Ignorar error si ya fue cancelado
+      }
+      renderTaskRef.current = null;
+    }
+
+    // Esperar si hay un render en curso
+    if (isRenderingRef.current) {
+      return;
+    }
+
+    isRenderingRef.current = true;
+
     try {
       const page = await pdf.getPage(pageNum);
       const canvas = canvasRef.current;
+      
+      // Verificar que el canvas siga disponible
+      if (!canvas) {
+        isRenderingRef.current = false;
+        return;
+      }
+      
       const context = canvas.getContext('2d');
-      if (!context) return;
+      if (!context) {
+        isRenderingRef.current = false;
+        return;
+      }
 
       const viewport = page.getViewport({ scale });
       canvas.height = viewport.height;
@@ -219,10 +247,15 @@ export function PDFViewer({
         overlayRef.current.width = viewport.width;
       }
 
-      await page.render({
+      // Crear y guardar la tarea de renderizado
+      const renderTask = page.render({
         canvasContext: context,
         viewport: viewport
-      }).promise;
+      });
+      
+      renderTaskRef.current = renderTask;
+      
+      await renderTask.promise;
 
       // Dibujar marcador si existe y estamos en la página correcta
       if (marker && marker.pagina === pageNum && marker.coordenadas && overlayRef.current) {
@@ -281,14 +314,35 @@ export function PDFViewer({
         const ctx = overlayRef.current.getContext('2d');
         if (ctx) ctx.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height);
       }
-    } catch (err) {
+      
+      renderTaskRef.current = null;
+    } catch (err: unknown) {
+      // Ignorar errores de cancelación
+      if (err && typeof err === 'object' && 'name' in err && err.name === 'RenderingCancelledException') {
+        return;
+      }
       console.error('Error al renderizar página:', err);
+    } finally {
+      isRenderingRef.current = false;
     }
   }, [pdf, scale, marker]);
 
   useEffect(() => {
     renderPage(currentPage);
   }, [currentPage, renderPage]);
+
+  // Cancelar renderizado al desmontar
+  useEffect(() => {
+    return () => {
+      if (renderTaskRef.current) {
+        try {
+          renderTaskRef.current.cancel();
+        } catch (e) {
+          // Ignorar
+        }
+      }
+    };
+  }, []);
 
   // Manejar scroll del ratón para cambiar páginas
   useEffect(() => {

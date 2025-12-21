@@ -1,5 +1,5 @@
 // Versión de la aplicación
-export const APP_VERSION = '2.8.3';
+export const APP_VERSION = '2.8.4';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
