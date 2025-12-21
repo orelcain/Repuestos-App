@@ -398,6 +398,64 @@ export function useRepuestos() {
     }
   }, [repuestos]);
 
+  // Agregar un tag a múltiples repuestos por código SAP
+  const addTagToRepuestosByCodigo = useCallback(async (
+    codigosSAP: string[],
+    tagName: string,
+    tagTipo: 'solicitud' | 'stock',
+    cantidades: Record<string, number> // { codigoSAP: cantidad }
+  ) => {
+    try {
+      const batch = writeBatch(db);
+      let addedCount = 0;
+      const errors: string[] = [];
+
+      for (const codigoSAP of codigosSAP) {
+        const repuesto = repuestos.find(r => r.codigoSAP === codigoSAP);
+        if (!repuesto) {
+          errors.push(codigoSAP);
+          continue;
+        }
+
+        // Verificar si ya tiene el tag
+        const existingTags = repuesto.tags || [];
+        const yaExiste = existingTags.some(t => {
+          if (typeof t === 'string') return t === tagName;
+          return t.nombre === tagName;
+        });
+
+        if (yaExiste) {
+          continue; // Ya tiene el tag, saltar
+        }
+
+        // Crear nuevo tag
+        const nuevoTag = {
+          nombre: tagName,
+          tipo: tagTipo,
+          cantidad: cantidades[codigoSAP] || 0,
+          fecha: Timestamp.now()
+        };
+
+        const newTags = [...existingTags, nuevoTag];
+        
+        batch.update(doc(db, COLLECTION_NAME, repuesto.id), {
+          tags: newTags,
+          updatedAt: Timestamp.now()
+        });
+        addedCount++;
+      }
+
+      if (addedCount > 0) {
+        await batch.commit();
+      }
+
+      return { addedCount, errors };
+    } catch (err) {
+      console.error('Error al agregar tag a repuestos:', err);
+      throw err;
+    }
+  }, [repuestos]);
+
   return {
     repuestos,
     loading,
@@ -410,6 +468,7 @@ export function useRepuestos() {
     renameTag,
     deleteTag,
     migrateTagsToNewSystem,
-    restoreTagsFromHistory
+    restoreTagsFromHistory,
+    addTagToRepuestosByCodigo
   };
 }

@@ -1,8 +1,20 @@
 // Versión de la aplicación
-export const APP_VERSION = '3.4.6';
+export const APP_VERSION = '3.4.7';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '3.4.7',
+    date: '2025-12-21',
+    changes: [
+      'NUEVO: Comparador de Contextos/Eventos - compara 2+ tags lado a lado',
+      'NUEVO: Vista comparativa muestra cantidades, totales y diferencias por código SAP',
+      'NUEVO: Botón "Marcar Eliminados Excel" para identificar 14 repuestos faltantes',
+      'NUEVO: Tag "Eliminados de Excel Original Dic 2025" para rastrear diferencias',
+      'MEJORA: Estadísticas por contexto en el comparador (repuestos, unidades, USD)',
+      'FIX: Eliminados scripts Python temporales que causaban errores'
+    ]
+  },
   {
     version: '3.4.6',
     date: '2025-12-21',

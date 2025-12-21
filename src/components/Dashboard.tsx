@@ -17,6 +17,7 @@ import { DeleteConfirmModal } from './repuestos/DeleteConfirmModal';
 import { TagManagerModal } from './repuestos/TagManagerModal';
 import { ImageGallery } from './gallery/ImageGallery';
 import { ActivityLogModal } from './ActivityLogModal';
+import { ContextComparator } from './ContextComparator';
 
 // Lazy load PDF components para optimizar carga inicial
 const PDFViewer = lazy(() => import('./pdf/PDFViewer').then(module => ({ default: module.PDFViewer })));
@@ -49,7 +50,8 @@ import {
   Sun,
   Undo2,
   Redo2,
-  History
+  History,
+  GitCompare
 } from 'lucide-react';
 
 // Componente de loading para los PDF viewers
@@ -79,7 +81,8 @@ export function Dashboard() {
     renameTag,
     deleteTag,
     migrateTagsToNewSystem,
-    restoreTagsFromHistory
+    restoreTagsFromHistory,
+    addTagToRepuestosByCodigo
   } = useRepuestos();
   const { uploadImage, getManualURL } = useStorage();
   const { lastSelectedRepuestoId, setLastSelectedRepuesto } = useLocalStorage();
@@ -144,6 +147,9 @@ export function Dashboard() {
   
   // Modal de logs de actividad
   const [showActivityLogModal, setShowActivityLogModal] = useState(false);
+  
+  // Modal de comparador de contextos
+  const [showContextComparator, setShowContextComparator] = useState(false);
   
   // Hook de deshacer/rehacer
   const {
@@ -654,6 +660,53 @@ export function Dashboard() {
     }
   };
 
+  // Marcar los 14 repuestos que fueron eliminados del Excel original
+  // Estos son los que están en la app pero no tienen tag "Cantidad Solicitada Dic 2025"
+  const handleMarkEliminados = async () => {
+    const TAG_ELIMINADOS = 'Eliminados de Excel Original Dic 2025';
+    
+    // Los 14 códigos SAP que están en el Excel pero no tienen el tag de solicitud
+    const codigosEliminados: Record<string, number> = {
+      '3300011770': 2,  // RODAMIENTO 33136006
+      '3300011774': 4,  // RESORTE 38000081
+      '3300011820': 4,  // ESLABON 37310102
+      '3300012422': 4,  // RESORTE 38000367
+      '3300017044': 2,  // BULON GOLLETE 92461640
+      '3300017418': 1,  // CHAPA GUIA 2001202002
+      '3300035274': 1,  // DESVIADOR 2001202010
+      '3300035287': 1,  // CATALINA 631677
+      '3300037826': 1,  // EJE 512757
+      '3300038765': 2,  // POLEA DENTADA 513617
+      '3300038854': 1,  // DESVIADOR 2001202011
+      '3300051216': 4,  // POLEA DENTADA 513497
+      '3300051217': 2,  // ENGRANAJE 527467
+      '3300106403': 6,  // CUCHILLA CIRC 200MM
+    };
+
+    if (!confirm(`¿Agregar tag "${TAG_ELIMINADOS}" a los 14 repuestos identificados?\n\nEstos repuestos están en el Excel original pero no tienen el tag "Cantidad Solicitada Dic 2025".`)) {
+      return;
+    }
+
+    try {
+      const codigosSAP = Object.keys(codigosEliminados);
+      const result = await addTagToRepuestosByCodigo(
+        codigosSAP,
+        TAG_ELIMINADOS,
+        'solicitud',
+        codigosEliminados
+      );
+      
+      if (result.addedCount > 0) {
+        success(`Tag agregado a ${result.addedCount} repuestos`);
+      }
+      if (result.errors.length > 0) {
+        error(`No se encontraron: ${result.errors.join(', ')}`);
+      }
+    } catch (err) {
+      error('Error al agregar tags');
+    }
+  };
+
   // Backup: Exportar todos los datos a JSON
   const handleBackupExport = () => {
     setBackupLoading(true);
@@ -817,6 +870,16 @@ export function Dashboard() {
               title="Ver reportes y análisis"
             >
               Reportes
+            </Button>
+
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowContextComparator(true)}
+              icon={<GitCompare className="w-4 h-4" />}
+              title="Comparar contextos/eventos"
+            >
+              Comparar
             </Button>
 
             {/* Botones Undo/Redo */}
@@ -1466,6 +1529,26 @@ export function Dashboard() {
                   </div>
                 </div>
               </div>
+
+              {/* Acción especial: Marcar eliminados */}
+              <div className="p-4 bg-purple-50 rounded-xl border border-purple-100">
+                <div className="flex items-start gap-3">
+                  <Package className="w-8 h-8 text-purple-600 flex-shrink-0" />
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-purple-800">Marcar Eliminados Excel</h4>
+                    <p className="text-sm text-purple-600 mt-1">
+                      Agrega tag "Eliminados de Excel Original Dic 2025" a 14 repuestos que están en la app pero no en el Excel original de solicitud
+                    </p>
+                    <button
+                      onClick={handleMarkEliminados}
+                      className="mt-3 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+                    >
+                      <Package className="w-4 h-4" />
+                      Marcar 14 repuestos
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
             
             <div className="px-5 py-3 border-t border-gray-200 bg-gray-50">
@@ -1489,6 +1572,14 @@ export function Dashboard() {
         isOpen={showActivityLogModal}
         onClose={() => setShowActivityLogModal(false)}
         onRestoreAction={handleRestoreFromLog}
+      />
+
+      {/* Modal Comparador de Contextos */}
+      <ContextComparator
+        isOpen={showContextComparator}
+        onClose={() => setShowContextComparator(false)}
+        repuestos={repuestos}
+        isDarkMode={isDarkMode}
       />
 
       {/* Toast Container */}
