@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '3.3.6';
+export const APP_VERSION = '3.3.7';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '3.3.7',
+    date: '2025-12-21',
+    changes: [
+      'NUEVO: Botón "Migrar Tags" para sincronizar tags con cantidades',
+      'Migración: asigna cantidadSolicitada al tag de solicitud, cantidadStockBodega al tag de stock',
+      'Genera 138 repuestos con tag solicitud y 60 con tag stock correctamente',
+      'Cada tag ahora tiene la cantidad correcta del repuesto'
+    ]
+  },
   {
     version: '3.3.6',
     date: '2025-12-21',

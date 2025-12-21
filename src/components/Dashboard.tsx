@@ -77,7 +77,8 @@ export function Dashboard() {
     getHistorial,
     importRepuestos,
     renameTag,
-    deleteTag
+    deleteTag,
+    migrateTagsToNewSystem
   } = useRepuestos();
   const { uploadImage, getManualURL } = useStorage();
   const { lastSelectedRepuestoId, setLastSelectedRepuesto } = useLocalStorage();
@@ -599,6 +600,16 @@ export function Dashboard() {
     }
   };
 
+  // Migrar tags al nuevo sistema (sincronizar cantidades)
+  const handleMigrateTags = async () => {
+    try {
+      const result = await migrateTagsToNewSystem();
+      success(`Tags migrados: ${result.solicitudCount} solicitudes, ${result.stockCount} stock (${result.migratedCount} repuestos actualizados)`);
+    } catch (err) {
+      error('Error al migrar tags');
+    }
+  };
+
   // Backup: Exportar todos los datos a JSON
   const handleBackupExport = () => {
     setBackupLoading(true);
@@ -811,6 +822,15 @@ export function Dashboard() {
             )}
 
             <div className="w-px h-8 bg-gray-200 dark:bg-gray-700" />
+
+            {/* Botón TEMPORAL de migración de tags - QUITAR DESPUÉS DE USAR */}
+            <button
+              onClick={handleMigrateTags}
+              className="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium rounded-lg transition-colors"
+              title="Sincronizar tags con cantidades del repuesto"
+            >
+              🔄 Migrar Tags
+            </button>
 
             {/* Toggle tema */}
             <button

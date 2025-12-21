@@ -266,6 +266,73 @@ export function useRepuestos() {
     }
   }, [repuestos]);
 
+  // Migrar tags: sincronizar cantidades de tags con valores del repuesto
+  // - Si cantidadSolicitada > 0: asignar tag "Cantidad Solicitada Dic 2025" con esa cantidad
+  // - Si cantidadStockBodega > 0: asignar tag "Stock en bodega Dic 2025" con esa cantidad
+  const migrateTagsToNewSystem = useCallback(async () => {
+    const TAG_SOLICITUD = 'Cantidad Solicitada Dic 2025';
+    const TAG_STOCK = 'Stock en bodega Dic 2025';
+    
+    try {
+      const batch = writeBatch(db);
+      let migratedCount = 0;
+      let solicitudCount = 0;
+      let stockCount = 0;
+      
+      for (const repuesto of repuestos) {
+        const newTags: Array<{ nombre: string; tipo: 'solicitud' | 'stock'; cantidad: number; fecha: Date }> = [];
+        let needsUpdate = false;
+        
+        // Si tiene cantidadSolicitada > 0, agregar/actualizar tag de solicitud
+        if ((repuesto.cantidadSolicitada || 0) > 0) {
+          newTags.push({
+            nombre: TAG_SOLICITUD,
+            tipo: 'solicitud',
+            cantidad: repuesto.cantidadSolicitada,
+            fecha: new Date()
+          });
+          solicitudCount++;
+          needsUpdate = true;
+        }
+        
+        // Si tiene cantidadStockBodega > 0, agregar/actualizar tag de stock
+        if ((repuesto.cantidadStockBodega || 0) > 0) {
+          newTags.push({
+            nombre: TAG_STOCK,
+            tipo: 'stock',
+            cantidad: repuesto.cantidadStockBodega,
+            fecha: new Date()
+          });
+          stockCount++;
+          needsUpdate = true;
+        }
+        
+        if (needsUpdate) {
+          batch.update(doc(db, COLLECTION_NAME, repuesto.id), {
+            tags: newTags,
+            updatedAt: Timestamp.now()
+          });
+          migratedCount++;
+        } else {
+          // Limpiar tags si no tiene ninguna cantidad
+          if (repuesto.tags && repuesto.tags.length > 0) {
+            batch.update(doc(db, COLLECTION_NAME, repuesto.id), {
+              tags: [],
+              updatedAt: Timestamp.now()
+            });
+          }
+        }
+      }
+      
+      await batch.commit();
+      
+      return { migratedCount, solicitudCount, stockCount };
+    } catch (err) {
+      console.error('Error al migrar tags:', err);
+      throw err;
+    }
+  }, [repuestos]);
+
   return {
     repuestos,
     loading,
@@ -276,6 +343,7 @@ export function useRepuestos() {
     getHistorial,
     importRepuestos,
     renameTag,
-    deleteTag
+    deleteTag,
+    migrateTagsToNewSystem
   };
 }
