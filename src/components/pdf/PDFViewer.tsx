@@ -89,6 +89,10 @@ export function PDFViewer({
   const lastTouchDistance = useRef<number | null>(null);
   const initialScale = useRef<number>(isMobile ? 0.5 : 1.0);
   
+  // Estados para drag/pan (mover con la mano)
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStart = useRef<{ x: number; y: number; scrollLeft: number; scrollTop: number } | null>(null);
+  
   // Estados para búsqueda de texto en PDF
   const [textSearchQuery, setTextSearchQuery] = useState('');
   const [textSearchResults, setTextSearchResults] = useState<{pageNum: number; text: string; matches: number}[]>([]);
@@ -489,6 +493,51 @@ export function PDFViewer({
   const handleTouchEnd = useCallback(() => {
     lastTouchDistance.current = null;
   }, []);
+
+  // Handlers para drag/pan con mouse (mover documento con la mano)
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    // Solo botón izquierdo
+    if (e.button !== 0) return;
+    
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    
+    setIsDragging(true);
+    dragStart.current = {
+      x: e.clientX,
+      y: e.clientY,
+      scrollLeft: container.scrollLeft,
+      scrollTop: container.scrollTop
+    };
+    
+    // Prevenir selección de texto mientras arrastra
+    e.preventDefault();
+  }, []);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isDragging || !dragStart.current) return;
+    
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    
+    const dx = e.clientX - dragStart.current.x;
+    const dy = e.clientY - dragStart.current.y;
+    
+    container.scrollLeft = dragStart.current.scrollLeft - dx;
+    container.scrollTop = dragStart.current.scrollTop - dy;
+  }, [isDragging]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+    dragStart.current = null;
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    if (isDragging) {
+      setIsDragging(false);
+      dragStart.current = null;
+    }
+  }, [isDragging]);
 
   // Búsqueda por página
   const handleSearch = () => {
@@ -1204,7 +1253,14 @@ export function PDFViewer({
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onWheel={handleWheel}
-        style={{ touchAction: 'pan-x pan-y' }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
+        style={{ 
+          touchAction: 'pan-x pan-y',
+          cursor: isDragging ? 'grabbing' : 'grab'
+        }}
       >
         <div className="relative">
           <canvas
