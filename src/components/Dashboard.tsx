@@ -10,6 +10,11 @@ import { usePDFPreloader, setGlobalPDFCache } from '../hooks/usePDFPreloader';
 import { Repuesto, RepuestoFormData, ImagenRepuesto, VinculoManual } from '../types';
 import { APP_VERSION } from '../version';
 
+// Script de importación - exponer globalmente para uso desde consola
+import { importarRepuestosInformeV2 } from '../scripts/importInformeV2';
+// @ts-expect-error - Exponer función globalmente para uso desde consola del navegador
+window.importarRepuestosInformeV2 = importarRepuestosInformeV2;
+
 import { RepuestosTable } from './repuestos/RepuestosTable';
 import { RepuestoForm } from './repuestos/RepuestoForm';
 import { HistorialModal } from './repuestos/HistorialModal';
@@ -1620,6 +1625,10 @@ export function Dashboard() {
         onClose={() => setShowContextComparator(false)}
         repuestos={repuestos}
         isDarkMode={isDark}
+        onViewInManual={(repuesto) => {
+          setShowContextComparator(false);
+          handleViewManual(repuesto);
+        }}
       />
 
       {/* Toast Container */}

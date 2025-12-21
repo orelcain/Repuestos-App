@@ -1,8 +1,20 @@
 // Versión de la aplicación
-export const APP_VERSION = '3.4.9';
+export const APP_VERSION = '3.5.0';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '3.5.0',
+    date: '2025-01-20',
+    changes: [
+      'NUEVO: Botón "Ver en manual" en Comparador de Contextos',
+      'Permite abrir el manual PDF en el marcador del repuesto directamente desde el comparador',
+      'NUEVO: Script de importación para Informe Baader 200 v2 (147 repuestos)',
+      'Ejecutar desde consola: await importarRepuestosInformeV2()',
+      'Tag de importación: "Solicitud inicial dic 2025 Informe Baader 200v2"',
+      'Mejoras en estructura de datos del comparador'
+    ]
+  },
   {
     version: '3.4.9',
     date: '2025-01-20',

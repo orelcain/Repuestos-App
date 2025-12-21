@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { 
   X, GitCompare, Check, Minus, AlertTriangle, Search, 
   ArrowUpDown, ArrowUp, ArrowDown, Filter, Download,
-  Eye, EyeOff, BarChart3, Percent
+  Eye, EyeOff, BarChart3, Percent, BookOpen
 } from 'lucide-react';
 import { Repuesto, TagAsignado, getTagNombre, isTagAsignado } from '../types';
 import ExcelJS from 'exceljs';
@@ -23,6 +23,7 @@ interface ContextComparatorProps {
   onClose: () => void;
   repuestos: Repuesto[];
   isDarkMode: boolean;
+  onViewInManual?: (repuesto: Repuesto) => void;
 }
 
 // Tipos de ordenamiento
@@ -67,7 +68,8 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
   isOpen,
   onClose,
   repuestos,
-  isDarkMode
+  isDarkMode,
+  onViewInManual
 }) => {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -691,6 +693,11 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
             <table className="w-full text-sm">
               <thead className={`sticky top-0 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} z-10`}>
                 <tr className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                  {onViewInManual && (
+                    <th className="text-center p-2 font-semibold w-10">
+                      <BookOpen className="w-4 h-4 mx-auto opacity-50" />
+                    </th>
+                  )}
                   <th 
                     className="text-left p-2 font-semibold cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
                     onClick={() => handleSort('codigoSAP')}
@@ -766,6 +773,17 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
                         ${idx % 2 === 1 ? (isDarkMode ? 'bg-gray-750' : 'bg-gray-50') : ''}
                         hover:bg-blue-50 dark:hover:bg-blue-900/10`}
                     >
+                      {onViewInManual && (
+                        <td className="p-1 text-center">
+                          <button
+                            onClick={() => onViewInManual(r)}
+                            className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-500 hover:text-blue-700 transition-colors"
+                            title="Ver en manual"
+                          >
+                            <BookOpen className="w-4 h-4" />
+                          </button>
+                        </td>
+                      )}
                       <td className="p-2 font-mono text-xs">{r.codigoSAP}</td>
                       {!compactView && (
                         <td className="p-2 truncate max-w-[200px]" title={r.textoBreve}>{r.textoBreve}</td>
@@ -811,6 +829,7 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
               </tbody>
               <tfoot className={`sticky bottom-0 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} font-bold border-t-2 ${isDarkMode ? 'border-gray-600' : 'border-gray-300'}`}>
                 <tr>
+                  {onViewInManual && <td></td>}
                   <td className="p-2" colSpan={compactView ? 2 : 3}>TOTALES ({repuestosConTags.length})</td>
                   {selectedTags.map(tag => (
                     <td key={tag} className="p-2 text-center">
