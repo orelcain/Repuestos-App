@@ -70,13 +70,6 @@ export default function Tooltip({
     setIsVisible(false);
   }, []);
 
-  const positionClasses = {
-    top: 'bottom-full left-1/2 -translate-x-1/2 mb-2',
-    bottom: 'top-full left-1/2 -translate-x-1/2 mt-2',
-    left: 'right-full top-1/2 -translate-y-1/2 mr-2',
-    right: 'left-full top-1/2 -translate-y-1/2 ml-2'
-  };
-
   const arrowClasses = {
     top: 'top-full left-1/2 -translate-x-1/2 border-t-gray-900 border-x-transparent border-b-transparent dark:border-t-gray-700',
     bottom: 'bottom-full left-1/2 -translate-x-1/2 border-b-gray-900 border-x-transparent border-t-transparent dark:border-b-gray-700',
@@ -90,9 +83,13 @@ export default function Tooltip({
       style={{
         left: coords.x,
         top: coords.y,
-        transform: position === 'top' || position === 'bottom' 
-          ? 'translateX(-50%)' 
-          : position === 'top' ? 'translateY(-100%)' : ''
+        transform: position === 'top' 
+          ? 'translateX(-50%) translateY(-100%)' 
+          : position === 'bottom'
+            ? 'translateX(-50%)'
+            : position === 'left'
+              ? 'translateX(-100%) translateY(-50%)'
+              : 'translateY(-50%)'
       }}
     >
       <div 

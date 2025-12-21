@@ -195,67 +195,92 @@ export function PDFViewer({
       // Usar setTimeout para evitar múltiples renders simultáneos
       const timer = setTimeout(() => {
         setCurrentPage(targetPage);
-      }, 50);
+      }, 100);
       return () => clearTimeout(timer);
     }
   }, [loading, pdf, targetPage, totalPages]);
 
-  // Renderizar página
+  // Referencia para debounce del render
+  const renderDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const lastRenderPageRef = useRef<number>(0);
+
+  // Renderizar página con debounce y control de concurrencia
   const renderPage = useCallback(async (pageNum: number) => {
     if (!pdf || !canvasRef.current) return;
 
-    // Cancelar renderizado anterior si existe
-    if (renderTaskRef.current) {
+    // Limpiar debounce anterior
+    if (renderDebounceRef.current) {
+      clearTimeout(renderDebounceRef.current);
+    }
+
+    // Debounce para evitar renders múltiples
+    renderDebounceRef.current = setTimeout(async () => {
+      // Si ya estamos renderizando esta página, ignorar
+      if (isRenderingRef.current && lastRenderPageRef.current === pageNum) {
+        return;
+      }
+
+      // Cancelar renderizado anterior si existe
+      if (renderTaskRef.current) {
+        try {
+          renderTaskRef.current.cancel();
+          // Esperar un poco después de cancelar
+          await new Promise(resolve => setTimeout(resolve, 50));
+        } catch (e) {
+          // Ignorar error si ya fue cancelado
+        }
+        renderTaskRef.current = null;
+      }
+
+      // Esperar si hay un render activo
+      if (isRenderingRef.current) {
+        // Reintentar después de un momento
+        renderDebounceRef.current = setTimeout(() => renderPage(pageNum), 100);
+        return;
+      }
+
+      isRenderingRef.current = true;
+      lastRenderPageRef.current = pageNum;
+
       try {
-        renderTaskRef.current.cancel();
-      } catch (e) {
-        // Ignorar error si ya fue cancelado
-      }
-      renderTaskRef.current = null;
-    }
+        const page = await pdf.getPage(pageNum);
+        const canvas = canvasRef.current;
+        
+        // Verificar que el canvas siga disponible
+        if (!canvas) {
+          isRenderingRef.current = false;
+          return;
+        }
+        
+        const context = canvas.getContext('2d');
+        if (!context) {
+          isRenderingRef.current = false;
+          return;
+        }
 
-    // Esperar si hay un render en curso
-    if (isRenderingRef.current) {
-      return;
-    }
+        const viewport = page.getViewport({ scale });
+        
+        // Limpiar canvas antes de redimensionar
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
 
-    isRenderingRef.current = true;
+        // Ajustar overlay
+        if (overlayRef.current) {
+          overlayRef.current.height = viewport.height;
+          overlayRef.current.width = viewport.width;
+        }
 
-    try {
-      const page = await pdf.getPage(pageNum);
-      const canvas = canvasRef.current;
-      
-      // Verificar que el canvas siga disponible
-      if (!canvas) {
-        isRenderingRef.current = false;
-        return;
-      }
-      
-      const context = canvas.getContext('2d');
-      if (!context) {
-        isRenderingRef.current = false;
-        return;
-      }
-
-      const viewport = page.getViewport({ scale });
-      canvas.height = viewport.height;
-      canvas.width = viewport.width;
-
-      // Ajustar overlay
-      if (overlayRef.current) {
-        overlayRef.current.height = viewport.height;
-        overlayRef.current.width = viewport.width;
-      }
-
-      // Crear y guardar la tarea de renderizado
-      const renderTask = page.render({
-        canvasContext: context,
-        viewport: viewport
-      });
-      
-      renderTaskRef.current = renderTask;
-      
-      await renderTask.promise;
+        // Crear y guardar la tarea de renderizado
+        const renderTask = page.render({
+          canvasContext: context,
+          viewport: viewport
+        });
+        
+        renderTaskRef.current = renderTask;
+        
+        await renderTask.promise;
 
       // Dibujar marcador si existe y estamos en la página correcta
       if (marker && marker.pagina === pageNum && marker.coordenadas && overlayRef.current) {
@@ -321,19 +346,28 @@ export function PDFViewer({
       if (err && typeof err === 'object' && 'name' in err && err.name === 'RenderingCancelledException') {
         return;
       }
-      console.error('Error al renderizar página:', err);
+      // Solo loguear en desarrollo
+      if (import.meta.env.DEV) {
+        console.warn('Error al renderizar página:', err);
+      }
     } finally {
       isRenderingRef.current = false;
     }
+    }, 30); // Debounce de 30ms
   }, [pdf, scale, marker]);
 
   useEffect(() => {
     renderPage(currentPage);
   }, [currentPage, renderPage]);
 
-  // Cancelar renderizado al desmontar
+  // Cancelar renderizado y limpiar al desmontar
   useEffect(() => {
     return () => {
+      // Limpiar debounce
+      if (renderDebounceRef.current) {
+        clearTimeout(renderDebounceRef.current);
+      }
+      // Cancelar render en curso
       if (renderTaskRef.current) {
         try {
           renderTaskRef.current.cancel();

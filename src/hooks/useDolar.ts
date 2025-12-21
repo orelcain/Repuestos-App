@@ -116,10 +116,14 @@ export function useDolar() {
           lastUpdate: new Date()
         });
       } else {
-        throw new Error('Respuesta inválida de la API');
+        // API respondió pero sin datos válidos - usar fallback silenciosamente
+        throw new Error('API sin datos');
       }
     } catch (error) {
-      console.error('Error fetching dolar:', error);
+      // Solo log en desarrollo, no saturar consola en producción
+      if (import.meta.env.DEV) {
+        console.warn('Dólar API no disponible, usando fallback:', error);
+      }
       
       // Si falla, intentar usar cache aunque esté expirado
       const cached = loadFromCache();

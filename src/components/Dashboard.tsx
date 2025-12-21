@@ -608,15 +608,14 @@ export function Dashboard() {
                 setRightPanelMode(rightPanelMode === 'pdf' ? 'hidden' : 'pdf');
               }}
               icon={<BookOpen className="w-4 h-4" />}
-              className={pdfPreloader.isReady ? 'relative' : ''}
+              className="relative"
             >
               Manual
-              {pdfPreloader.isReady && (
+              {pdfPreloader.isReady ? (
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full" title="Manual precargado - apertura instantánea" />
-              )}
-              {pdfPreloader.loading && (
+              ) : pdfPreloader.loading ? (
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-500 rounded-full animate-pulse" title="Precargando manual..." />
-              )}
+              ) : null}
             </Button>
 
             <Button
