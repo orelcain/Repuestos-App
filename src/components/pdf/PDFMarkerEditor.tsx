@@ -12,7 +12,9 @@ import {
   Loader2,
   Palette,
   Search,
-  FileSearch
+  FileSearch,
+  Hexagon,
+  Undo2
 } from 'lucide-react';
 import { Repuesto, VinculoManual } from '../../types';
 
@@ -39,8 +41,11 @@ const MARKER_COLORS = [
 ];
 
 const MIN_SCALE = 0.3;
-const MAX_SCALE = 3.0;
+const MAX_SCALE = 5.0; // Aumentado para zoom más profundo
 const SCALE_STEP = 0.15;
+
+// Distancia mínima para cerrar polígono (en píxeles)
+const POLYGON_CLOSE_DISTANCE = 15;
 
 interface TextSearchResult {
   pageNum: number;
@@ -67,7 +72,7 @@ export function PDFMarkerEditor({
   const [loading, setLoading] = useState(true);
   
   // Estado de dibujo
-  const [forma, setForma] = useState<'circulo' | 'rectangulo'>(existingMarker?.forma || 'rectangulo');
+  const [forma, setForma] = useState<'circulo' | 'rectangulo' | 'poligono'>(existingMarker?.forma || 'rectangulo');
   const [color, setColor] = useState(existingMarker?.color || MARKER_COLORS[0].value);
   const [colorBorder, setColorBorder] = useState(MARKER_COLORS[0].border);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -79,8 +84,15 @@ export function PDFMarkerEditor({
     height: number;
   } | null>(null); // Se inicializa después de cargar el PDF
 
-  // Estado para mostrar/ocultar borde
-  const [showBorder, setShowBorder] = useState(existingMarker?.sinBorde !== true);
+  // Estados para polígono
+  const [polygonPoints, setPolygonPoints] = useState<{ x: number; y: number }[]>(
+    existingMarker?.puntos || []
+  );
+  const [isPolygonClosed, setIsPolygonClosed] = useState(false);
+  const [hoveringFirstPoint, setHoveringFirstPoint] = useState(false);
+
+  // Estado para mostrar/ocultar borde - SIN BORDE por defecto
+  const [showBorder, setShowBorder] = useState(existingMarker?.sinBorde === false);
 
   // Estado de búsqueda de repuestos
   const [repuestoSearchTerm, setRepuestoSearchTerm] = useState('');
@@ -200,6 +212,69 @@ export function PDFMarkerEditor({
     setCurrentPage(pdfSearchResults[prevIndex].pageNum);
   };
 
+  // Dibujar polígono - función separada para polígonos
+  const drawPolygon = useCallback((points: { x: number; y: number }[], isClosed: boolean, mousePos?: { x: number; y: number }) => {
+    if (!overlayRef.current || points.length === 0) return;
+    const ctx = overlayRef.current.getContext('2d');
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height);
+    
+    // Dibujar líneas entre puntos
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    
+    for (let i = 1; i < points.length; i++) {
+      ctx.lineTo(points[i].x, points[i].y);
+    }
+    
+    // Si hay posición del mouse, dibujar línea temporal
+    if (mousePos && !isClosed) {
+      ctx.lineTo(mousePos.x, mousePos.y);
+    }
+    
+    // Si está cerrado, completar el path
+    if (isClosed) {
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+      if (showBorder) {
+        ctx.strokeStyle = colorBorder;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    } else {
+      // Líneas mientras se dibuja
+      ctx.strokeStyle = colorBorder;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    
+    // Dibujar puntos
+    points.forEach((point, index) => {
+      const isFirst = index === 0;
+      const isHoveringFirst = isFirst && hoveringFirstPoint && points.length > 2;
+      
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, isHoveringFirst ? 10 : 6, 0, 2 * Math.PI);
+      
+      if (isFirst && points.length > 2 && !isClosed) {
+        // Primer punto resaltado para cerrar
+        ctx.fillStyle = isHoveringFirst ? '#22c55e' : '#f97316';
+      } else {
+        ctx.fillStyle = colorBorder;
+      }
+      ctx.fill();
+      
+      // Número del punto
+      ctx.fillStyle = 'white';
+      ctx.font = 'bold 10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${index + 1}`, point.x, point.y);
+    });
+  }, [color, colorBorder, showBorder, hoveringFirstPoint]);
+
   // Dibujar marcador - SIN BORDE por defecto (declarado antes de renderPage)
   const drawMarker = useCallback((marker: { x: number; y: number; width: number; height: number }) => {
     if (!overlayRef.current) return;
@@ -218,7 +293,7 @@ export function PDFMarkerEditor({
         ctx.lineWidth = 2;
         ctx.strokeRect(marker.x, marker.y, marker.width, marker.height);
       }
-    } else {
+    } else if (forma === 'circulo') {
       const centerX = marker.x + marker.width / 2;
       const centerY = marker.y + marker.height / 2;
       const radiusX = Math.abs(marker.width) / 2;
@@ -258,10 +333,13 @@ export function PDFMarkerEditor({
       viewport: viewport
     }).promise;
 
-    if (currentMarker) {
+    // Dibujar marcador o polígono según la forma
+    if (forma === 'poligono' && polygonPoints.length > 0) {
+      drawPolygon(polygonPoints, isPolygonClosed);
+    } else if (currentMarker) {
       drawMarker(currentMarker);
     }
-  }, [pdf, scale, currentMarker, drawMarker]);
+  }, [pdf, scale, currentMarker, drawMarker, forma, polygonPoints, isPolygonClosed, drawPolygon]);
 
   useEffect(() => {
     renderPage(currentPage);
@@ -302,28 +380,76 @@ export function PDFMarkerEditor({
     loadExistingMarker();
   }, [pdf, scale, existingMarker]);
 
-  // Eventos de dibujo
+  // Calcular distancia entre dos puntos
+  const getDistance = (p1: { x: number; y: number }, p2: { x: number; y: number }) => {
+    return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+  };
+
+  // Eventos de dibujo - para rectángulo y círculo
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const rect = overlayRef.current?.getBoundingClientRect();
     if (!rect) return;
-    setIsDrawing(true);
-    setStartPoint({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-    setCurrentMarker(null);
+    
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    if (forma === 'poligono') {
+      // Modo polígono: agregar punto
+      if (isPolygonClosed) {
+        // Si ya está cerrado, limpiar y empezar de nuevo
+        setPolygonPoints([{ x, y }]);
+        setIsPolygonClosed(false);
+        return;
+      }
+      
+      // Verificar si estamos cerca del primer punto para cerrar
+      if (polygonPoints.length > 2) {
+        const firstPoint = polygonPoints[0];
+        if (getDistance({ x, y }, firstPoint) < POLYGON_CLOSE_DISTANCE) {
+          // Cerrar polígono
+          setIsPolygonClosed(true);
+          drawPolygon(polygonPoints, true);
+          return;
+        }
+      }
+      
+      // Agregar nuevo punto
+      const newPoints = [...polygonPoints, { x, y }];
+      setPolygonPoints(newPoints);
+      drawPolygon(newPoints, false);
+    } else {
+      // Modo rectángulo/círculo
+      setIsDrawing(true);
+      setStartPoint({ x, y });
+      setCurrentMarker(null);
+    }
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing || !startPoint || !overlayRef.current) return;
-    const rect = overlayRef.current.getBoundingClientRect();
+    const rect = overlayRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    const marker = {
-      x: Math.min(startPoint.x, x),
-      y: Math.min(startPoint.y, y),
-      width: Math.abs(x - startPoint.x),
-      height: Math.abs(y - startPoint.y)
-    };
-    setCurrentMarker(marker);
-    drawMarker(marker);
+    
+    if (forma === 'poligono' && polygonPoints.length > 0 && !isPolygonClosed) {
+      // Verificar si estamos cerca del primer punto
+      const firstPoint = polygonPoints[0];
+      const isNearFirst = polygonPoints.length > 2 && getDistance({ x, y }, firstPoint) < POLYGON_CLOSE_DISTANCE;
+      setHoveringFirstPoint(isNearFirst);
+      
+      // Dibujar línea temporal al mouse
+      drawPolygon(polygonPoints, false, { x, y });
+    } else if (forma !== 'poligono' && isDrawing && startPoint && overlayRef.current) {
+      const marker = {
+        x: Math.min(startPoint.x, x),
+        y: Math.min(startPoint.y, y),
+        width: Math.abs(x - startPoint.x),
+        height: Math.abs(y - startPoint.y)
+      };
+      setCurrentMarker(marker);
+      drawMarker(marker);
+    }
   };
 
   const handleMouseUp = () => {
@@ -337,12 +463,39 @@ export function PDFMarkerEditor({
     const touch = e.touches[0];
     const rect = overlayRef.current?.getBoundingClientRect();
     if (!rect) return;
-    setIsDrawing(true);
-    setStartPoint({ x: touch.clientX - rect.left, y: touch.clientY - rect.top });
-    setCurrentMarker(null);
+    
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    
+    if (forma === 'poligono') {
+      if (isPolygonClosed) {
+        setPolygonPoints([{ x, y }]);
+        setIsPolygonClosed(false);
+        return;
+      }
+      
+      if (polygonPoints.length > 2) {
+        const firstPoint = polygonPoints[0];
+        if (getDistance({ x, y }, firstPoint) < POLYGON_CLOSE_DISTANCE * 1.5) {
+          setIsPolygonClosed(true);
+          drawPolygon(polygonPoints, true);
+          return;
+        }
+      }
+      
+      const newPoints = [...polygonPoints, { x, y }];
+      setPolygonPoints(newPoints);
+      drawPolygon(newPoints, false);
+    } else {
+      setIsDrawing(true);
+      setStartPoint({ x, y });
+      setCurrentMarker(null);
+    }
   };
 
   const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (forma === 'poligono') return; // No hacer nada en modo polígono
+    
     if (!isDrawing || !startPoint || !overlayRef.current || e.touches.length !== 1) return;
     e.preventDefault();
     const touch = e.touches[0];
@@ -364,13 +517,29 @@ export function PDFMarkerEditor({
     setStartPoint(null);
   };
 
-  // Zoom con rueda
-  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    if (e.ctrlKey || e.metaKey) {
-      e.preventDefault();
-      const delta = e.deltaY > 0 ? -SCALE_STEP : SCALE_STEP;
-      setScale(prev => Math.min(MAX_SCALE, Math.max(MIN_SCALE, prev + delta)));
+  // Deshacer último punto del polígono
+  const undoLastPoint = () => {
+    if (polygonPoints.length > 0) {
+      const newPoints = polygonPoints.slice(0, -1);
+      setPolygonPoints(newPoints);
+      setIsPolygonClosed(false);
+      if (newPoints.length > 0) {
+        drawPolygon(newPoints, false);
+      } else {
+        // Limpiar canvas overlay
+        const ctx = overlayRef.current?.getContext('2d');
+        if (ctx && overlayRef.current) {
+          ctx.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height);
+        }
+      }
     }
+  };
+
+  // Zoom con rueda - ahora funciona sin Ctrl también
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -SCALE_STEP : SCALE_STEP;
+    setScale(prev => Math.min(MAX_SCALE, Math.max(MIN_SCALE, prev + delta)));
   };
 
   // Pinch zoom
@@ -439,29 +608,75 @@ export function PDFMarkerEditor({
 
   // Guardar marcador con coordenadas NORMALIZADAS (0-1)
   const handleSave = () => {
-    if (!currentMarker || !canvasRef.current) return;
+    if (!canvasRef.current) return;
     
     // Obtener dimensiones del canvas actual
     const canvasWidth = canvasRef.current.width;
     const canvasHeight = canvasRef.current.height;
     
-    // Convertir coordenadas de píxeles a coordenadas normalizadas (0-1)
-    const normalizedCoords = {
-      x: currentMarker.x / canvasWidth,
-      y: currentMarker.y / canvasHeight,
-      width: currentMarker.width / canvasWidth,
-      height: currentMarker.height / canvasHeight
-    };
-    
-    onSave({
-      pagina: currentPage,
-      coordenadas: normalizedCoords,
-      forma,
-      color,
-      descripcion: `Marcador en página ${currentPage}`,
-      sinBorde: !showBorder
-    });
+    if (forma === 'poligono') {
+      // Guardar polígono
+      if (!isPolygonClosed || polygonPoints.length < 3) {
+        return; // No guardar si no está cerrado o no tiene suficientes puntos
+      }
+      
+      // Normalizar puntos (0-1)
+      const normalizedPoints = polygonPoints.map(point => ({
+        x: point.x / canvasWidth,
+        y: point.y / canvasHeight
+      }));
+      
+      // Calcular bounding box para compatibilidad
+      const xs = polygonPoints.map(p => p.x);
+      const ys = polygonPoints.map(p => p.y);
+      const minX = Math.min(...xs);
+      const minY = Math.min(...ys);
+      const maxX = Math.max(...xs);
+      const maxY = Math.max(...ys);
+      
+      const normalizedCoords = {
+        x: minX / canvasWidth,
+        y: minY / canvasHeight,
+        width: (maxX - minX) / canvasWidth,
+        height: (maxY - minY) / canvasHeight
+      };
+      
+      onSave({
+        pagina: currentPage,
+        coordenadas: normalizedCoords,
+        puntos: normalizedPoints,
+        forma: 'poligono',
+        color,
+        descripcion: `Marcador en página ${currentPage}`,
+        sinBorde: !showBorder
+      });
+    } else {
+      // Guardar rectángulo o círculo
+      if (!currentMarker) return;
+      
+      // Convertir coordenadas de píxeles a coordenadas normalizadas (0-1)
+      const normalizedCoords = {
+        x: currentMarker.x / canvasWidth,
+        y: currentMarker.y / canvasHeight,
+        width: currentMarker.width / canvasWidth,
+        height: currentMarker.height / canvasHeight
+      };
+      
+      onSave({
+        pagina: currentPage,
+        coordenadas: normalizedCoords,
+        forma,
+        color,
+        descripcion: `Marcador en página ${currentPage}`,
+        sinBorde: !showBorder
+      });
+    }
   };
+
+  // Verificar si se puede guardar
+  const canSave = forma === 'poligono' 
+    ? isPolygonClosed && polygonPoints.length >= 3
+    : currentMarker !== null;
 
   if (loading) {
     return (
@@ -673,18 +888,63 @@ export function PDFMarkerEditor({
         {/* Forma */}
         <div className="flex items-center gap-1 bg-gray-600 rounded p-1">
           <button
-            onClick={() => setForma('rectangulo')}
+            onClick={() => {
+              setForma('rectangulo');
+              setPolygonPoints([]);
+              setIsPolygonClosed(false);
+            }}
             className={`p-2 rounded ${forma === 'rectangulo' ? 'bg-primary-600' : 'hover:bg-gray-500'}`}
+            title="Rectángulo"
           >
             <Square className="w-5 h-5" />
           </button>
           <button
-            onClick={() => setForma('circulo')}
+            onClick={() => {
+              setForma('circulo');
+              setPolygonPoints([]);
+              setIsPolygonClosed(false);
+            }}
             className={`p-2 rounded ${forma === 'circulo' ? 'bg-primary-600' : 'hover:bg-gray-500'}`}
+            title="Círculo/Elipse"
           >
             <Circle className="w-5 h-5" />
           </button>
+          <button
+            onClick={() => {
+              setForma('poligono');
+              setCurrentMarker(null);
+              setPolygonPoints([]);
+              setIsPolygonClosed(false);
+            }}
+            className={`p-2 rounded ${forma === 'poligono' ? 'bg-primary-600' : 'hover:bg-gray-500'}`}
+            title="Polígono (puntos)"
+          >
+            <Hexagon className="w-5 h-5" />
+          </button>
+          
+          {/* Botón deshacer para polígono */}
+          {forma === 'poligono' && polygonPoints.length > 0 && (
+            <button
+              onClick={undoLastPoint}
+              className="p-2 rounded bg-amber-600 hover:bg-amber-500 ml-1"
+              title="Deshacer último punto"
+            >
+              <Undo2 className="w-5 h-5" />
+            </button>
+          )}
         </div>
+
+        {/* Info polígono */}
+        {forma === 'poligono' && (
+          <div className="text-xs text-gray-300 flex items-center gap-2">
+            <span className="bg-gray-600 px-2 py-1 rounded">
+              {polygonPoints.length} punto{polygonPoints.length !== 1 ? 's' : ''}
+            </span>
+            {isPolygonClosed && (
+              <span className="bg-green-600 px-2 py-1 rounded">✓ Cerrado</span>
+            )}
+          </div>
+        )}
 
         {/* Colores */}
         <div className="flex items-center gap-1">
@@ -705,8 +965,14 @@ export function PDFMarkerEditor({
         {/* Toggle borde */}
         <button
           onClick={() => {
-            setShowBorder(!showBorder);
-            if (currentMarker) setTimeout(() => drawMarker(currentMarker), 0);
+            const newShowBorder = !showBorder;
+            setShowBorder(newShowBorder);
+            // Refrescar dibujo
+            if (forma === 'poligono' && polygonPoints.length > 0) {
+              setTimeout(() => drawPolygon(polygonPoints, isPolygonClosed), 0);
+            } else if (currentMarker) {
+              setTimeout(() => drawMarker(currentMarker), 0);
+            }
           }}
           className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
             showBorder 
@@ -738,8 +1004,15 @@ export function PDFMarkerEditor({
 
       {/* Instrucciones */}
       <div className="px-4 py-2 bg-primary-600 text-white text-sm flex items-center justify-between flex-wrap gap-2">
-        <span>Dibuja un {forma === 'rectangulo' ? 'rectángulo' : 'círculo'} sobre el repuesto</span>
-        <span className="text-primary-200 text-xs hidden sm:block">💡 Ctrl+Scroll para zoom</span>
+        <span>
+          {forma === 'poligono' 
+            ? (isPolygonClosed 
+                ? '✓ Polígono cerrado - Listo para guardar' 
+                : `Haz clic para agregar puntos${polygonPoints.length > 2 ? ' (clic en punto 1 para cerrar)' : ''}`)
+            : `Dibuja un ${forma === 'rectangulo' ? 'rectángulo' : 'círculo'} sobre el repuesto`
+          }
+        </span>
+        <span className="text-primary-200 text-xs hidden sm:block">💡 Scroll para zoom</span>
       </div>
 
       {/* Canvas Container */}
@@ -755,7 +1028,7 @@ export function PDFMarkerEditor({
           <canvas
             ref={overlayRef}
             className="absolute top-0 left-0"
-            style={{ cursor: 'crosshair' }}
+            style={{ cursor: forma === 'poligono' ? 'pointer' : 'crosshair' }}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
@@ -770,7 +1043,12 @@ export function PDFMarkerEditor({
       {/* Footer */}
       <div className="px-4 py-3 bg-gray-900 flex items-center justify-between flex-wrap gap-2">
         <p className="text-sm text-gray-400">
-          {currentMarker ? '✓ Marcador dibujado - Listo para guardar' : 'Dibuja el marcador en el PDF'}
+          {canSave 
+            ? '✓ Marcador listo - Puedes guardar' 
+            : forma === 'poligono' 
+              ? `Agrega al menos 3 puntos y cierra el polígono (${polygonPoints.length} puntos)`
+              : 'Dibuja el marcador en el PDF'
+          }
         </p>
         <div className="flex items-center gap-2">
           <button
@@ -781,7 +1059,7 @@ export function PDFMarkerEditor({
           </button>
           <button
             onClick={handleSave}
-            disabled={!currentMarker}
+            disabled={!canSave}
             className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <Save className="w-5 h-5" />

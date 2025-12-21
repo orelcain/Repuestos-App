@@ -1,8 +1,32 @@
 // Versión de la aplicación
-export const APP_VERSION = '3.1.1';
+export const APP_VERSION = '3.3.0';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '3.3.0',
+    date: '2025-12-21',
+    changes: [
+      'NUEVO: Forma "Polígono" para marcadores - dibujar formas personalizadas punto por punto',
+      'Clic en punto inicial para cerrar polígono, botón deshacer último punto',
+      'Sin borde por defecto en marcadores (mejora visual)',
+      'Zoom persistente: el nivel de zoom se guarda y restaura al abrir el manual',
+      'Zoom con scroll del mouse (sin necesidad de Ctrl)',
+      'Zoom máximo aumentado a 500% para ver detalles específicos'
+    ]
+  },
+  {
+    version: '3.2.0',
+    date: '2025-12-21',
+    changes: [
+      'NUEVO: Sistema Undo/Redo - deshacer y rehacer cambios recientes',
+      'NUEVO: Botón "Historial de Actividad" - ver todos los cambios realizados',
+      'Modal Activity Log con búsqueda, filtros por campo y restauración',
+      'Botones Undo/Redo en header con indicadores del stack disponible',
+      'Hook useUndoRedo para gestión de historial de acciones en memoria',
+      'Integración con cambios de repuestos desde el formulario de edición'
+    ]
+  },
   {
     version: '3.1.1',
     date: '2025-12-21',

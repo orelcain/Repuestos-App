@@ -72,7 +72,9 @@ export interface VinculoManual {
     width: number;  // Porcentaje del ancho de la página (0-1)
     height: number; // Porcentaje del alto de la página (0-1)
   };
-  forma: 'circulo' | 'rectangulo';
+  // Puntos para polígono personalizado (normalizados 0-1)
+  puntos?: { x: number; y: number }[];
+  forma: 'circulo' | 'rectangulo' | 'poligono';
   color: string;
   descripcion: string;
   // Opción para mostrar sin borde

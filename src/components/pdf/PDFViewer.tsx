@@ -68,8 +68,17 @@ export function PDFViewer({
   const [pdf, setPdf] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
-  // Zoom inicial: 50% en móvil, 100% en desktop
-  const [scale, setScale] = useState(isMobile ? 0.5 : 1.0);
+  // Zoom inicial: cargar de localStorage o usar defaults
+  const [scale, setScale] = useState(() => {
+    const savedZoom = localStorage.getItem('pdf-viewer-zoom');
+    if (savedZoom) {
+      const parsed = parseFloat(savedZoom);
+      if (!isNaN(parsed) && parsed >= 0.25 && parsed <= 5.0) {
+        return parsed;
+      }
+    }
+    return isMobile ? 0.5 : 1.0;
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -283,55 +292,78 @@ export function PDFViewer({
         await renderTask.promise;
 
       // Dibujar marcador si existe y estamos en la página correcta
-      if (marker && marker.pagina === pageNum && marker.coordenadas && overlayRef.current) {
+      if (marker && marker.pagina === pageNum && overlayRef.current) {
         const ctx = overlayRef.current.getContext('2d');
         if (ctx) {
           ctx.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height);
           
-          const { x, y, width, height } = marker.coordenadas;
-          
-          // Determinar si las coordenadas son normalizadas (0-1) o absolutas
-          // Si x,y,width,height son todos <= 1, son normalizadas
-          const isNormalized = x <= 1 && y <= 1 && width <= 1 && height <= 1;
-          
-          let pixelX, pixelY, pixelWidth, pixelHeight;
-          
-          if (isNormalized) {
-            // Convertir coordenadas normalizadas a píxeles según el viewport actual
-            pixelX = x * viewport.width;
-            pixelY = y * viewport.height;
-            pixelWidth = width * viewport.width;
-            pixelHeight = height * viewport.height;
-          } else {
-            // Coordenadas absolutas antiguas - escalar según el zoom
-            pixelX = x * scale;
-            pixelY = y * scale;
-            pixelWidth = width * scale;
-            pixelHeight = height * scale;
-          }
-          
           // Solo relleno de color, sin borde (se ve mejor)
           ctx.fillStyle = marker.color || 'rgba(239, 68, 68, 0.4)';
-
-          if (marker.forma === 'circulo') {
-            const centerX = pixelX + pixelWidth / 2;
-            const centerY = pixelY + pixelHeight / 2;
+          
+          // Dibujar polígono si tiene puntos
+          if (marker.forma === 'poligono' && marker.puntos && marker.puntos.length >= 3) {
+            // Convertir puntos normalizados a píxeles
+            const pixelPoints = marker.puntos.map(p => ({
+              x: p.x * viewport.width,
+              y: p.y * viewport.height
+            }));
+            
             ctx.beginPath();
-            ctx.ellipse(centerX, centerY, pixelWidth / 2, pixelHeight / 2, 0, 0, 2 * Math.PI);
+            ctx.moveTo(pixelPoints[0].x, pixelPoints[0].y);
+            for (let i = 1; i < pixelPoints.length; i++) {
+              ctx.lineTo(pixelPoints[i].x, pixelPoints[i].y);
+            }
+            ctx.closePath();
             ctx.fill();
-            // Solo dibujar borde si no está desactivado
+            
             if (!marker.sinBorde) {
               ctx.strokeStyle = marker.color?.replace('0.4', '0.8') || '#ef4444';
               ctx.lineWidth = 2;
               ctx.stroke();
             }
-          } else {
-            ctx.fillRect(pixelX, pixelY, pixelWidth, pixelHeight);
-            // Solo dibujar borde si no está desactivado
-            if (!marker.sinBorde) {
-              ctx.strokeStyle = marker.color?.replace('0.4', '0.8') || '#ef4444';
-              ctx.lineWidth = 2;
-              ctx.strokeRect(pixelX, pixelY, pixelWidth, pixelHeight);
+          } else if (marker.coordenadas) {
+            const { x, y, width, height } = marker.coordenadas;
+            
+            // Determinar si las coordenadas son normalizadas (0-1) o absolutas
+            // Si x,y,width,height son todos <= 1, son normalizadas
+            const isNormalized = x <= 1 && y <= 1 && width <= 1 && height <= 1;
+            
+            let pixelX, pixelY, pixelWidth, pixelHeight;
+            
+            if (isNormalized) {
+              // Convertir coordenadas normalizadas a píxeles según el viewport actual
+              pixelX = x * viewport.width;
+              pixelY = y * viewport.height;
+              pixelWidth = width * viewport.width;
+              pixelHeight = height * viewport.height;
+            } else {
+              // Coordenadas absolutas antiguas - escalar según el zoom
+              pixelX = x * scale;
+              pixelY = y * scale;
+              pixelWidth = width * scale;
+              pixelHeight = height * scale;
+            }
+
+            if (marker.forma === 'circulo') {
+              const centerX = pixelX + pixelWidth / 2;
+              const centerY = pixelY + pixelHeight / 2;
+              ctx.beginPath();
+              ctx.ellipse(centerX, centerY, pixelWidth / 2, pixelHeight / 2, 0, 0, 2 * Math.PI);
+              ctx.fill();
+              // Solo dibujar borde si no está desactivado
+              if (!marker.sinBorde) {
+                ctx.strokeStyle = marker.color?.replace('0.4', '0.8') || '#ef4444';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+              }
+            } else {
+              ctx.fillRect(pixelX, pixelY, pixelWidth, pixelHeight);
+              // Solo dibujar borde si no está desactivado
+              if (!marker.sinBorde) {
+                ctx.strokeStyle = marker.color?.replace('0.4', '0.8') || '#ef4444';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(pixelX, pixelY, pixelWidth, pixelHeight);
+              }
             }
           }
         }
@@ -455,9 +487,38 @@ export function PDFViewer({
     if (currentPage < totalPages) setCurrentPage(prev => prev + 1);
   };
 
-  // Zoom
-  const zoomIn = () => setScale(prev => Math.min(prev + 0.25, 3));
-  const zoomOut = () => setScale(prev => Math.max(prev - 0.25, 0.25));
+  // Constantes de zoom
+  const MIN_SCALE = 0.25;
+  const MAX_SCALE = 5.0; // Aumentado para zoom más profundo
+  const SCALE_STEP = 0.25;
+
+  // Zoom con persistencia
+  const zoomIn = () => {
+    setScale(prev => {
+      const newScale = Math.min(prev + SCALE_STEP, MAX_SCALE);
+      localStorage.setItem('pdf-viewer-zoom', String(newScale));
+      return newScale;
+    });
+  };
+  
+  const zoomOut = () => {
+    setScale(prev => {
+      const newScale = Math.max(prev - SCALE_STEP, MIN_SCALE);
+      localStorage.setItem('pdf-viewer-zoom', String(newScale));
+      return newScale;
+    });
+  };
+
+  // Zoom con wheel (sin Ctrl)
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -SCALE_STEP : SCALE_STEP;
+    setScale(prev => {
+      const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, prev + delta));
+      localStorage.setItem('pdf-viewer-zoom', String(newScale));
+      return newScale;
+    });
+  }, []);
   
   // Pinch-to-zoom handlers
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -484,8 +545,9 @@ export function PDFViewer({
       );
       
       const scaleChange = distance / lastTouchDistance.current;
-      const newScale = Math.min(Math.max(initialScale.current * scaleChange, 0.25), 3);
+      const newScale = Math.min(Math.max(initialScale.current * scaleChange, MIN_SCALE), MAX_SCALE);
       setScale(newScale);
+      localStorage.setItem('pdf-viewer-zoom', String(newScale));
     }
   }, []);
   
@@ -1206,13 +1268,14 @@ export function PDFViewer({
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onWheel={handleWheel}
         style={{ touchAction: 'pan-x pan-y' }}
       >
         <div className="relative">
           <canvas
             ref={canvasRef}
             className="pdf-page bg-white shadow-lg"
-            style={{ maxWidth: '100%' }}
+            style={{ maxWidth: 'none' }} /* Permitir que el canvas crezca más allá del contenedor */
           />
           <canvas
             ref={overlayRef}
@@ -1226,7 +1289,7 @@ export function PDFViewer({
         {isMobile ? (
           <span>📱 Pellizca para zoom • Desliza para navegar</span>
         ) : (
-          <span>💡 Usa la rueda del ratón para navegar entre páginas</span>
+          <span>💡 Usa la rueda del ratón para hacer zoom</span>
         )}
       </div>
     </div>

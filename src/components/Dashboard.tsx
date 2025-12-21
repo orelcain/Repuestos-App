@@ -5,6 +5,7 @@ import { useStorage } from '../hooks/useStorage';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useToast } from '../hooks/useToast';
 import { useTheme } from '../hooks/useTheme';
+import { useUndoRedo } from '../hooks/useUndoRedo';
 import { usePDFPreloader, setGlobalPDFCache } from '../hooks/usePDFPreloader';
 import { Repuesto, RepuestoFormData, ImagenRepuesto, VinculoManual } from '../types';
 import { APP_VERSION } from '../version';
@@ -15,6 +16,7 @@ import { HistorialModal } from './repuestos/HistorialModal';
 import { DeleteConfirmModal } from './repuestos/DeleteConfirmModal';
 import { TagManagerModal } from './repuestos/TagManagerModal';
 import { ImageGallery } from './gallery/ImageGallery';
+import { ActivityLogModal } from './ActivityLogModal';
 
 // Lazy load PDF components para optimizar carga inicial
 const PDFViewer = lazy(() => import('./pdf/PDFViewer').then(module => ({ default: module.PDFViewer })));
@@ -44,7 +46,10 @@ import {
   HardDriveDownload,
   HardDriveUpload,
   Moon,
-  Sun
+  Sun,
+  Undo2,
+  Redo2,
+  History
 } from 'lucide-react';
 
 // Componente de loading para los PDF viewers
@@ -130,6 +135,22 @@ export function Dashboard() {
   
   // Modal de reportes
   const [showReportsModal, setShowReportsModal] = useState(false);
+  
+  // Modal de logs de actividad
+  const [showActivityLogModal, setShowActivityLogModal] = useState(false);
+  
+  // Hook de deshacer/rehacer
+  const {
+    canUndo,
+    canRedo,
+    recordAction,
+    popUndo,
+    popRedo,
+    startRestoring,
+    endRestoring,
+    getActionDescription,
+    peekUndo
+  } = useUndoRedo();
 
   // Cargar URL del manual
   useEffect(() => {
@@ -236,6 +257,23 @@ export function Dashboard() {
   const handleSave = async (data: RepuestoFormData) => {
     try {
       if (formMode === 'edit' && editRepuesto) {
+        // Registrar cambios para undo/redo (solo si no estamos restaurando)
+        for (const key of Object.keys(data) as (keyof RepuestoFormData)[]) {
+          const oldValue = editRepuesto[key as keyof Repuesto];
+          const newValue = data[key];
+          if (oldValue !== newValue) {
+            recordAction({
+              type: 'update',
+              description: `Actualizar ${key} en ${editRepuesto.codigoSAP}`,
+              repuestoId: editRepuesto.id,
+              repuestoCode: editRepuesto.codigoSAP,
+              campo: key,
+              valorAnterior: oldValue as string | number | null,
+              valorNuevo: newValue as string | number | null
+            });
+          }
+        }
+        
         await updateRepuesto(editRepuesto.id, data, editRepuesto);
         success('Repuesto actualizado correctamente');
       } else {
@@ -477,6 +515,79 @@ export function Dashboard() {
     setShowPDFExportModal(false);
   };
 
+  // Deshacer última acción
+  const handleUndo = async () => {
+    const action = popUndo();
+    if (!action) return;
+
+    startRestoring();
+    try {
+      // Restaurar el valor anterior
+      const repuesto = repuestos.find(r => r.id === action.repuestoId);
+      if (repuesto && action.campo) {
+        await updateRepuesto(action.repuestoId, {
+          [action.campo]: action.valorAnterior
+        }, repuesto);
+        success(`Deshecho: ${getActionDescription(action)}`);
+      }
+    } catch (err) {
+      error('Error al deshacer');
+    } finally {
+      endRestoring();
+    }
+  };
+
+  // Rehacer acción deshecha
+  const handleRedo = async () => {
+    const action = popRedo();
+    if (!action) return;
+
+    startRestoring();
+    try {
+      const repuesto = repuestos.find(r => r.id === action.repuestoId);
+      if (repuesto && action.campo) {
+        await updateRepuesto(action.repuestoId, {
+          [action.campo]: action.valorNuevo
+        }, repuesto);
+        success(`Rehecho: ${getActionDescription(action)}`);
+      }
+    } catch (err) {
+      error('Error al rehacer');
+    } finally {
+      endRestoring();
+    }
+  };
+
+  // Restaurar desde el log de actividad
+  const handleRestoreFromLog = async (entry: { repuestoId: string; campo: string; valorAnterior: unknown }) => {
+    const repuesto = repuestos.find(r => r.id === entry.repuestoId);
+    if (!repuesto) {
+      error('Repuesto no encontrado');
+      return;
+    }
+
+    try {
+      // Registrar la acción actual antes de restaurar
+      recordAction({
+        type: 'update',
+        description: `Restaurado ${entry.campo}`,
+        repuestoId: entry.repuestoId,
+        repuestoCode: repuesto.codigoSAP,
+        campo: entry.campo,
+        valorAnterior: repuesto[entry.campo as keyof Repuesto],
+        valorNuevo: entry.valorAnterior
+      });
+
+      await updateRepuesto(entry.repuestoId, {
+        [entry.campo]: entry.valorAnterior
+      }, repuesto);
+      
+      success(`Restaurado: ${entry.campo} de ${repuesto.codigoSAP}`);
+    } catch (err) {
+      error('Error al restaurar');
+    }
+  };
+
   // Importar repuestos desde Excel
   const handleImport = async (data: RepuestoFormData[]) => {
     try {
@@ -652,6 +763,41 @@ export function Dashboard() {
             >
               Reportes
             </Button>
+
+            {/* Botones Undo/Redo */}
+            <div className="flex items-center gap-1 border-l border-gray-200 dark:border-gray-700 pl-3 ml-1">
+              <button
+                onClick={handleUndo}
+                disabled={!canUndo}
+                className={`p-2 rounded-lg transition-colors ${
+                  canUndo 
+                    ? 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' 
+                    : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                }`}
+                title={canUndo ? `Deshacer: ${getActionDescription(peekUndo()!)}` : 'Nada que deshacer'}
+              >
+                <Undo2 className="w-5 h-5" />
+              </button>
+              <button
+                onClick={handleRedo}
+                disabled={!canRedo}
+                className={`p-2 rounded-lg transition-colors ${
+                  canRedo 
+                    ? 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' 
+                    : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                }`}
+                title="Rehacer"
+              >
+                <Redo2 className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setShowActivityLogModal(true)}
+                className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                title="Ver registro de actividad"
+              >
+                <History className="w-5 h-5" />
+              </button>
+            </div>
 
             {repuestos.length === 0 && (
               <Button
@@ -1280,6 +1426,13 @@ export function Dashboard() {
         isOpen={showReportsModal}
         onClose={() => setShowReportsModal(false)}
         repuestos={filteredRepuestos.length > 0 ? filteredRepuestos : repuestos}
+      />
+
+      {/* Modal de Activity Log */}
+      <ActivityLogModal
+        isOpen={showActivityLogModal}
+        onClose={() => setShowActivityLogModal(false)}
+        onRestoreAction={handleRestoreFromLog}
       />
 
       {/* Toast Container */}
