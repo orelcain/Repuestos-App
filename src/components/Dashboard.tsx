@@ -1579,7 +1579,7 @@ export function Dashboard() {
         isOpen={showContextComparator}
         onClose={() => setShowContextComparator(false)}
         repuestos={repuestos}
-        isDarkMode={isDarkMode}
+        isDarkMode={isDark}
       />
 
       {/* Toast Container */}
