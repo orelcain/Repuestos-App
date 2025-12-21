@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '2.7.6';
+export const APP_VERSION = '2.7.7';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '2.7.7',
+    date: '2025-12-20',
+    changes: [
+      'Fix: Totales CLP ahora muestran valores correctos con fallback a tipo de cambio 900',
+      'Fix: Total General CLP en cada fila ahora se calcula correctamente',
+      'Sumatoria de Total Solicitado CLP, Total Stock CLP y Total General CLP visibles',
+      'Eliminada dependencia de API para mostrar valores CLP (usa fallback si no disponible)'
+    ]
+  },
   {
     version: '2.7.6',
     date: '2025-12-20',

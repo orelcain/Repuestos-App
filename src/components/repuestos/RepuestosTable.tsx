@@ -440,7 +440,7 @@ export function RepuestosTable({
   }, [repuestos]);
 
   // Hook para tipo de cambio
-  const { valor: tipoCambio, loading: dolarLoading, formatClp, convertToClp } = useDolar();
+  const { valor: tipoCambio, loading: dolarLoading, formatClp } = useDolar();
 
   // Calcular totales de repuestos filtrados
   const totales = useMemo(() => {
@@ -449,9 +449,11 @@ export function RepuestosTable({
     const totalSolicitadoUSD = filteredRepuestos.reduce((sum, r) => sum + (r.valorUnitario * r.cantidadSolicitada), 0);
     const totalStockUSD = filteredRepuestos.reduce((sum, r) => sum + (r.valorUnitario * (r.cantidadStockBodega || 0)), 0);
     const totalUSD = totalSolicitadoUSD + totalStockUSD;
-    const totalSolicitadoCLP = convertToClp(totalSolicitadoUSD);
-    const totalStockCLP = convertToClp(totalStockUSD);
-    const totalCLP = convertToClp(totalUSD);
+    // Usar tipoCambio con fallback a 900 si no está disponible
+    const tasaCambio = tipoCambio || 900;
+    const totalSolicitadoCLP = Math.round(totalSolicitadoUSD * tasaCambio);
+    const totalStockCLP = Math.round(totalStockUSD * tasaCambio);
+    const totalCLP = Math.round(totalUSD * tasaCambio);
     return { 
       totalSolicitado, 
       totalBodega, 
@@ -462,7 +464,7 @@ export function RepuestosTable({
       totalStockCLP,
       totalCLP 
     };
-  }, [filteredRepuestos, convertToClp]);
+  }, [filteredRepuestos, tipoCambio]);
 
   // Renderizar encabezado de columna con drag & drop
   const renderColumnHeader = (columnKey: string) => {
@@ -1241,15 +1243,9 @@ export function RepuestosTable({
                   {/* Total CLP */}
                   {isColumnVisible('totalCLP') && (
                   <td className="px-4 py-4 text-right">
-                    {dolarLoading ? (
-                      <span className="text-xs text-gray-400">...</span>
-                    ) : tipoCambio > 0 ? (
-                      <span className="text-sm font-medium text-green-700">
-                        {formatClp(convertToClp((repuesto.valorUnitario * repuesto.cantidadSolicitada) + (repuesto.valorUnitario * (repuesto.cantidadStockBodega || 0))))}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-gray-400">-</span>
-                    )}
+                    <span className="text-sm font-medium text-green-700">
+                      {formatClp(Math.round(((repuesto.valorUnitario * repuesto.cantidadSolicitada) + (repuesto.valorUnitario * (repuesto.cantidadStockBodega || 0))) * (tipoCambio || 900)))}
+                    </span>
                   </td>
                   )}
 
