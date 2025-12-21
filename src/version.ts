@@ -1,8 +1,17 @@
 // Versión de la aplicación
-export const APP_VERSION = '3.3.0';
+export const APP_VERSION = '3.3.1';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '3.3.1',
+    date: '2025-12-21',
+    changes: [
+      'Herramienta mano: arrastrar documento con clic izquierdo (movimiento bidireccional)',
+      'Scroll del mouse ahora solo hace zoom (no cambia páginas)',
+      'Cursor visual grab/grabbing al arrastrar documento'
+    ]
+  },
   {
     version: '3.3.0',
     date: '2025-12-21',

@@ -1248,7 +1248,7 @@ export function PDFViewer({
       {/* Canvas Container */}
       <div 
         ref={scrollContainerRef}
-        className="flex-1 overflow-auto pdf-container flex items-start justify-center p-4 touch-pan-x touch-pan-y"
+        className="flex-1 overflow-auto pdf-container flex items-center justify-center p-4"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -1258,8 +1258,8 @@ export function PDFViewer({
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
         style={{ 
-          touchAction: 'pan-x pan-y',
-          cursor: isDragging ? 'grabbing' : 'grab'
+          cursor: isDragging ? 'grabbing' : 'grab',
+          userSelect: 'none'
         }}
       >
         <div className="relative">
