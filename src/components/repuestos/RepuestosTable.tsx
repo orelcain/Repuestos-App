@@ -145,7 +145,11 @@ export function RepuestosTable({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [tagFilterMode] = useState<'AND' | 'OR'>('OR');
-  const [activeContextTag, setActiveContextTag] = useState<string | null>(null); // Tag de contexto para mostrar cantidades
+  // Doble contexto: 1 solicitud + 1 stock simultáneo
+  const [activeContexts, setActiveContexts] = useState<{ solicitud: string | null; stock: string | null }>({
+    solicitud: null,
+    stock: null
+  });
   const [showColumnConfig, setShowColumnConfig] = useState(false);
   const [filterSinStock, setFilterSinStock] = useState(false);
   const [filterConManual, setFilterConManual] = useState<boolean | null>(null); // null=todos, true=con marcador, false=sin marcador
@@ -156,7 +160,6 @@ export function RepuestosTable({
   // Estados para modales de contexto
   const [showAddToListModal, setShowAddToListModal] = useState(false);
   const [showCreateContextModal, setShowCreateContextModal] = useState(false);
-  const [showContextDropdown, setShowContextDropdown] = useState(false);
   
   // Estado para ordenamiento
   const [sortColumn, setSortColumn] = useState<string>('codigoSAP');
@@ -166,13 +169,25 @@ export function RepuestosTable({
   const { columns, toggleColumn, resetColumns, isColumnVisible: baseIsColumnVisible, reorderColumns, getColumn } = useTableColumns();
   
   // Hook para obtener información de tags globales
-  const { getTagTipo, tags: globalTags } = useTags();
+  const { tags: globalTags } = useTags();
   
-  // Obtener el tipo del contexto activo
+  // Compatibilidad: crear activeContextTag desde activeContexts
+  const activeContextTag = useMemo(() => {
+    // Prioridad: si hay solicitud activa, usar esa; si no, usar stock
+    return activeContexts.solicitud || activeContexts.stock || null;
+  }, [activeContexts]);
+  
+  // Obtener el tipo del contexto principal activo
   const activeContextTipo = useMemo(() => {
-    if (!activeContextTag) return null;
-    return getTagTipo(activeContextTag);
-  }, [activeContextTag, getTagTipo]);
+    if (activeContexts.solicitud) return 'solicitud';
+    if (activeContexts.stock) return 'stock';
+    return null;
+  }, [activeContexts]);
+  
+  // Verificar si hay algún contexto activo
+  const hasAnyContext = useMemo(() => {
+    return activeContexts.solicitud !== null || activeContexts.stock !== null;
+  }, [activeContexts]);
   
   // Columnas a ocultar en modo compacto (panel lateral abierto)
   const compactHiddenColumns = [
@@ -186,19 +201,21 @@ export function RepuestosTable({
   const solicitudColumns = ['tagsSolicitud', 'cantidadSolicitada', 'totalSolicitadoUSD'];
   const stockColumns = ['tagsStock', 'cantidadStockBodega', 'totalStockUSD'];
   
-  // Función que considera el modo compacto y el tipo de contexto para visibilidad de columnas
+  // Función que considera el modo compacto y los contextos activos para visibilidad de columnas
   const isColumnVisible = (columnKey: string): boolean => {
     if (compactMode && compactHiddenColumns.includes(columnKey)) {
       return false;
     }
     
-    // Si hay contexto activo, mostrar solo las columnas del tipo correspondiente
-    if (activeContextTipo) {
-      if (activeContextTipo === 'solicitud' && stockColumns.includes(columnKey)) {
-        return false; // Ocultar columnas de stock si es contexto de solicitud
+    // Si hay contextos activos, mostrar columnas según qué contextos estén activos
+    if (hasAnyContext) {
+      // Ocultar columnas de solicitud si NO hay contexto de solicitud
+      if (!activeContexts.solicitud && solicitudColumns.includes(columnKey)) {
+        return false;
       }
-      if (activeContextTipo === 'stock' && solicitudColumns.includes(columnKey)) {
-        return false; // Ocultar columnas de solicitud si es contexto de stock
+      // Ocultar columnas de stock si NO hay contexto de stock  
+      if (!activeContexts.stock && stockColumns.includes(columnKey)) {
+        return false;
       }
     }
     
@@ -283,23 +300,32 @@ export function RepuestosTable({
   const filteredRepuestos = useMemo(() => {
     let result = repuestos;
     
-    // *** Filtrar por contexto activo - repuestos que tienen ese tag con cantidad > 0 ***
-    if (activeContextTag) {
+    // *** Filtrar por contextos activos - repuestos que tienen alguno de los tags con cantidad > 0 ***
+    if (hasAnyContext) {
       result = result.filter(r => {
-        // Buscar el tag específico
-        const tagEncontrado = r.tags?.find(tag => {
-          const nombre = isTagAsignado(tag) ? tag.nombre : tag;
-          return nombre === activeContextTag;
-        });
-        
-        if (!tagEncontrado) return false;
-        
-        // Verificar que tenga cantidad > 0 en el tag
-        if (isTagAsignado(tagEncontrado)) {
-          return (tagEncontrado.cantidad || 0) > 0;
+        // Si hay contexto de solicitud, verificar que tenga ese tag
+        if (activeContexts.solicitud) {
+          const tagSolicitud = r.tags?.find(tag => {
+            const nombre = isTagAsignado(tag) ? tag.nombre : tag;
+            return nombre === activeContexts.solicitud;
+          });
+          if (tagSolicitud && isTagAsignado(tagSolicitud) && tagSolicitud.cantidad > 0) {
+            return true;
+          }
         }
         
-        return true; // Tag string antiguo: mostrar
+        // Si hay contexto de stock, verificar que tenga ese tag
+        if (activeContexts.stock) {
+          const tagStock = r.tags?.find(tag => {
+            const nombre = isTagAsignado(tag) ? tag.nombre : tag;
+            return nombre === activeContexts.stock;
+          });
+          if (tagStock && isTagAsignado(tagStock) && tagStock.cantidad > 0) {
+            return true;
+          }
+        }
+        
+        return false;
       });
     }
     
@@ -426,7 +452,7 @@ export function RepuestosTable({
     });
     
     return result;
-  }, [repuestos, searchTerm, selectedTags, tagFilterMode, filterSinStock, filterConManual, precioMin, precioMax, sortColumn, sortDirection, activeContextTag]);
+  }, [repuestos, searchTerm, selectedTags, tagFilterMode, filterSinStock, filterConManual, precioMin, precioMax, sortColumn, sortDirection, activeContexts, hasAnyContext]);
 
   // Función para manejar click en header de columna
   const handleSort = (column: string) => {
@@ -526,14 +552,17 @@ export function RepuestosTable({
   // Contar repuestos sin marcador
   const sinMarcadorCount = repuestos.filter(r => !r.vinculosManual || r.vinculosManual.length === 0).length;
 
-  // Helper: Obtener cantidad de un repuesto según el tag de contexto activo
+  // Helper: Obtener cantidad de un repuesto según el tipo (usa el contexto dual)
   const getCantidadPorContexto = useMemo(() => {
     return (repuesto: Repuesto, tipo: 'solicitud' | 'stock'): number => {
-      if (!activeContextTag) return 0; // Sin contexto = 0
+      // Obtener el contexto correcto según el tipo
+      const contextTag = tipo === 'solicitud' ? activeContexts.solicitud : activeContexts.stock;
+      
+      if (!contextTag) return 0; // Sin contexto de este tipo = 0
       
       const tagEncontrado = repuesto.tags?.find(tag => {
         if (isTagAsignado(tag)) {
-          return tag.nombre === activeContextTag && tag.tipo === tipo;
+          return tag.nombre === contextTag && tag.tipo === tipo;
         }
         return false;
       });
@@ -544,7 +573,7 @@ export function RepuestosTable({
       
       // Fallback: si el tag es string (formato antiguo), usar valores del repuesto
       const tieneTagAntiguo = repuesto.tags?.some(tag => 
-        typeof tag === 'string' && tag === activeContextTag
+        typeof tag === 'string' && tag === contextTag
       );
       if (tieneTagAntiguo) {
         return tipo === 'solicitud' ? (repuesto.cantidadSolicitada || 0) : (repuesto.cantidadStockBodega || 0);
@@ -552,12 +581,12 @@ export function RepuestosTable({
       
       return 0;
     };
-  }, [activeContextTag]);
+  }, [activeContexts]);
 
-  // Calcular totales de repuestos filtrados según contexto activo
+  // Calcular totales de repuestos filtrados según contextos activos (dual)
   const totales = useMemo(() => {
-    if (!activeContextTag) {
-      // Sin contexto activo = mostrar 0 (solicitar seleccionar un tag)
+    if (!hasAnyContext) {
+      // Sin ningún contexto activo = mostrar 0 (solicitar seleccionar un tag)
       return { 
         totalSolicitado: 0, 
         totalBodega: 0, 
@@ -590,7 +619,7 @@ export function RepuestosTable({
       totalUSD: totalSolicitadoUSD + totalStockUSD,
       sinContexto: false
     };
-  }, [filteredRepuestos, activeContextTag, getCantidadPorContexto]);
+  }, [filteredRepuestos, hasAnyContext, getCantidadPorContexto]);
 
   // Renderizar encabezado de columna con drag & drop
   const renderColumnHeader = (columnKey: string) => {
@@ -740,129 +769,62 @@ export function RepuestosTable({
           </div>
         </div>
 
-        {/* Panel de Totales con Selector de Contexto */}
+        {/* Panel de Totales con Selector de Contexto DUAL */}
         <div className="flex flex-wrap items-center gap-3 px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-xl border border-gray-200 dark:border-gray-700">
-          {/* Selector de Contexto (Tag activo) - Dropdown personalizado */}
-          <div className="flex items-center gap-2 pr-4 border-r border-gray-300 dark:border-gray-600">
+          {/* Selector de Contextos Duales - Solicitud + Stock */}
+          <div className="flex items-center gap-3 pr-4 border-r border-gray-300 dark:border-gray-600">
             <div className="text-center">
-              <div className="text-xs text-gray-500 dark:text-gray-400 uppercase mb-1">Contexto/Evento</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 uppercase mb-1">Contextos Activos</div>
               <div className="flex items-center gap-2">
-                {/* Dropdown personalizado para dark mode */}
+                {/* Selector de Solicitud */}
                 <div className="relative">
-                  <button
-                    onClick={() => setShowContextDropdown(!showContextDropdown)}
-                    className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors min-w-[200px] justify-between ${
-                      activeContextTag 
-                        ? activeContextTipo === 'solicitud'
-                          ? 'bg-blue-100 dark:bg-blue-900/50 border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-300'
-                          : 'bg-green-100 dark:bg-green-900/50 border-green-300 dark:border-green-600 text-green-700 dark:text-green-300'
-                        : 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300'
+                  <select
+                    value={activeContexts.solicitud || ''}
+                    onChange={(e) => setActiveContexts(prev => ({ ...prev, solicitud: e.target.value || null }))}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors min-w-[150px] appearance-none cursor-pointer ${
+                      activeContexts.solicitud 
+                        ? 'bg-blue-100 dark:bg-blue-900/50 border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-300'
+                        : 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400'
                     }`}
                   >
-                    <span className="truncate">
-                      {activeContextTag ? (
-                        <>
-                          {activeContextTipo === 'stock' ? '📦' : '🛒'} {activeContextTag}
-                        </>
-                      ) : (
-                        '-- Seleccionar evento --'
-                      )}
-                    </span>
-                    <ChevronDown className={`w-4 h-4 transition-transform ${showContextDropdown ? 'rotate-180' : ''}`} />
-                  </button>
-                  
-                  {/* Dropdown menu */}
-                  {showContextDropdown && (
-                    <>
-                      {/* Overlay para cerrar al hacer click fuera */}
-                      <div 
-                        className="fixed inset-0 z-40" 
-                        onClick={() => setShowContextDropdown(false)}
-                      />
-                      <div className="absolute top-full left-0 mt-1 w-full min-w-[250px] max-h-[300px] overflow-y-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg z-50">
-                        {/* Opción para deseleccionar */}
-                        <button
-                          onClick={() => {
-                            setActiveContextTag(null);
-                            setShowContextDropdown(false);
-                          }}
-                          className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
-                            !activeContextTag ? 'bg-gray-100 dark:bg-gray-700 font-medium' : ''
-                          } text-gray-600 dark:text-gray-400`}
-                        >
-                          -- Sin contexto (ver todo) --
-                        </button>
-                        
-                        {/* Separador */}
-                        <div className="border-t border-gray-200 dark:border-gray-600 my-1" />
-                        
-                        {/* Tags de solicitud */}
-                        {globalTags.filter(t => t.tipo === 'solicitud').length > 0 && (
-                          <>
-                            <div className="px-3 py-1 text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase bg-blue-50 dark:bg-blue-900/30">
-                              🛒 Solicitudes
-                            </div>
-                            {globalTags.filter(t => t.tipo === 'solicitud').map(tag => (
-                              <button
-                                key={tag.nombre}
-                                onClick={() => {
-                                  setActiveContextTag(tag.nombre);
-                                  setShowContextDropdown(false);
-                                }}
-                                className={`w-full px-3 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors flex items-center gap-2 ${
-                                  activeContextTag === tag.nombre ? 'bg-blue-100 dark:bg-blue-900/50 font-medium' : ''
-                                } text-gray-700 dark:text-gray-200`}
-                              >
-                                <ShoppingCart className="w-4 h-4 text-blue-500" />
-                                {tag.nombre}
-                                {activeContextTag === tag.nombre && (
-                                  <Check className="w-4 h-4 ml-auto text-blue-600" />
-                                )}
-                              </button>
-                            ))}
-                          </>
-                        )}
-                        
-                        {/* Tags de stock */}
-                        {globalTags.filter(t => t.tipo === 'stock').length > 0 && (
-                          <>
-                            <div className="px-3 py-1 text-xs font-semibold text-green-600 dark:text-green-400 uppercase bg-green-50 dark:bg-green-900/30 mt-1">
-                              📦 Stock
-                            </div>
-                            {globalTags.filter(t => t.tipo === 'stock').map(tag => (
-                              <button
-                                key={tag.nombre}
-                                onClick={() => {
-                                  setActiveContextTag(tag.nombre);
-                                  setShowContextDropdown(false);
-                                }}
-                                className={`w-full px-3 py-2 text-left text-sm hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors flex items-center gap-2 ${
-                                  activeContextTag === tag.nombre ? 'bg-green-100 dark:bg-green-900/50 font-medium' : ''
-                                } text-gray-700 dark:text-gray-200`}
-                              >
-                                <Package className="w-4 h-4 text-green-500" />
-                                {tag.nombre}
-                                {activeContextTag === tag.nombre && (
-                                  <Check className="w-4 h-4 ml-auto text-green-600" />
-                                )}
-                              </button>
-                            ))}
-                          </>
-                        )}
-                      </div>
-                    </>
-                  )}
+                    <option value="">🛒 Solicitud...</option>
+                    {globalTags.filter(t => t.tipo === 'solicitud').map(tag => (
+                      <option key={tag.nombre} value={tag.nombre}>🛒 {tag.nombre}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-gray-400" />
                 </div>
                 
-                {activeContextTipo && (
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    activeContextTipo === 'solicitud'
-                      ? 'bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200'
-                      : 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200'
-                  }`}>
-                    {activeContextTipo === 'solicitud' ? '🛒 Solicitud' : '📦 Stock'}
-                  </span>
+                {/* Selector de Stock */}
+                <div className="relative">
+                  <select
+                    value={activeContexts.stock || ''}
+                    onChange={(e) => setActiveContexts(prev => ({ ...prev, stock: e.target.value || null }))}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors min-w-[150px] appearance-none cursor-pointer ${
+                      activeContexts.stock 
+                        ? 'bg-green-100 dark:bg-green-900/50 border-green-300 dark:border-green-600 text-green-700 dark:text-green-300'
+                        : 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400'
+                    }`}
+                  >
+                    <option value="">📦 Stock...</option>
+                    {globalTags.filter(t => t.tipo === 'stock').map(tag => (
+                      <option key={tag.nombre} value={tag.nombre}>📦 {tag.nombre}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-gray-400" />
+                </div>
+                
+                {/* Botón limpiar contextos */}
+                {hasAnyContext && (
+                  <button
+                    onClick={() => setActiveContexts({ solicitud: null, stock: null })}
+                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                    title="Limpiar contextos"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 )}
+                
                 {/* Botón crear nuevo contexto */}
                 <button
                   onClick={() => setShowCreateContextModal(true)}
@@ -876,12 +838,12 @@ export function RepuestosTable({
             </div>
           </div>
 
-          {/* Cantidades según contexto */}
+          {/* Cantidades según contextos duales */}
           {totales.sinContexto ? (
             <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-900/30 rounded-lg border border-amber-200 dark:border-amber-800">
               <AlertTriangle className="w-4 h-4 text-amber-500" />
               <span className="text-sm text-amber-700 dark:text-amber-300">
-                Selecciona un evento/tag para ver cantidades y totales
+                Selecciona al menos un evento/tag para ver cantidades y totales
               </span>
             </div>
           ) : (
@@ -889,13 +851,13 @@ export function RepuestosTable({
               {/* Info de lista */}
               <div className="text-center px-3">
                 <div className="text-xs text-gray-500 uppercase">En lista</div>
-                <div className="text-lg font-bold text-gray-700">{filteredRepuestos.length}</div>
+                <div className="text-lg font-bold text-gray-700 dark:text-gray-200">{filteredRepuestos.length}</div>
               </div>
               
-              {/* Cantidades - mostrar solo la columna relevante según tipo */}
+              {/* Cantidades - mostrar ambas si están activas */}
               <div className="flex items-center gap-4 pr-4 border-r border-gray-300 dark:border-gray-600">
-                {/* Solicitado - solo si es tipo solicitud */}
-                {activeContextTipo === 'solicitud' && (
+                {/* Solicitado - si hay contexto de solicitud */}
+                {activeContexts.solicitud && (
                   <div className="text-center group relative cursor-help">
                     <div className="text-xs text-blue-500 dark:text-blue-400 uppercase flex items-center gap-1 justify-center">
                       <ShoppingCart className="w-3 h-3" />
@@ -903,14 +865,14 @@ export function RepuestosTable({
                     </div>
                     <div className="text-lg font-bold text-blue-600 dark:text-blue-400">{totales.totalSolicitado.toLocaleString()}</div>
                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
-                      Unidades solicitadas en "{activeContextTag}"
+                      Unidades solicitadas en "{activeContexts.solicitud}"
                       <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
                     </div>
                   </div>
                 )}
                 
-                {/* En Bodega - solo si es tipo stock */}
-                {activeContextTipo === 'stock' && (
+                {/* En Bodega - si hay contexto de stock */}
+                {activeContexts.stock && (
                   <>
                     <div className="text-center group relative cursor-help">
                       <div className="text-xs text-green-500 dark:text-green-400 uppercase flex items-center gap-1 justify-center">
@@ -921,7 +883,7 @@ export function RepuestosTable({
                         {totales.totalBodega.toLocaleString()}
                       </div>
                       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
-                        Unidades en bodega en "{activeContextTag}"
+                        Unidades en bodega en "{activeContexts.stock}"
                         <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
                       </div>
                     </div>
@@ -947,28 +909,36 @@ export function RepuestosTable({
                 )}
               </div>
               
-              {/* Total monetario USD - solo del tipo relevante */}
+              {/* Totales monetarios USD - mostrar ambos si hay ambos contextos */}
               <div className="flex items-center gap-4">
-                <div className="text-center group relative cursor-help">
-                  <div className={`text-xs uppercase font-semibold ${
-                    activeContextTipo === 'solicitud' 
-                      ? 'text-blue-500 dark:text-blue-400' 
-                      : 'text-green-500 dark:text-green-400'
-                  }`}>
-                    Total USD {activeContextTipo === 'solicitud' ? 'Solicitado' : 'Stock'}
+                {activeContexts.solicitud && (
+                  <div className="text-center group relative cursor-help">
+                    <div className="text-xs uppercase font-semibold text-blue-500 dark:text-blue-400">
+                      USD Solicitado
+                    </div>
+                    <div className="text-xl font-bold text-blue-700 dark:text-blue-300">
+                      ${totales.totalSolicitadoUSD.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </div>
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
+                      Valor USD de unidades solicitadas
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
+                    </div>
                   </div>
-                  <div className={`text-xl font-bold ${
-                    activeContextTipo === 'solicitud' 
-                      ? 'text-blue-700 dark:text-blue-300' 
-                      : 'text-green-700 dark:text-green-300'
-                  }`}>
-                    ${(activeContextTipo === 'solicitud' ? totales.totalSolicitadoUSD : totales.totalStockUSD).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                )}
+                {activeContexts.stock && (
+                  <div className="text-center group relative cursor-help">
+                    <div className="text-xs uppercase font-semibold text-green-500 dark:text-green-400">
+                      USD Stock
+                    </div>
+                    <div className="text-xl font-bold text-green-700 dark:text-green-300">
+                      ${totales.totalStockUSD.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </div>
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
+                      Valor USD de unidades en bodega
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
+                    </div>
                   </div>
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-lg">
-                    {activeContextTipo === 'solicitud' ? 'Valor USD de unidades solicitadas' : 'Valor USD de unidades en bodega'}
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
-                  </div>
-                </div>
+                )}
               </div>
             </>
           )}
@@ -982,24 +952,20 @@ export function RepuestosTable({
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder={activeContextTag 
-                ? `Buscar dentro de "${activeContextTag}"...` 
+              placeholder={hasAnyContext 
+                ? `Buscar en contextos activos...` 
                 : "Buscar por código SAP, Baader o descripción..."
               }
-              className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full pl-12 pr-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
           </div>
           
-          {/* Botón agregar más a la lista - solo visible con contexto activo */}
-          {activeContextTag && activeContextTipo && onAddToContext && (
+          {/* Botón agregar más a la lista - visible si hay algún contexto */}
+          {hasAnyContext && onAddToContext && (
             <button
               onClick={() => setShowAddToListModal(true)}
-              className={`flex items-center gap-2 px-4 py-3 rounded-xl font-medium transition-colors ${
-                activeContextTipo === 'solicitud'
-                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                  : 'bg-green-600 hover:bg-green-700 text-white'
-              }`}
-              title="Agregar repuestos a esta lista"
+              className="flex items-center gap-2 px-4 py-3 rounded-xl font-medium transition-colors bg-primary-600 hover:bg-primary-700 text-white"
+              title="Agregar repuestos a la lista activa"
             >
               <ListPlus className="w-5 h-5" />
               <span className="hidden sm:inline">Agregar a lista</span>
@@ -1814,7 +1780,7 @@ export function RepuestosTable({
                             }`}
                           >
                             {isSolicitud ? <ShoppingCart className="w-3 h-3" /> : <Package className="w-3 h-3" />}
-                            {tagInfo ? `${tag.nombre} (${tag.cantidad})` : tag}
+                            {tagInfo ? `${tagInfo.nombre} (${tagInfo.cantidad})` : String(tag)}
                           </span>
                         );
                       })}
@@ -2047,8 +2013,9 @@ export function RepuestosTable({
       <CreateContextModal
         isOpen={showCreateContextModal}
         onClose={() => setShowCreateContextModal(false)}
-        onContextCreated={(nombre: string, _tipo: 'solicitud' | 'stock') => {
-          setActiveContextTag(nombre);
+        onContextCreated={(nombre: string, tipo: 'solicitud' | 'stock') => {
+          // Actualizar el contexto correspondiente según el tipo creado
+          setActiveContexts(prev => ({ ...prev, [tipo]: nombre }));
           setShowCreateContextModal(false);
         }}
       />

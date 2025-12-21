@@ -1,8 +1,30 @@
 // Versión de la aplicación
-export const APP_VERSION = '3.4.8';
+export const APP_VERSION = '3.4.9';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '3.4.9',
+    date: '2025-01-20',
+    changes: [
+      'NUEVO: Selector dual de contextos - selecciona 1 solicitud + 1 stock simultáneamente',
+      'Visualización simultánea de cantidades solicitadas y en stock',
+      'Filtrado combinado: muestra repuestos que pertenezcan a cualquiera de los contextos activos',
+      'Totales por contexto mostrados independientemente',
+      'Columnas visibles adaptadas según contextos seleccionados',
+      'FIX: Error de Firebase al editar repuestos sin contexto (valorAnterior undefined)',
+      'FIX: Errores de TypeScript en renderizado de tags asignados'
+    ]
+  },
+  {
+    version: '3.4.8',
+    date: '2025-01-19',
+    changes: [
+      'ContextComparator mejorado con búsqueda, ordenamiento, filtros y exportación a Excel',
+      'Vista compacta opcional para comparador',
+      'Estadísticas detalladas de comparación'
+    ]
+  },
   {
     version: '3.4.7',
     date: '2025-12-21',

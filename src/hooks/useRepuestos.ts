@@ -53,14 +53,18 @@ export function useRepuestos() {
   const addHistorial = async (
     repuestoId: string, 
     campo: string, 
-    valorAnterior: string | number | null, 
-    valorNuevo: string | number | null
+    valorAnterior: string | number | null | undefined, 
+    valorNuevo: string | number | null | undefined
   ) => {
     try {
+      // Firebase no acepta undefined, convertir a null
+      const safeValorAnterior = valorAnterior === undefined ? null : valorAnterior;
+      const safeValorNuevo = valorNuevo === undefined ? null : valorNuevo;
+      
       await addDoc(collection(db, COLLECTION_NAME, repuestoId, 'historial'), {
         campo,
-        valorAnterior,
-        valorNuevo,
+        valorAnterior: safeValorAnterior,
+        valorNuevo: safeValorNuevo,
         fecha: Timestamp.now()
       });
     } catch (err) {
