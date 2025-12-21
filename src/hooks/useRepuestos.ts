@@ -267,8 +267,10 @@ export function useRepuestos() {
   }, [repuestos]);
 
   // Migrar tags: sincronizar cantidades de tags con valores del repuesto
-  // - Si cantidadSolicitada > 0: asignar tag "Cantidad Solicitada Dic 2025" con esa cantidad
-  // - Si cantidadStockBodega > 0: asignar tag "Stock en bodega Dic 2025" con esa cantidad
+  // REGLA: Asigna tags basándose en las cantidades legacy del repuesto
+  // - cantidadSolicitada > 0 → tag "Cantidad Solicitada Dic 2025"
+  // - cantidadStockBodega > 0 → tag "Stock en bodega Dic 2025"
+  // Si tiene ambas cantidades > 0, recibe AMBOS tags
   const migrateTagsToNewSystem = useCallback(async () => {
     const TAG_SOLICITUD = 'Cantidad Solicitada Dic 2025';
     const TAG_STOCK = 'Stock en bodega Dic 2025';
@@ -278,33 +280,42 @@ export function useRepuestos() {
       let migratedCount = 0;
       let solicitudCount = 0;
       let stockCount = 0;
+      const conAmbos: string[] = [];
       
       for (const repuesto of repuestos) {
         const newTags: Array<{ nombre: string; tipo: 'solicitud' | 'stock'; cantidad: number; fecha: Date }> = [];
         let needsUpdate = false;
         
-        // Si tiene cantidadSolicitada > 0, agregar/actualizar tag de solicitud
-        if ((repuesto.cantidadSolicitada || 0) > 0) {
+        const cantSol = repuesto.cantidadSolicitada || 0;
+        const cantStock = repuesto.cantidadStockBodega || 0;
+        
+        // Si tiene cantidadSolicitada > 0, agregar tag de solicitud
+        if (cantSol > 0) {
           newTags.push({
             nombre: TAG_SOLICITUD,
             tipo: 'solicitud',
-            cantidad: repuesto.cantidadSolicitada,
+            cantidad: cantSol,
             fecha: new Date()
           });
           solicitudCount++;
           needsUpdate = true;
         }
         
-        // Si tiene cantidadStockBodega > 0, agregar/actualizar tag de stock
-        if ((repuesto.cantidadStockBodega || 0) > 0) {
+        // Si tiene cantidadStockBodega > 0, agregar tag de stock
+        if (cantStock > 0) {
           newTags.push({
             nombre: TAG_STOCK,
             tipo: 'stock',
-            cantidad: repuesto.cantidadStockBodega,
+            cantidad: cantStock,
             fecha: new Date()
           });
           stockCount++;
           needsUpdate = true;
+        }
+        
+        // Debug: registrar los que tienen ambos
+        if (cantSol > 0 && cantStock > 0) {
+          conAmbos.push(`${repuesto.codigoSAP} (Sol:${cantSol}, Stock:${cantStock})`);
         }
         
         if (needsUpdate) {
@@ -314,7 +325,6 @@ export function useRepuestos() {
           });
           migratedCount++;
         } else {
-          // Limpiar tags si no tiene ninguna cantidad
           if (repuesto.tags && repuesto.tags.length > 0) {
             batch.update(doc(db, COLLECTION_NAME, repuesto.id), {
               tags: [],
@@ -326,7 +336,13 @@ export function useRepuestos() {
       
       await batch.commit();
       
-      return { migratedCount, solicitudCount, stockCount };
+      // Log para ver los problemáticos
+      if (conAmbos.length > 0) {
+        console.log('⚠️ Repuestos con AMBAS cantidades:', conAmbos);
+        alert(`⚠️ Hay ${conAmbos.length} repuestos con AMBAS cantidades:\n${conAmbos.join('\n')}\n\nRevisa la consola para más detalles.`);
+      }
+      
+      return { migratedCount, solicitudCount, stockCount, conAmbos };
     } catch (err) {
       console.error('Error al migrar tags:', err);
       throw err;

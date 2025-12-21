@@ -1,8 +1,17 @@
 // Versión de la aplicación
-export const APP_VERSION = '3.3.7';
+export const APP_VERSION = '3.3.8';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '3.3.8',
+    date: '2025-12-21',
+    changes: [
+      'Migración mejorada: muestra alerta con repuestos que tienen AMBAS cantidades',
+      'Debug: identifica códigos SAP de repuestos problemáticos',
+      'Permite corregir manualmente los 3 repuestos mal asignados'
+    ]
+  },
   {
     version: '3.3.7',
     date: '2025-12-21',
