@@ -1,8 +1,23 @@
 // Versión de la aplicación
-export const APP_VERSION = '3.6.2';
+export const APP_VERSION = '3.6.3';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '3.6.3',
+    date: '2025-01-21',
+    changes: [
+      'NUEVO: Estadísticas avanzadas de cobertura en Comparador de Contextos',
+      'NUEVO: Semáforo de cobertura (🟢 Cubierto, 🟡 Parcial, 🔴 Sin stock)',
+      'NUEVO: Tasa de cobertura y brecha de stock por repuesto',
+      'NUEVO: Selector de contexto de referencia para comparar 3+ contextos',
+      'NUEVO: Panel de comparación vs referencia con deltas',
+      'NUEVO: Filtros de cobertura (cubierto, parcial, sin-stock)',
+      'NUEVO: Columna de estado de cobertura en tabla de comparación',
+      'NUEVO: Barra visual de distribución de cobertura',
+      'MEJORA: Toggle para mostrar/ocultar estadísticas avanzadas',
+    ]
+  },
   {
     version: '3.6.2',
     date: '2025-01-21',
