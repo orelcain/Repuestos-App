@@ -414,28 +414,7 @@ export function PDFViewer({
     };
   }, []);
 
-  // Prevenir scroll nativo del navegador cuando el mouse está sobre el visor PDF
-  useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-
-    const preventScroll = (e: WheelEvent) => {
-      // Prevenir el scroll del navegador para que solo haga zoom
-      e.preventDefault();
-    };
-
-    // Agregar listener con passive: false para poder prevenir
-    container.addEventListener('wheel', preventScroll, { passive: false });
-    
-    return () => {
-      container.removeEventListener('wheel', preventScroll);
-    };
-  }, []);
-
-  // NOTA: Scroll del ratón ahora hace zoom directamente (handleWheel en el contenedor)
-  // La navegación entre páginas se hace con los botones < > o el buscador de página
-
-  // Navegación
+  // Navegación entre páginas
   const goToPrevPage = () => {
     if (currentPage > 1) setCurrentPage(prev => prev - 1);
   };
@@ -466,17 +445,30 @@ export function PDFViewer({
     });
   };
 
-  // Zoom con wheel - solo zoom, previene scroll de página
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    // Prevenir que el evento se propague y haga scroll en la página
-    e.stopPropagation();
+  // Efecto para manejar wheel con passive:false (necesario para preventDefault)
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const handleWheelNative = (e: WheelEvent) => {
+      // Prevenir scroll de página - esto SOLO hace zoom
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const delta = e.deltaY > 0 ? -SCALE_STEP : SCALE_STEP;
+      setScale(prev => {
+        const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, prev + delta));
+        localStorage.setItem('pdf-viewer-zoom', String(newScale));
+        return newScale;
+      });
+    };
+
+    // passive: false es NECESARIO para poder llamar preventDefault()
+    container.addEventListener('wheel', handleWheelNative, { passive: false });
     
-    const delta = e.deltaY > 0 ? -SCALE_STEP : SCALE_STEP;
-    setScale(prev => {
-      const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, prev + delta));
-      localStorage.setItem('pdf-viewer-zoom', String(newScale));
-      return newScale;
-    });
+    return () => {
+      container.removeEventListener('wheel', handleWheelNative);
+    };
   }, []);
   
   // Pinch-to-zoom handlers
@@ -1265,14 +1257,13 @@ export function PDFViewer({
         </div>
       )}
 
-      {/* Canvas Container - overflow:scroll para permitir drag bidireccional */}
+      {/* Canvas Container - overflow:auto para permitir drag bidireccional */}
       <div 
         ref={scrollContainerRef}
-        className="flex-1 overflow-scroll pdf-container p-4"
+        className="flex-1 overflow-auto pdf-container"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -1282,18 +1273,23 @@ export function PDFViewer({
           userSelect: 'none'
         }}
       >
-        {/* Wrapper para centrar el canvas y permitir scroll en ambas direcciones */}
+        {/* Wrapper para permitir scroll en ambas direcciones con padding para centrar */}
         <div 
-          className="min-w-full min-h-full flex items-center justify-center"
+          className="p-4"
           style={{ 
-            minWidth: 'max-content',
-            minHeight: 'max-content'
+            display: 'inline-block',
+            minWidth: '100%',
+            minHeight: '100%',
+            boxSizing: 'border-box'
           }}
         >
-          <div className="relative">
+          <div 
+            className="relative mx-auto"
+            style={{ width: 'fit-content' }}
+          >
             <canvas
               ref={canvasRef}
-              className="pdf-page bg-white shadow-lg"
+              className="pdf-page bg-white shadow-lg block"
             />
             <canvas
               ref={overlayRef}
