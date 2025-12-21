@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '3.3.8';
+export const APP_VERSION = '3.3.9';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '3.3.9',
+    date: '2025-12-21',
+    changes: [
+      'CORREGIDO: Tags ahora usan la cantidad guardada EN el tag (no valores legacy)',
+      'Conteo correcto: 138 solicitudes, 60 stock (32 repuestos en ambos)',
+      'Filtros y estadísticas basados en tag.cantidad',
+      'Los 32 repuestos con ambas cantidades aparecen en ambas listas correctamente'
+    ]
+  },
   {
     version: '3.3.8',
     date: '2025-12-21',
