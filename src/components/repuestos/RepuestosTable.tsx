@@ -52,6 +52,7 @@ interface RepuestosTableProps {
   onManageTags?: () => void;
   onFilteredChange?: (filtered: Repuesto[]) => void;
   onAddToContext?: (repuestoId: string, tagName: string, cantidad: number, tipo: 'solicitud' | 'stock') => void;
+  onContextChange?: (contextTag: string | null, contextTipo: 'solicitud' | 'stock' | null) => void; // Nuevo: notificar cambio de contexto
   compactMode?: boolean; // Cuando el panel lateral está abierto
 }
 
@@ -136,6 +137,7 @@ export function RepuestosTable({
   onManageTags,
   onFilteredChange,
   onAddToContext,
+  onContextChange,
   compactMode = false
 }: RepuestosTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -488,6 +490,11 @@ export function RepuestosTable({
   useEffect(() => {
     onFilteredChange?.(filteredRepuestos);
   }, [filteredRepuestos, onFilteredChange]);
+
+  // Notificar al padre cuando cambia el contexto activo
+  useEffect(() => {
+    onContextChange?.(activeContextTag, activeContextTipo);
+  }, [activeContextTag, activeContextTipo, onContextChange]);
 
   // Función copiar al portapapeles
   const handleCopy = async (text: string, id: string) => {

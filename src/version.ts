@@ -1,8 +1,17 @@
 // Versión de la aplicación
-export const APP_VERSION = '3.4.4';
+export const APP_VERSION = '3.4.5';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '3.4.5',
+    date: '2025-12-21',
+    changes: [
+      'FIX: Exportación Excel y PDF ahora usa el contexto/tag activo seleccionado',
+      'FIX: Totales de exportación reflejan solo las cantidades del contexto activo',
+      'MEJORA: Mensaje de confirmación muestra el contexto usado en la exportación'
+    ]
+  },
   {
     version: '3.4.4',
     date: '2025-12-21',

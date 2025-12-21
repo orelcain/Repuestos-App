@@ -119,6 +119,10 @@ export function Dashboard() {
   // Repuestos filtrados (para exportación)
   const [filteredRepuestos, setFilteredRepuestos] = useState<Repuesto[]>([]);
   
+  // Contexto activo desde RepuestosTable (para exportaciones con el tag correcto)
+  const [activeContextTag, setActiveContextTag] = useState<string | null>(null);
+  const [activeContextTipo, setActiveContextTipo] = useState<'solicitud' | 'stock' | null>(null);
+  
   // Modal de exportación PDF
   const [showPDFExportModal, setShowPDFExportModal] = useState(false);
   const [pdfIncludeCharts, setPdfIncludeCharts] = useState(true);
@@ -488,21 +492,32 @@ export function Dashboard() {
     success(`Captura de página ${pageNumber} guardada`);
   }, [selectedRepuesto, updateRepuesto, success]);
 
-  // Exportaciones - usan repuestos filtrados
+  // Callback para recibir cambios de contexto desde RepuestosTable
+  const handleContextChange = (tag: string | null, tipo: 'solicitud' | 'stock' | null) => {
+    setActiveContextTag(tag);
+    setActiveContextTipo(tipo);
+  };
+
+  // Exportaciones - usan repuestos filtrados Y contexto activo
   const handleExportExcel = () => {
     setShowExcelExportModal(true);
   };
   
   const confirmExportExcel = () => {
     const toExport = filteredRepuestos.length > 0 ? filteredRepuestos : repuestos;
+    const contextName = activeContextTag || undefined;
+    
     exportToExcel(toExport, {
       formato: excelFormato,
       incluirResumen: excelIncluirResumen,
       incluirSinStock: excelIncluirSinStock,
       incluirPorTags: excelIncluirPorTags,
-      incluirEstilos: excelIncluirEstilos
+      incluirEstilos: excelIncluirEstilos,
+      contextTag: contextName // Pasar el contexto activo
     });
-    success(`Excel exportado con ${toExport.length} repuestos (formato ${excelFormato === 'simple' ? 'simple' : 'completo'})`);
+    
+    const contextInfo = activeContextTag ? ` (contexto: ${activeContextTag})` : '';
+    success(`Excel exportado con ${toExport.length} repuestos${contextInfo}`);
     setShowExcelExportModal(false);
   };
 
@@ -512,8 +527,15 @@ export function Dashboard() {
   
   const confirmExportPDF = () => {
     const toExport = filteredRepuestos.length > 0 ? filteredRepuestos : repuestos;
-    exportToPDF(toExport, { includeCharts: pdfIncludeCharts });
-    success(`PDF exportado con ${toExport.length} repuestos`);
+    const contextName = activeContextTag || undefined;
+    
+    exportToPDF(toExport, { 
+      includeCharts: pdfIncludeCharts,
+      contextTag: contextName // Pasar el contexto activo
+    });
+    
+    const contextInfo = activeContextTag ? ` (contexto: ${activeContextTag})` : '';
+    success(`PDF exportado con ${toExport.length} repuestos${contextInfo}`);
     setShowPDFExportModal(false);
   };
 
@@ -1023,6 +1045,7 @@ export function Dashboard() {
                   getHistorial={getHistorial}
                   onManageTags={() => setShowTagManager(true)}
                   onFilteredChange={setFilteredRepuestos}
+                  onContextChange={handleContextChange}
                   compactMode={rightPanelMode !== 'hidden'}
                 />
               </div>
