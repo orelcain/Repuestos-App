@@ -447,9 +447,10 @@ export function PDFViewer({
   };
 
   // Efecto para manejar wheel con passive:false (necesario para preventDefault)
+  // Se re-ejecuta cuando el PDF está listo (loading cambia a false)
   useEffect(() => {
     const container = scrollContainerRef.current;
-    if (!container) return;
+    if (!container || loading) return;
 
     const handleWheelNative = (e: WheelEvent) => {
       // Prevenir scroll de página - esto SOLO hace zoom
@@ -470,7 +471,7 @@ export function PDFViewer({
     return () => {
       container.removeEventListener('wheel', handleWheelNative);
     };
-  }, []);
+  }, [loading]);
   
   // Pinch-to-zoom handlers
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
