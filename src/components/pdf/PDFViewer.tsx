@@ -410,73 +410,8 @@ export function PDFViewer({
     };
   }, []);
 
-  // Manejar scroll del ratón para cambiar páginas
-  useEffect(() => {
-    const scrollContainer = scrollContainerRef.current;
-    if (!scrollContainer || !pdf) return;
-
-    let scrollTimeout: NodeJS.Timeout | null = null;
-    let accumulatedDelta = 0;
-    const threshold = 100; // Cantidad de scroll necesario para cambiar página
-
-    const handleWheel = (e: WheelEvent) => {
-      // Verificar si el contenedor tiene scroll interno
-      const hasVerticalScroll = scrollContainer.scrollHeight > scrollContainer.clientHeight;
-      const atTop = scrollContainer.scrollTop <= 0;
-      const atBottom = scrollContainer.scrollTop + scrollContainer.clientHeight >= scrollContainer.scrollHeight - 5;
-
-      // Si hay scroll interno y no estamos en los extremos, permitir scroll normal
-      if (hasVerticalScroll && !atTop && !atBottom) {
-        return;
-      }
-
-      // Si estamos en el tope y scrolleando hacia arriba, ir a página anterior
-      if (atTop && e.deltaY < 0 && currentPage > 1) {
-        e.preventDefault();
-        accumulatedDelta += Math.abs(e.deltaY);
-        
-        if (accumulatedDelta >= threshold) {
-          setCurrentPage(prev => prev - 1);
-          accumulatedDelta = 0;
-          // Ir al final de la página anterior
-          setTimeout(() => {
-            if (scrollContainer) {
-              scrollContainer.scrollTop = scrollContainer.scrollHeight;
-            }
-          }, 100);
-        }
-      }
-      // Si estamos al final y scrolleando hacia abajo, ir a página siguiente
-      else if (atBottom && e.deltaY > 0 && currentPage < totalPages) {
-        e.preventDefault();
-        accumulatedDelta += Math.abs(e.deltaY);
-        
-        if (accumulatedDelta >= threshold) {
-          setCurrentPage(prev => prev + 1);
-          accumulatedDelta = 0;
-          // Ir al inicio de la página siguiente
-          setTimeout(() => {
-            if (scrollContainer) {
-              scrollContainer.scrollTop = 0;
-            }
-          }, 100);
-        }
-      }
-
-      // Reset del acumulador después de inactividad
-      if (scrollTimeout) clearTimeout(scrollTimeout);
-      scrollTimeout = setTimeout(() => {
-        accumulatedDelta = 0;
-      }, 200);
-    };
-
-    scrollContainer.addEventListener('wheel', handleWheel, { passive: false });
-    
-    return () => {
-      scrollContainer.removeEventListener('wheel', handleWheel);
-      if (scrollTimeout) clearTimeout(scrollTimeout);
-    };
-  }, [pdf, currentPage, totalPages]);
+  // NOTA: Scroll del ratón ahora hace zoom directamente (handleWheel en el contenedor)
+  // La navegación entre páginas se hace con los botones < > o el buscador de página
 
   // Navegación
   const goToPrevPage = () => {
