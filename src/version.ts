@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '3.3.3';
+export const APP_VERSION = '3.3.4';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '3.3.4',
+    date: '2025-12-21',
+    changes: [
+      'CORREGIDO: Herramienta mano ahora mueve el documento en TODAS las direcciones',
+      'Implementado sistema de pan con transform en lugar de scroll',
+      'El documento se puede arrastrar libremente hacia arriba, abajo, izquierda y derecha',
+      'Scroll del mouse hace zoom dentro del visor PDF'
+    ]
+  },
   {
     version: '3.3.3',
     date: '2025-12-21',

@@ -89,9 +89,10 @@ export function PDFViewer({
   const lastTouchDistance = useRef<number | null>(null);
   const initialScale = useRef<number>(isMobile ? 0.5 : 1.0);
   
-  // Estados para drag/pan (mover con la mano)
+  // Estados para drag/pan (mover con la mano) - usando transform
   const [isDragging, setIsDragging] = useState(false);
-  const dragStart = useRef<{ x: number; y: number; scrollLeft: number; scrollTop: number } | null>(null);
+  const [panPosition, setPanPosition] = useState({ x: 0, y: 0 });
+  const dragStart = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
   
   // Estados para búsqueda de texto en PDF
   const [textSearchQuery, setTextSearchQuery] = useState('');
@@ -506,37 +507,38 @@ export function PDFViewer({
     lastTouchDistance.current = null;
   }, []);
 
-  // Handlers para drag/pan con mouse (mover documento con la mano)
+  // Resetear pan cuando cambia la página o el zoom
+  useEffect(() => {
+    setPanPosition({ x: 0, y: 0 });
+  }, [currentPage, scale]);
+
+  // Handlers para drag/pan con mouse (mover documento con transform)
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     // Solo botón izquierdo
     if (e.button !== 0) return;
-    
-    const container = scrollContainerRef.current;
-    if (!container) return;
     
     setIsDragging(true);
     dragStart.current = {
       x: e.clientX,
       y: e.clientY,
-      scrollLeft: container.scrollLeft,
-      scrollTop: container.scrollTop
+      panX: panPosition.x,
+      panY: panPosition.y
     };
     
     // Prevenir selección de texto mientras arrastra
     e.preventDefault();
-  }, []);
+  }, [panPosition]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!isDragging || !dragStart.current) return;
     
-    const container = scrollContainerRef.current;
-    if (!container) return;
-    
     const dx = e.clientX - dragStart.current.x;
     const dy = e.clientY - dragStart.current.y;
     
-    container.scrollLeft = dragStart.current.scrollLeft - dx;
-    container.scrollTop = dragStart.current.scrollTop - dy;
+    setPanPosition({
+      x: dragStart.current.panX + dx,
+      y: dragStart.current.panY + dy
+    });
   }, [isDragging]);
 
   const handleMouseUp = useCallback(() => {
@@ -1257,10 +1259,10 @@ export function PDFViewer({
         </div>
       )}
 
-      {/* Canvas Container - overflow:auto para permitir drag bidireccional */}
+      {/* Canvas Container - con drag usando transform */}
       <div 
         ref={scrollContainerRef}
-        className="flex-1 overflow-auto pdf-container"
+        className="flex-1 overflow-hidden pdf-container flex items-center justify-center"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -1273,29 +1275,22 @@ export function PDFViewer({
           userSelect: 'none'
         }}
       >
-        {/* Wrapper para permitir scroll en ambas direcciones con padding para centrar */}
+        {/* Contenedor del PDF con transform para pan */}
         <div 
-          className="p-4"
+          className="relative"
           style={{ 
-            display: 'inline-block',
-            minWidth: '100%',
-            minHeight: '100%',
-            boxSizing: 'border-box'
+            transform: `translate(${panPosition.x}px, ${panPosition.y}px)`,
+            transition: isDragging ? 'none' : 'transform 0.1s ease-out'
           }}
         >
-          <div 
-            className="relative mx-auto"
-            style={{ width: 'fit-content' }}
-          >
-            <canvas
-              ref={canvasRef}
-              className="pdf-page bg-white shadow-lg block"
-            />
-            <canvas
-              ref={overlayRef}
-              className="absolute top-0 left-0 pointer-events-none"
-            />
-          </div>
+          <canvas
+            ref={canvasRef}
+            className="pdf-page bg-white shadow-lg block"
+          />
+          <canvas
+            ref={overlayRef}
+            className="absolute top-0 left-0 pointer-events-none"
+          />
         </div>
       </div>
 
