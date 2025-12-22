@@ -651,7 +651,7 @@ export function PDFViewer({
     };
   }, [textSearchQuery, searchTextInPDF]);
 
-  // Resaltar texto encontrado en el canvas
+  // Resaltar texto encontrado en el canvas - mejorado para texto fragmentado
   useEffect(() => {
     if (!overlayRef.current || !pdf || !textSearchQuery.trim()) {
       setHighlightPositions([]);
@@ -667,30 +667,104 @@ export function PDFViewer({
       const textContent = await page.getTextContent();
       
       const searchLower = textSearchQuery.toLowerCase().trim();
+      const searchNoSpaces = searchLower.replace(/\s+/g, '');
       const positions: {x: number; y: number; width: number; height: number}[] = [];
       
-      // Buscar en cada item de texto
-      textContent.items.forEach((item) => {
-        if (!('str' in item) || !('transform' in item)) return;
-        const textItem = item as { str: string; transform: number[]; width?: number; height?: number };
-        
-        if (textItem.str.toLowerCase().includes(searchLower)) {
-          const [, , , , x, y] = textItem.transform;
-          const width = textItem.width || textItem.str.length * 8;
-          const height = textItem.height || 12;
-          
-          // Transformar coordenadas al viewport
-          const tx = x * scale;
-          const ty = viewport.height - (y * scale) - (height * scale);
+      // Obtener todos los items de texto con sus posiciones
+      const textItems = textContent.items
+        .filter((item): item is { str: string; transform: number[]; width?: number; height?: number } => 
+          'str' in item && 'transform' in item
+        )
+        .map(item => ({
+          str: item.str,
+          x: item.transform[4],
+          y: item.transform[5],
+          width: item.width || item.str.length * 6,
+          height: item.height || 12
+        }));
+      
+      // Método 1: Búsqueda en items individuales (para texto no fragmentado)
+      textItems.forEach((item) => {
+        if (item.str.toLowerCase().includes(searchLower)) {
+          const tx = item.x * scale;
+          const ty = viewport.height - (item.y * scale) - (item.height * scale);
           
           positions.push({
             x: tx,
             y: ty,
-            width: width * scale,
-            height: height * scale * 1.2
+            width: item.width * scale,
+            height: item.height * scale * 1.3
           });
         }
       });
+      
+      // Método 2: Búsqueda en texto concatenado (para texto fragmentado)
+      // Solo si no encontramos nada con el método 1
+      if (positions.length === 0 && searchNoSpaces.length >= 2) {
+        // Construir texto concatenado con posiciones
+        let concatenatedText = '';
+        const itemPositions: {start: number; end: number; item: typeof textItems[0]}[] = [];
+        
+        textItems.forEach((item) => {
+          const start = concatenatedText.length;
+          concatenatedText += item.str;
+          itemPositions.push({
+            start,
+            end: concatenatedText.length,
+            item
+          });
+        });
+        
+        // Buscar en texto concatenado (sin espacios para manejar fragmentación)
+        const concatenatedLower = concatenatedText.toLowerCase();
+        const concatenatedNoSpaces = concatenatedLower.replace(/\s+/g, '');
+        
+        // Buscar todas las ocurrencias
+        let searchIndex = 0;
+        while (true) {
+          const foundIndex = concatenatedNoSpaces.indexOf(searchNoSpaces, searchIndex);
+          if (foundIndex === -1) break;
+          
+          // Mapear índice sin espacios a índice con espacios
+          let realIndex = 0;
+          let noSpaceCount = 0;
+          for (let i = 0; i < concatenatedLower.length && noSpaceCount < foundIndex; i++) {
+            if (concatenatedLower[i] !== ' ') noSpaceCount++;
+            realIndex = i + 1;
+          }
+          
+          // Encontrar los items que cubren este rango
+          const matchLength = searchLower.length;
+          const matchEnd = realIndex + matchLength;
+          
+          // Encontrar items que intersectan con el match
+          const matchingItems = itemPositions.filter(ip => 
+            ip.start < matchEnd && ip.end > realIndex
+          );
+          
+          if (matchingItems.length > 0) {
+            // Calcular bounding box de todos los items del match
+            const minX = Math.min(...matchingItems.map(ip => ip.item.x));
+            const maxX = Math.max(...matchingItems.map(ip => ip.item.x + ip.item.width));
+            const minY = Math.min(...matchingItems.map(ip => ip.item.y));
+            const maxY = Math.max(...matchingItems.map(ip => ip.item.y + ip.item.height));
+            
+            const tx = minX * scale;
+            const ty = viewport.height - (maxY * scale);
+            const tw = (maxX - minX) * scale;
+            const th = (maxY - minY) * scale * 1.3;
+            
+            positions.push({
+              x: tx,
+              y: ty,
+              width: tw,
+              height: th
+            });
+          }
+          
+          searchIndex = foundIndex + 1;
+        }
+      }
       
       setHighlightPositions(positions);
     };

@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '3.6.7';
+export const APP_VERSION = '3.6.8';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '3.6.8',
+    date: '2025-01-21',
+    changes: [
+      'FIX: Resaltado de texto en PDF ahora funciona correctamente',
+      'MEJORA: Algoritmo mejorado para detectar texto fragmentado en PDFs',
+      'MEJORA: Búsqueda concatena items de texto para encontrar coincidencias',
+      'MEJORA: Resaltado amarillo brillante con sombra y borde naranja',
+    ]
+  },
   {
     version: '3.6.7',
     date: '2025-01-21',
