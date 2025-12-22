@@ -1,8 +1,19 @@
 // Versión de la aplicación
-export const APP_VERSION = '3.6.4';
+export const APP_VERSION = '3.6.5';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '3.6.5',
+    date: '2025-01-21',
+    changes: [
+      'NUEVO: Tooltips explicativos en TODAS las estadísticas del sidebar',
+      'NUEVO: Análisis vs Referencia ahora funciona con 2+ contextos (antes 3+)',
+      'MEJORA: Al pasar el cursor sobre cualquier estadística muestra explicación detallada',
+      'MEJORA: Tooltips explican: Tasa cobertura, Cubiertos, Parciales, Sin stock, etc.',
+      'UX: Cursor "help" indica elementos con tooltip disponible',
+    ]
+  },
   {
     version: '3.6.4',
     date: '2025-01-21',

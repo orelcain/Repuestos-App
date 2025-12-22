@@ -690,25 +690,28 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
               {/* Panel de cobertura */}
               {solicitudTag && stockTag && coberturaStats && (
                 <div className={`p-3 rounded-lg border-2 ${isDarkMode ? 'bg-gray-750 border-purple-700' : 'bg-purple-50 border-purple-200'}`}>
-                  <h3 className="text-sm font-semibold mb-2 flex items-center gap-2 text-purple-700 dark:text-purple-300">
+                  <h3 className="text-sm font-semibold mb-2 flex items-center gap-2 text-purple-700 dark:text-purple-300" title="Análisis de qué tanto el stock en bodega cubre la cantidad solicitada">
                     <Target className="w-4 h-4" />
                     Cobertura de Bodega
                   </h3>
                   <div className="text-center mb-3">
-                    <div className={`text-3xl font-bold ${
-                      coberturaStats.tasaCobertura >= 80 ? 'text-green-600' :
-                      coberturaStats.tasaCobertura >= 50 ? 'text-amber-600' : 'text-red-600'
-                    }`}>
+                    <div 
+                      className={`text-3xl font-bold cursor-help ${
+                        coberturaStats.tasaCobertura >= 80 ? 'text-green-600' :
+                        coberturaStats.tasaCobertura >= 50 ? 'text-amber-600' : 'text-red-600'
+                      }`}
+                      title={`Tasa de cobertura = (Total en bodega / Total solicitado) × 100\n\nSignifica que el ${coberturaStats.tasaCobertura.toFixed(1)}% de las unidades solicitadas están disponibles en bodega.\n\n≥80% = Excelente (verde)\n50-79% = Regular (amarillo)\n<50% = Crítico (rojo)`}
+                    >
                       {coberturaStats.tasaCobertura.toFixed(1)}%
                     </div>
                     <p className="text-xs text-gray-500">Tasa de cobertura</p>
                   </div>
                   <div className="space-y-1 text-xs">
-                    <div className="flex justify-between"><span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-green-500"/>Cubiertos</span><span className="font-semibold text-green-600">{coberturaStats.cubiertos}</span></div>
-                    <div className="flex justify-between"><span className="flex items-center gap-1"><AlertCircle className="w-3 h-3 text-amber-500"/>Parciales</span><span className="font-semibold text-amber-600">{coberturaStats.parciales}</span></div>
-                    <div className="flex justify-between"><span className="flex items-center gap-1"><XCircle className="w-3 h-3 text-red-500"/>Sin stock</span><span className="font-semibold text-red-600">{coberturaStats.sinStock}</span></div>
+                    <div className="flex justify-between cursor-help" title={`${coberturaStats.cubiertos} repuestos donde la cantidad en bodega es IGUAL o MAYOR a lo solicitado.\n\nEstos items están 100% cubiertos y no necesitan compra.`}><span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-green-500"/>Cubiertos</span><span className="font-semibold text-green-600">{coberturaStats.cubiertos}</span></div>
+                    <div className="flex justify-between cursor-help" title={`${coberturaStats.parciales} repuestos donde hay ALGO en bodega pero NO alcanza para cubrir lo solicitado.\n\nEstos items necesitan compra parcial.`}><span className="flex items-center gap-1"><AlertCircle className="w-3 h-3 text-amber-500"/>Parciales</span><span className="font-semibold text-amber-600">{coberturaStats.parciales}</span></div>
+                    <div className="flex justify-between cursor-help" title={`${coberturaStats.sinStock} repuestos donde la cantidad en bodega es CERO.\n\nEstos items necesitan compra completa.`}><span className="flex items-center gap-1"><XCircle className="w-3 h-3 text-red-500"/>Sin stock</span><span className="font-semibold text-red-600">{coberturaStats.sinStock}</span></div>
                   </div>
-                  <div className="h-4 rounded-full overflow-hidden flex bg-gray-200 dark:bg-gray-700 mt-2">
+                  <div className="h-4 rounded-full overflow-hidden flex bg-gray-200 dark:bg-gray-700 mt-2 cursor-help" title="Barra visual de distribución:\n🟢 Verde = % de items cubiertos\n🟡 Amarillo = % de items parciales\n🔴 Rojo = % de items sin stock">
                     {coberturaStats.cubiertos > 0 && (
                       <div className="bg-green-500 h-full" style={{ width: `${(coberturaStats.cubiertos / (coberturaStats.cubiertos + coberturaStats.parciales + coberturaStats.sinStock)) * 100}%` }} />
                     )}
@@ -720,9 +723,9 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
                     )}
                   </div>
                   <div className="mt-2 text-xs text-gray-500 grid grid-cols-3 gap-1 text-center">
-                    <div>Solicitado<br/><span className="font-semibold text-gray-700 dark:text-gray-300">{coberturaStats.totalSolicitado}</span></div>
-                    <div>En bodega<br/><span className="font-semibold text-green-600">{coberturaStats.totalEnBodega}</span></div>
-                    <div>Faltante<br/><span className="font-semibold text-red-600">{coberturaStats.totalFaltante}</span></div>
+                    <div className="cursor-help" title={`Total de unidades solicitadas sumando todos los repuestos: ${coberturaStats.totalSolicitado} unidades`}>Solicitado<br/><span className="font-semibold text-gray-700 dark:text-gray-300">{coberturaStats.totalSolicitado}</span></div>
+                    <div className="cursor-help" title={`Total de unidades disponibles en bodega que cubren lo solicitado: ${coberturaStats.totalEnBodega} unidades\n\n(Se cuenta máximo lo solicitado por item)`}>En bodega<br/><span className="font-semibold text-green-600">{coberturaStats.totalEnBodega}</span></div>
+                    <div className="cursor-help" title={`Total de unidades que FALTAN para cubrir lo solicitado: ${coberturaStats.totalFaltante} unidades\n\nFaltante = Solicitado - En bodega`}>Faltante<br/><span className="font-semibold text-red-600">{coberturaStats.totalFaltante}</span></div>
                   </div>
                 </div>
               )}
@@ -730,16 +733,16 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
               {/* Diferencias (2 contextos) */}
               {diffStats && selectedTags.length === 2 && (
                 <div className={`p-3 rounded-lg ${isDarkMode ? 'bg-gray-750' : 'bg-gray-50'}`}>
-                  <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                  <h3 className="text-sm font-semibold mb-2 flex items-center gap-2" title={`Comparación entre:\n① ${selectedTags[0]}\n② ${selectedTags[1]}\n\nMuestra cuántos repuestos tienen más, igual o menos cantidad en el contexto ① vs ②`}>
                     <Percent className="w-4 h-4 text-orange-500" />
                     Diferencias
                   </h3>
                   <div className="grid grid-cols-3 gap-2 text-center text-xs mb-2">
-                    <div><span className="block text-lg font-bold text-green-600">+{diffStats.positivas}</span>Mayor</div>
-                    <div><span className="block text-lg font-bold text-gray-500">{diffStats.iguales}</span>Igual</div>
-                    <div><span className="block text-lg font-bold text-red-600">{diffStats.negativas}</span>Menor</div>
+                    <div className="cursor-help" title={`${diffStats.positivas} repuestos donde el contexto ① tiene MÁS cantidad que el contexto ②.\n\n(Cantidad① > Cantidad②)`}><span className="block text-lg font-bold text-green-600">+{diffStats.positivas}</span>Mayor</div>
+                    <div className="cursor-help" title={`${diffStats.iguales} repuestos donde AMBOS contextos tienen la MISMA cantidad.\n\n(Cantidad① = Cantidad②)`}><span className="block text-lg font-bold text-gray-500">{diffStats.iguales}</span>Igual</div>
+                    <div className="cursor-help" title={`${diffStats.negativas} repuestos donde el contexto ① tiene MENOS cantidad que el contexto ②.\n\n(Cantidad① < Cantidad②)`}><span className="block text-lg font-bold text-red-600">{diffStats.negativas}</span>Menor</div>
                   </div>
-                  <div className={`p-2 rounded text-center ${diffStats.sumDiff >= 0 ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
+                  <div className={`p-2 rounded text-center cursor-help ${diffStats.sumDiff >= 0 ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`} title={`Balance total de unidades:\n\nSuma de (Cantidad① - Cantidad②) para todos los repuestos.\n\n${diffStats.sumDiff >= 0 ? 'Positivo: El contexto ① tiene más unidades en total' : 'Negativo: El contexto ② tiene más unidades en total'}\n\nValor en USD: ${diffStats.sumDiffUSD >= 0 ? '+' : ''}$${diffStats.sumDiffUSD.toLocaleString('es-CL')}`}>
                     <span className={`text-lg font-bold ${diffStats.sumDiff >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                       {diffStats.sumDiff >= 0 ? '+' : ''}{diffStats.sumDiff}
                     </span>
@@ -750,10 +753,10 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
                 </div>
               )}
 
-              {/* Comparación vs referencia (3+ contextos) */}
-              {selectedTags.length >= 3 && refStats.length > 0 && (
+              {/* Comparación vs referencia (2+ contextos) */}
+              {selectedTags.length >= 2 && refStats.length > 0 && (
                 <div className={`p-3 rounded-lg border ${isDarkMode ? 'bg-gray-750 border-blue-700' : 'bg-blue-50 border-blue-200'}`}>
-                  <h3 className="text-sm font-semibold mb-2 flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                  <h3 className="text-sm font-semibold mb-2 flex items-center gap-2 text-blue-700 dark:text-blue-300" title="Compara cada contexto contra el contexto de referencia seleccionado.\n\nPermite ver cómo varían las cantidades respecto a una base.">
                     <Target className="w-4 h-4" />
                     vs Referencia
                   </h3>
@@ -761,6 +764,7 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
                     value={referenceTagIndex}
                     onChange={(e) => setReferenceTagIndex(parseInt(e.target.value))}
                     className={`w-full px-2 py-1 rounded text-xs mb-2 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}
+                    title="Selecciona cuál contexto será la BASE de comparación (referencia)"
                   >
                     {selectedTags.map((tag, idx) => (
                       <option key={tag} value={idx}>Ref: {tag.substring(0, 30)}</option>
@@ -769,11 +773,11 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
                   <div className="space-y-2">
                     {refStats.map(stat => (
                       <div key={stat.tagName} className={`p-2 rounded text-xs ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-                        <p className="truncate font-medium mb-1" title={stat.tagName}>{stat.tagName.substring(0, 25)}</p>
+                        <p className="truncate font-medium mb-1" title={`Comparando: ${stat.tagName} vs ${selectedTags[referenceTagIndex]}`}>{stat.tagName.substring(0, 25)}</p>
                         <div className="grid grid-cols-3 gap-1 text-center">
-                          <span className="text-green-600">↑{stat.aumentaron}</span>
-                          <span className="text-gray-500">={stat.iguales}</span>
-                          <span className="text-red-600">↓{stat.disminuyeron}</span>
+                          <span className="text-green-600 cursor-help" title={`${stat.aumentaron} repuestos donde "${stat.tagName.substring(0,20)}" tiene MÁS cantidad que la referencia.\n\nEstos items tienen mayor cantidad en este contexto.`}>↑{stat.aumentaron}</span>
+                          <span className="text-gray-500 cursor-help" title={`${stat.iguales} repuestos donde "${stat.tagName.substring(0,20)}" tiene la MISMA cantidad que la referencia.\n\nEstos items no cambiaron.`}>={stat.iguales}</span>
+                          <span className="text-red-600 cursor-help" title={`${stat.disminuyeron} repuestos donde "${stat.tagName.substring(0,20)}" tiene MENOS cantidad que la referencia.\n\nEstos items tienen menor cantidad en este contexto.`}>↓{stat.disminuyeron}</span>
                         </div>
                       </div>
                     ))}
