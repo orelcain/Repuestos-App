@@ -50,6 +50,53 @@ function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
+// Formatear valor para mostrar en descripción de cambio (evitar [object Object])
+function formatValueForDisplay(value: unknown, campo: string): string {
+  if (value === null || value === undefined) return '(vacío)';
+  
+  // Si es un array
+  if (Array.isArray(value)) {
+    if (value.length === 0) return '(vacío)';
+    
+    // Si es array de tags
+    if (campo === 'tags') {
+      const tagNames = value.map(t => {
+        if (typeof t === 'string') return t;
+        if (t && typeof t === 'object' && 'nombre' in t) return t.nombre;
+        return '?';
+      });
+      return `${value.length} tags: ${tagNames.slice(0, 3).join(', ')}${value.length > 3 ? '...' : ''}`;
+    }
+    
+    // Si es array de vinculosManual
+    if (campo === 'vinculosManual') {
+      if (value.length === 0) return 'sin marcador';
+      const paginas = value.map(v => {
+        if (v && typeof v === 'object' && 'pagina' in v) return `pág.${v.pagina}`;
+        return '?';
+      });
+      return `${value.length} marcador(es): ${paginas.join(', ')}`;
+    }
+    
+    return `${value.length} items`;
+  }
+  
+  // Si es un objeto
+  if (typeof value === 'object') {
+    // Si tiene propiedad 'nombre' (como un tag)
+    if ('nombre' in value) return String(value.nombre);
+    // Si tiene propiedad 'pagina' (como un vínculo)
+    if ('pagina' in value) return `pág.${value.pagina}`;
+    // Otros objetos - mostrar conteo de propiedades
+    return `{${Object.keys(value).length} props}`;
+  }
+  
+  // Valores primitivos
+  const str = String(value);
+  if (str.length > 50) return str.substring(0, 47) + '...';
+  return str;
+}
+
 // Formato fecha legible
 function formatDate(isoDate: string): string {
   return new Date(isoDate).toLocaleString('es-CL', {
@@ -180,7 +227,10 @@ export function useBackupSystem(repuestos: Repuesto[]) {
       valorNuevo
     };
 
-    const descripcion = `${repuesto.codigoSAP}: ${campo} ${String(valorAnterior)} → ${String(valorNuevo)}`;
+    // Formatear descripción legible para el usuario
+    const valorAntStr = formatValueForDisplay(valorAnterior, campo);
+    const valorNuevoStr = formatValueForDisplay(valorNuevo, campo);
+    const descripcion = `${repuesto.codigoSAP}: ${campo} ${valorAntStr} → ${valorNuevoStr}`;
     createIncrementalBackup([cambio], descripcion);
   }, [state.autoBackupEnabled, createIncrementalBackup]);
 

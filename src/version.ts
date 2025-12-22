@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '3.6.9';
+export const APP_VERSION = '3.7.0';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '3.7.0',
+    date: '2025-01-21',
+    changes: [
+      'MEJORA: Descripciones de backup ahora son legibles',
+      'FIX: Ya no muestra "[object Object]" en el historial',
+      'Muestra: cantidad de tags, páginas de marcadores, valores reales',
+      'Ejemplo: "3300011617: tags 2 tags: Stock, Solicitud → 3 tags: ..."',
+    ]
+  },
   {
     version: '3.6.9',
     date: '2025-01-21',
