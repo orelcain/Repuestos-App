@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { 
-  X, GitCompare, Check, Minus, AlertTriangle, Search, 
+  X, GitCompare, Check, Minus, Search, 
   ArrowUpDown, ArrowUp, ArrowDown, Filter, Download,
   Eye, EyeOff, BarChart3, Percent, BookOpen, Target, 
-  TrendingUp, TrendingDown, CircleDot, CheckCircle2, XCircle, AlertCircle
+  CheckCircle2, XCircle, AlertCircle,
+  Home, PanelLeftClose, PanelLeftOpen
 } from 'lucide-react';
 import { Repuesto, TagAsignado, getTagNombre, isTagAsignado } from '../types';
 import ExcelJS from 'exceljs';
@@ -82,8 +83,7 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
   const [filterType, setFilterType] = useState<FilterType>('todos');
   const [showFilters, setShowFilters] = useState(false);
   const [compactView, setCompactView] = useState(false);
-  const [referenceTagIndex, setReferenceTagIndex] = useState<number>(0); // Contexto de referencia
-  const [showAdvancedStats, setShowAdvancedStats] = useState(true);
+  const [referenceTagIndex, setReferenceTagIndex] = useState<number>(0);
   
   const tagsByType = useMemo(() => getAllUniqueTagsByType(repuestos), [repuestos]);
   // Lista combinada de todos los tags disponibles
@@ -531,767 +531,570 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
     saveAs(blob, `comparacion_${tag1Short}_vs_${tag2Short}.xlsx`);
   }, [repuestosConTags, selectedTags, stats, diffStats]);
 
+  // Estado para sidebar colapsado
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-1">
-      <div className={`${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white'} rounded-xl shadow-2xl w-[98vw] max-w-[2200px] h-[96vh] overflow-hidden flex flex-col`}>
-        {/* Header */}
-        <div className={`flex items-center justify-between p-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+    <div className={`fixed inset-0 z-50 flex flex-col ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-gray-100'}`}>
+      {/* Header fijo */}
+      <header className={`flex items-center justify-between px-4 py-3 border-b shadow-sm ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={onClose}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors
+              ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-gray-200' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
+          >
+            <Home className="w-4 h-4" />
+            Volver
+          </button>
           <div className="flex items-center gap-3">
             <GitCompare className="w-6 h-6 text-blue-500" />
-            <h2 className="text-xl font-bold">Comparador de Contextos/Eventos</h2>
-          </div>
-          <div className="flex items-center gap-2">
-            {selectedTags.length >= 2 && (
-              <button
-                onClick={exportComparison}
-                className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700"
-                title="Exportar comparación a Excel"
-              >
-                <Download className="w-4 h-4" />
-                Exportar
-              </button>
-            )}
-            <button
-              onClick={onClose}
-              className={`p-2 rounded-lg hover:bg-gray-100 ${isDarkMode ? 'hover:bg-gray-700' : ''}`}
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <h1 className="text-xl font-bold">Comparador de Contextos</h1>
           </div>
         </div>
-
-        {/* Selector de Tags - Separado por tipo */}
-        <div className={`p-4 border-b ${isDarkMode ? 'border-gray-700 bg-gray-750' : 'border-gray-200 bg-gray-50'}`}>
-          <p className="text-sm text-gray-500 mb-3">Selecciona 2 o más contextos/eventos para comparar (puedes mezclar solicitudes y stock):</p>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Tags de Solicitud */}
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-3 h-3 rounded-full bg-blue-500" />
-                <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">Solicitudes ({tagsByType.solicitud.length})</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {tagsByType.solicitud.map(tag => {
-                  const isSelected = selectedTags.includes(tag);
-                  const index = selectedTags.indexOf(tag);
-                  
-                  return (
-                    <button
-                      key={tag}
-                      onClick={() => toggleTag(tag)}
-                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-2
-                        ${isSelected 
-                          ? 'bg-blue-500 text-white ring-2 ring-blue-300'
-                          : isDarkMode 
-                            ? 'bg-gray-700 text-gray-300 hover:bg-blue-900/50 hover:text-blue-300'
-                            : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'
-                        }`}
-                    >
-                      {isSelected && (
-                        <span className="w-4 h-4 rounded-full bg-white/30 flex items-center justify-center text-xs font-bold">
-                          {index + 1}
-                        </span>
-                      )}
-                      {tag}
-                    </button>
-                  );
-                })}
-                {tagsByType.solicitud.length === 0 && (
-                  <span className="text-sm text-gray-400 italic">No hay eventos de solicitud</span>
-                )}
-              </div>
-            </div>
-
-            {/* Tags de Stock */}
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-3 h-3 rounded-full bg-green-500" />
-                <span className="text-sm font-semibold text-green-600 dark:text-green-400">Stock ({tagsByType.stock.length})</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {tagsByType.stock.map(tag => {
-                  const isSelected = selectedTags.includes(tag);
-                  const index = selectedTags.indexOf(tag);
-                  
-                  return (
-                    <button
-                      key={tag}
-                      onClick={() => toggleTag(tag)}
-                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-2
-                        ${isSelected 
-                          ? 'bg-green-500 text-white ring-2 ring-green-300'
-                          : isDarkMode 
-                            ? 'bg-gray-700 text-gray-300 hover:bg-green-900/50 hover:text-green-300'
-                            : 'bg-green-50 text-green-700 hover:bg-green-100 border border-green-200'
-                        }`}
-                    >
-                      {isSelected && (
-                        <span className="w-4 h-4 rounded-full bg-white/30 flex items-center justify-center text-xs font-bold">
-                          {index + 1}
-                        </span>
-                      )}
-                      {tag}
-                    </button>
-                  );
-                })}
-                {tagsByType.stock.length === 0 && (
-                  <span className="text-sm text-gray-400 italic">No hay eventos de stock</span>
-                )}
-              </div>
-            </div>
-          </div>
-          
-          {selectedTags.length > 0 && selectedTags.length < 2 && (
-            <p className="text-amber-500 text-sm mt-2 flex items-center gap-1">
-              <AlertTriangle className="w-4 h-4" />
-              Selecciona al menos 2 contextos para comparar
-            </p>
-          )}
-          
-          {selectedTags.length > 0 && (
-            <div className="mt-3 flex items-center gap-2">
-              <span className="text-xs text-gray-500">Orden de comparación:</span>
-              <div className="flex flex-wrap gap-1">
-                {selectedTags.map((tag, idx) => {
-                  const isSolicitud = tagsByType.solicitud.includes(tag);
-                  return (
-                    <span 
-                      key={tag}
-                      className={`px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1
-                        ${isSolicitud ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}
-                    >
-                      <span className="w-4 h-4 rounded-full bg-current/20 flex items-center justify-center text-[10px]">{idx + 1}</span>
-                      {tag}
-                      <button 
-                        onClick={() => setSelectedTags(prev => prev.filter(t => t !== tag))}
-                        className="hover:text-red-500 ml-1"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  );
-                })}
-              </div>
-              {selectedTags.length > 0 && (
-                <button
-                  onClick={() => setSelectedTags([])}
-                  className="text-xs text-red-500 hover:text-red-600 ml-2"
-                >
-                  Limpiar todo
-                </button>
-              )}
-            </div>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-500">{repuestosConTags.length} de {repuestos.length} repuestos</span>
+          {selectedTags.length >= 2 && (
+            <button
+              onClick={exportComparison}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              Exportar Excel
+            </button>
           )}
         </div>
+      </header>
 
-        {/* Barra de herramientas */}
-        {selectedTags.length >= 2 && (
-          <div className={`p-3 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} flex flex-wrap items-center gap-3`}>
-            {/* Buscador */}
-            <div className="relative flex-1 min-w-[200px] max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Buscar por código o descripción..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className={`w-full pl-9 pr-4 py-2 rounded-lg border text-sm
-                  ${isDarkMode 
-                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                    : 'bg-white border-gray-300 placeholder-gray-500'
-                  } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-              />
-              {searchTerm && (
-                <button
-                  onClick={() => setSearchTerm('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
+      {/* Contenido principal con sidebar */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Sidebar izquierdo - Configuración y estadísticas */}
+        <aside className={`${sidebarCollapsed ? 'w-12' : 'w-80'} flex-shrink-0 border-r overflow-hidden transition-all duration-300 flex flex-col
+          ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+          
+          {/* Toggle sidebar */}
+          <button
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className={`w-full p-3 flex items-center justify-center border-b ${isDarkMode ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-200 hover:bg-gray-100'}`}
+            title={sidebarCollapsed ? 'Expandir panel' : 'Colapsar panel'}
+          >
+            {sidebarCollapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
+          </button>
 
-            {/* Filtros */}
-            <div className="relative">
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm
-                  ${filterType !== 'todos' 
-                    ? 'bg-blue-50 border-blue-300 text-blue-700 dark:bg-blue-900/30 dark:border-blue-700 dark:text-blue-300'
-                    : isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
-                  }`}
-              >
-                <Filter className="w-4 h-4" />
-                Filtrar
-                {filterType !== 'todos' && <span className="w-2 h-2 bg-blue-500 rounded-full" />}
-              </button>
-              
-              {showFilters && (
-                <div className={`absolute top-full left-0 mt-1 w-72 rounded-lg shadow-xl border z-10
-                  ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-                  <div className="p-2 space-y-1">
-                    <p className="text-xs text-gray-500 px-3 py-1 font-medium">Filtros generales</p>
-                    {[
-                      { value: 'todos', label: 'Todos los repuestos', icon: null },
-                      { value: 'con-diferencia', label: 'Con diferencia', icon: null },
-                      { value: 'en-ambos', label: 'En ambos contextos', icon: null },
-                      { value: 'faltante-alguno', label: 'Falta en alguno', icon: null },
-                      { value: 'solo-primero', label: `Solo en ${selectedTags[0]?.substring(0, 20)}...`, icon: null },
-                      { value: 'solo-segundo', label: `Solo en ${selectedTags[1]?.substring(0, 20)}...`, icon: null },
-                    ].map(opt => (
-                      <button
-                        key={opt.value}
-                        onClick={() => { setFilterType(opt.value as FilterType); setShowFilters(false); }}
-                        className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center justify-between
-                          ${filterType === opt.value 
-                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' 
-                            : 'hover:bg-gray-100 dark:hover:bg-gray-700'
-                          }`}
-                      >
-                        {opt.label}
-                        {filterType === opt.value && <Check className="w-4 h-4" />}
-                      </button>
-                    ))}
-                    
-                    {/* Filtros de cobertura - solo si hay solicitud y stock */}
-                    {solicitudTag && stockTag && (
-                      <>
-                        <div className="border-t my-2 mx-2 opacity-30" />
-                        <p className="text-xs text-gray-500 px-3 py-1 font-medium flex items-center gap-1">
-                          <Target className="w-3 h-3" /> Cobertura de bodega
-                        </p>
-                        {[
-                          { value: 'cubierto', label: '🟢 Cubiertos (bodega ≥ solicitado)', color: 'text-green-600' },
-                          { value: 'parcial', label: '🟡 Parciales (0 < bodega < solicitado)', color: 'text-amber-600' },
-                          { value: 'sin-stock', label: '🔴 Sin stock (bodega = 0)', color: 'text-red-600' },
-                        ].map(opt => (
-                          <button
-                            key={opt.value}
-                            onClick={() => { setFilterType(opt.value as FilterType); setShowFilters(false); }}
-                            className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center justify-between
-                              ${filterType === opt.value 
-                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' 
-                                : 'hover:bg-gray-100 dark:hover:bg-gray-700'
-                              }`}
-                          >
-                            <span className={opt.color}>{opt.label}</span>
-                            {filterType === opt.value && <Check className="w-4 h-4" />}
-                          </button>
-                        ))}
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Selector de contexto de referencia */}
-            {selectedTags.length >= 3 && (
-              <div className="flex items-center gap-2">
-                <Target className="w-4 h-4 text-purple-500" />
-                <select
-                  value={referenceTagIndex}
-                  onChange={(e) => setReferenceTagIndex(parseInt(e.target.value))}
-                  className={`px-2 py-1.5 rounded-lg border text-sm
-                    ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}
-                  title="Contexto de referencia para comparaciones"
-                >
-                  {selectedTags.map((tag, idx) => (
-                    <option key={tag} value={idx}>
-                      Ref: {tag.substring(0, 25)}...
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {/* Toggle estadísticas avanzadas */}
-            <button
-              onClick={() => setShowAdvancedStats(!showAdvancedStats)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm
-                ${showAdvancedStats 
-                  ? 'bg-purple-50 border-purple-300 text-purple-700 dark:bg-purple-900/30 dark:border-purple-700'
-                  : isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
-                }`}
-              title="Mostrar/ocultar estadísticas avanzadas"
-            >
-              <BarChart3 className="w-4 h-4" />
-              Stats
-            </button>
-
-            {/* Vista compacta */}
-            <button
-              onClick={() => setCompactView(!compactView)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm
-                ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}
-                ${compactView ? 'text-blue-600' : ''}`}
-              title={compactView ? 'Vista normal' : 'Vista compacta'}
-            >
-              {compactView ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-            </button>
-
-            {/* Contador */}
-            <span className="text-sm text-gray-500 ml-auto">
-              {repuestosConTags.length} de {repuestos.filter(r => selectedTags.some(t => getCantidadTag(r, t) !== null)).length} repuestos
-            </span>
-          </div>
-        )}
-
-        {/* Estadísticas mejoradas */}
-        {selectedTags.length >= 2 && (
-          <div className={`p-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-            <div className="flex flex-wrap gap-3">
-              {selectedTags.map((tag, idx) => {
-                const isSolicitud = tagsByType.solicitud.includes(tag);
-                return (
-                  <div key={tag} className={`p-3 rounded-lg min-w-[160px] ${isSolicitud ? 'bg-blue-50 dark:bg-blue-900/20' : 'bg-green-50 dark:bg-green-900/20'}`}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold
-                        ${isSolicitud ? 'bg-blue-500 text-white' : 'bg-green-500 text-white'}`}>
-                        {idx + 1}
-                      </span>
-                      <p className="text-xs text-gray-500 truncate flex-1" title={tag}>{tag}</p>
-                    </div>
-                    <p className="text-lg font-bold">{stats[tag]?.count || 0} <span className="text-sm font-normal">repuestos</span></p>
-                    <p className="text-sm">{stats[tag]?.total || 0} unidades</p>
-                    <p className={`text-sm font-medium ${isSolicitud ? 'text-blue-600' : 'text-green-600'}`}>
-                      ${(stats[tag]?.totalUSD || 0).toLocaleString('es-CL', { minimumFractionDigits: 2 })}
-                    </p>
-                  </div>
-                );
-              })}
-              
-              {/* Diferencias - solo si hay exactamente 2 tags */}
-              {diffStats && selectedTags.length === 2 && (
-                <div className={`p-3 rounded-lg border-2 ${isDarkMode ? 'bg-gray-750 border-gray-600' : 'bg-white border-gray-300'}`}>
-                  <p className="text-xs text-gray-500 flex items-center gap-1 mb-1">
-                    <Percent className="w-3 h-3" /> Diferencias
-                  </p>
-                  <div className="grid grid-cols-3 gap-2 text-center">
-                    <div>
-                      <p className="text-lg font-bold text-green-600">+{diffStats.positivas}</p>
-                      <p className="text-xs text-gray-500">Mayor</p>
-                    </div>
-                    <div>
-                      <p className="text-lg font-bold text-gray-500">{diffStats.iguales}</p>
-                      <p className="text-xs text-gray-500">Igual</p>
-                    </div>
-                    <div>
-                      <p className="text-lg font-bold text-red-600">{diffStats.negativas}</p>
-                      <p className="text-xs text-gray-500">Menor</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Resumen diferencia */}
-              {diffStats && selectedTags.length === 2 && (
-                <div className={`p-3 rounded-lg ${diffStats.sumDiff >= 0 ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'}`}>
-                  <p className="text-xs text-gray-500 flex items-center gap-1 mb-1">
-                    <BarChart3 className="w-3 h-3" /> Balance
-                  </p>
-                  <p className={`text-xl font-bold ${diffStats.sumDiff >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {diffStats.sumDiff >= 0 ? '+' : ''}{diffStats.sumDiff}
-                  </p>
-                  <p className={`text-sm ${diffStats.sumDiffUSD >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {diffStats.sumDiffUSD >= 0 ? '+' : ''}${diffStats.sumDiffUSD.toLocaleString('es-CL', { minimumFractionDigits: 2 })}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Panel de estadísticas avanzadas de cobertura */}
-            {showAdvancedStats && solicitudTag && stockTag && coberturaStats && (
-              <div className={`mt-4 p-4 rounded-lg border-2 ${isDarkMode ? 'bg-gray-750 border-purple-700' : 'bg-purple-50 border-purple-300'}`}>
-                <h4 className="text-sm font-semibold text-purple-700 dark:text-purple-300 flex items-center gap-2 mb-3">
-                  <Target className="w-4 h-4" />
-                  Análisis de Cobertura de Bodega
-                </h4>
+          {!sidebarCollapsed && (
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {/* Selector de Tags */}
+              <div>
+                <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                  <Target className="w-4 h-4 text-blue-500" />
+                  Contextos a comparar
+                </h3>
+                <p className="text-xs text-gray-500 mb-3">Selecciona 2 o más:</p>
                 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {/* Tasa de cobertura */}
-                  <div className="text-center">
+                {/* Tags de Solicitud */}
+                <div className="mb-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-2 h-2 rounded-full bg-blue-500" />
+                    <span className="text-xs font-medium text-blue-600 dark:text-blue-400">Solicitudes ({tagsByType.solicitud.length})</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {tagsByType.solicitud.map(tag => {
+                      const isSelected = selectedTags.includes(tag);
+                      const index = selectedTags.indexOf(tag);
+                      return (
+                        <button
+                          key={tag}
+                          onClick={() => toggleTag(tag)}
+                          className={`px-2 py-1 rounded text-xs transition-all flex items-center gap-1
+                            ${isSelected 
+                              ? 'bg-blue-500 text-white'
+                              : isDarkMode ? 'bg-gray-700 hover:bg-blue-900/50' : 'bg-blue-50 hover:bg-blue-100 text-blue-700'
+                            }`}
+                          title={tag}
+                        >
+                          {isSelected && <span className="w-3 h-3 rounded-full bg-white/30 text-[9px] flex items-center justify-center">{index + 1}</span>}
+                          <span className="truncate max-w-[120px]">{tag}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Tags de Stock */}
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-2 h-2 rounded-full bg-green-500" />
+                    <span className="text-xs font-medium text-green-600 dark:text-green-400">Stock ({tagsByType.stock.length})</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {tagsByType.stock.map(tag => {
+                      const isSelected = selectedTags.includes(tag);
+                      const index = selectedTags.indexOf(tag);
+                      return (
+                        <button
+                          key={tag}
+                          onClick={() => toggleTag(tag)}
+                          className={`px-2 py-1 rounded text-xs transition-all flex items-center gap-1
+                            ${isSelected 
+                              ? 'bg-green-500 text-white'
+                              : isDarkMode ? 'bg-gray-700 hover:bg-green-900/50' : 'bg-green-50 hover:bg-green-100 text-green-700'
+                            }`}
+                          title={tag}
+                        >
+                          {isSelected && <span className="w-3 h-3 rounded-full bg-white/30 text-[9px] flex items-center justify-center">{index + 1}</span>}
+                          <span className="truncate max-w-[120px]">{tag}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {selectedTags.length > 0 && (
+                  <button onClick={() => setSelectedTags([])} className="text-xs text-red-500 hover:text-red-600 mt-2">
+                    Limpiar selección
+                  </button>
+                )}
+              </div>
+
+              {/* Estadísticas por contexto */}
+              {selectedTags.length >= 2 && (
+                <div className={`p-3 rounded-lg ${isDarkMode ? 'bg-gray-750' : 'bg-gray-50'}`}>
+                  <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4 text-purple-500" />
+                    Resumen por contexto
+                  </h3>
+                  <div className="space-y-2">
+                    {selectedTags.map((tag, idx) => {
+                      const isSolicitud = tagsByType.solicitud.includes(tag);
+                      return (
+                        <div key={tag} className={`p-2 rounded text-xs ${isSolicitud ? 'bg-blue-50 dark:bg-blue-900/20' : 'bg-green-50 dark:bg-green-900/20'}`}>
+                          <div className="flex items-center gap-1 mb-1">
+                            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold text-white
+                              ${isSolicitud ? 'bg-blue-500' : 'bg-green-500'}`}>{idx + 1}</span>
+                            <span className="truncate flex-1 font-medium" title={tag}>{tag}</span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-1 text-center">
+                            <div><span className="block font-semibold">{stats[tag]?.count || 0}</span><span className="text-gray-400">items</span></div>
+                            <div><span className="block font-semibold">{stats[tag]?.total || 0}</span><span className="text-gray-400">uds</span></div>
+                            <div><span className="block font-semibold text-green-600">${(stats[tag]?.totalUSD || 0).toLocaleString('es-CL', {maximumFractionDigits: 0})}</span></div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Panel de cobertura */}
+              {solicitudTag && stockTag && coberturaStats && (
+                <div className={`p-3 rounded-lg border-2 ${isDarkMode ? 'bg-gray-750 border-purple-700' : 'bg-purple-50 border-purple-200'}`}>
+                  <h3 className="text-sm font-semibold mb-2 flex items-center gap-2 text-purple-700 dark:text-purple-300">
+                    <Target className="w-4 h-4" />
+                    Cobertura de Bodega
+                  </h3>
+                  <div className="text-center mb-3">
                     <div className={`text-3xl font-bold ${
                       coberturaStats.tasaCobertura >= 80 ? 'text-green-600' :
                       coberturaStats.tasaCobertura >= 50 ? 'text-amber-600' : 'text-red-600'
                     }`}>
                       {coberturaStats.tasaCobertura.toFixed(1)}%
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">Tasa de Cobertura</p>
-                    <p className="text-xs text-gray-400">(Bodega / Solicitado)</p>
+                    <p className="text-xs text-gray-500">Tasa de cobertura</p>
                   </div>
-
-                  {/* Semáforo de estados */}
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="flex items-center gap-1">
-                        <CheckCircle2 className="w-4 h-4 text-green-500" /> Cubiertos
-                      </span>
-                      <span className="font-semibold text-green-600">{coberturaStats.cubiertos}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="flex items-center gap-1">
-                        <AlertCircle className="w-4 h-4 text-amber-500" /> Parciales
-                      </span>
-                      <span className="font-semibold text-amber-600">{coberturaStats.parciales}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="flex items-center gap-1">
-                        <XCircle className="w-4 h-4 text-red-500" /> Sin stock
-                      </span>
-                      <span className="font-semibold text-red-600">{coberturaStats.sinStock}</span>
-                    </div>
+                  <div className="space-y-1 text-xs">
+                    <div className="flex justify-between"><span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-green-500"/>Cubiertos</span><span className="font-semibold text-green-600">{coberturaStats.cubiertos}</span></div>
+                    <div className="flex justify-between"><span className="flex items-center gap-1"><AlertCircle className="w-3 h-3 text-amber-500"/>Parciales</span><span className="font-semibold text-amber-600">{coberturaStats.parciales}</span></div>
+                    <div className="flex justify-between"><span className="flex items-center gap-1"><XCircle className="w-3 h-3 text-red-500"/>Sin stock</span><span className="font-semibold text-red-600">{coberturaStats.sinStock}</span></div>
                   </div>
-
-                  {/* Totales */}
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600 dark:text-gray-400">Solicitado:</span>
-                      <span className="font-semibold">{coberturaStats.totalSolicitado} uds</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600 dark:text-gray-400">En bodega:</span>
-                      <span className="font-semibold text-green-600">{coberturaStats.totalEnBodega} uds</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600 dark:text-gray-400">Faltante:</span>
-                      <span className="font-semibold text-red-600">{coberturaStats.totalFaltante} uds</span>
-                    </div>
+                  <div className="h-4 rounded-full overflow-hidden flex bg-gray-200 dark:bg-gray-700 mt-2">
+                    {coberturaStats.cubiertos > 0 && (
+                      <div className="bg-green-500 h-full" style={{ width: `${(coberturaStats.cubiertos / (coberturaStats.cubiertos + coberturaStats.parciales + coberturaStats.sinStock)) * 100}%` }} />
+                    )}
+                    {coberturaStats.parciales > 0 && (
+                      <div className="bg-amber-500 h-full" style={{ width: `${(coberturaStats.parciales / (coberturaStats.cubiertos + coberturaStats.parciales + coberturaStats.sinStock)) * 100}%` }} />
+                    )}
+                    {coberturaStats.sinStock > 0 && (
+                      <div className="bg-red-500 h-full" style={{ width: `${(coberturaStats.sinStock / (coberturaStats.cubiertos + coberturaStats.parciales + coberturaStats.sinStock)) * 100}%` }} />
+                    )}
                   </div>
-
-                  {/* Barra de progreso visual */}
-                  <div>
-                    <p className="text-xs text-gray-500 mb-2">Distribución de cobertura</p>
-                    <div className="h-6 rounded-full overflow-hidden flex bg-gray-200 dark:bg-gray-700">
-                      {coberturaStats.cubiertos > 0 && (
-                        <div 
-                          className="bg-green-500 flex items-center justify-center text-white text-xs font-bold"
-                          style={{ width: `${(coberturaStats.cubiertos / (coberturaStats.cubiertos + coberturaStats.parciales + coberturaStats.sinStock)) * 100}%` }}
-                          title={`${coberturaStats.cubiertos} cubiertos`}
-                        >
-                          {coberturaStats.cubiertos > 5 && coberturaStats.cubiertos}
-                        </div>
-                      )}
-                      {coberturaStats.parciales > 0 && (
-                        <div 
-                          className="bg-amber-500 flex items-center justify-center text-white text-xs font-bold"
-                          style={{ width: `${(coberturaStats.parciales / (coberturaStats.cubiertos + coberturaStats.parciales + coberturaStats.sinStock)) * 100}%` }}
-                          title={`${coberturaStats.parciales} parciales`}
-                        >
-                          {coberturaStats.parciales > 5 && coberturaStats.parciales}
-                        </div>
-                      )}
-                      {coberturaStats.sinStock > 0 && (
-                        <div 
-                          className="bg-red-500 flex items-center justify-center text-white text-xs font-bold"
-                          style={{ width: `${(coberturaStats.sinStock / (coberturaStats.cubiertos + coberturaStats.parciales + coberturaStats.sinStock)) * 100}%` }}
-                          title={`${coberturaStats.sinStock} sin stock`}
-                        >
-                          {coberturaStats.sinStock > 5 && coberturaStats.sinStock}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex justify-between text-xs mt-1 text-gray-400">
-                      <span>🟢 {((coberturaStats.cubiertos / (coberturaStats.cubiertos + coberturaStats.parciales + coberturaStats.sinStock)) * 100 || 0).toFixed(0)}%</span>
-                      <span>🟡 {((coberturaStats.parciales / (coberturaStats.cubiertos + coberturaStats.parciales + coberturaStats.sinStock)) * 100 || 0).toFixed(0)}%</span>
-                      <span>🔴 {((coberturaStats.sinStock / (coberturaStats.cubiertos + coberturaStats.parciales + coberturaStats.sinStock)) * 100 || 0).toFixed(0)}%</span>
-                    </div>
+                  <div className="mt-2 text-xs text-gray-500 grid grid-cols-3 gap-1 text-center">
+                    <div>Solicitado<br/><span className="font-semibold text-gray-700 dark:text-gray-300">{coberturaStats.totalSolicitado}</span></div>
+                    <div>En bodega<br/><span className="font-semibold text-green-600">{coberturaStats.totalEnBodega}</span></div>
+                    <div>Faltante<br/><span className="font-semibold text-red-600">{coberturaStats.totalFaltante}</span></div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Panel de comparación vs referencia para 3+ contextos */}
-            {showAdvancedStats && selectedTags.length >= 3 && refStats.length > 0 && (
-              <div className={`mt-4 p-4 rounded-lg border-2 ${isDarkMode ? 'bg-gray-750 border-blue-700' : 'bg-blue-50 border-blue-300'}`}>
-                <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-300 flex items-center gap-2 mb-3">
-                  <Target className="w-4 h-4" />
-                  Comparación vs Referencia: {selectedTags[referenceTagIndex]?.substring(0, 30)}...
-                </h4>
+              {/* Diferencias (2 contextos) */}
+              {diffStats && selectedTags.length === 2 && (
+                <div className={`p-3 rounded-lg ${isDarkMode ? 'bg-gray-750' : 'bg-gray-50'}`}>
+                  <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                    <Percent className="w-4 h-4 text-orange-500" />
+                    Diferencias
+                  </h3>
+                  <div className="grid grid-cols-3 gap-2 text-center text-xs mb-2">
+                    <div><span className="block text-lg font-bold text-green-600">+{diffStats.positivas}</span>Mayor</div>
+                    <div><span className="block text-lg font-bold text-gray-500">{diffStats.iguales}</span>Igual</div>
+                    <div><span className="block text-lg font-bold text-red-600">{diffStats.negativas}</span>Menor</div>
+                  </div>
+                  <div className={`p-2 rounded text-center ${diffStats.sumDiff >= 0 ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
+                    <span className={`text-lg font-bold ${diffStats.sumDiff >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {diffStats.sumDiff >= 0 ? '+' : ''}{diffStats.sumDiff}
+                    </span>
+                    <span className={`block text-xs ${diffStats.sumDiffUSD >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {diffStats.sumDiffUSD >= 0 ? '+' : ''}${diffStats.sumDiffUSD.toLocaleString('es-CL', { minimumFractionDigits: 0 })}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Comparación vs referencia (3+ contextos) */}
+              {selectedTags.length >= 3 && refStats.length > 0 && (
+                <div className={`p-3 rounded-lg border ${isDarkMode ? 'bg-gray-750 border-blue-700' : 'bg-blue-50 border-blue-200'}`}>
+                  <h3 className="text-sm font-semibold mb-2 flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                    <Target className="w-4 h-4" />
+                    vs Referencia
+                  </h3>
+                  <select
+                    value={referenceTagIndex}
+                    onChange={(e) => setReferenceTagIndex(parseInt(e.target.value))}
+                    className={`w-full px-2 py-1 rounded text-xs mb-2 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}
+                  >
+                    {selectedTags.map((tag, idx) => (
+                      <option key={tag} value={idx}>Ref: {tag.substring(0, 30)}</option>
+                    ))}
+                  </select>
+                  <div className="space-y-2">
+                    {refStats.map(stat => (
+                      <div key={stat.tagName} className={`p-2 rounded text-xs ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+                        <p className="truncate font-medium mb-1" title={stat.tagName}>{stat.tagName.substring(0, 25)}</p>
+                        <div className="grid grid-cols-3 gap-1 text-center">
+                          <span className="text-green-600">↑{stat.aumentaron}</span>
+                          <span className="text-gray-500">={stat.iguales}</span>
+                          <span className="text-red-600">↓{stat.disminuyeron}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </aside>
+
+        {/* Área principal - Tabla de comparación */}
+        <main className={`flex-1 flex flex-col overflow-hidden ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+          {/* Barra de herramientas */}
+          {selectedTags.length >= 2 && (
+            <div className={`p-3 border-b flex flex-wrap items-center gap-3 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+              {/* Buscador */}
+              <div className="relative flex-1 min-w-[200px] max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar código o descripción..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className={`w-full pl-9 pr-4 py-2 rounded-lg border text-sm
+                    ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                />
+                {searchTerm && (
+                  <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
+              {/* Filtros */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm
+                    ${filterType !== 'todos' 
+                      ? 'bg-blue-50 border-blue-300 text-blue-700 dark:bg-blue-900/30 dark:border-blue-700'
+                      : isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
+                    }`}
+                >
+                  <Filter className="w-4 h-4" />
+                  Filtrar
+                  {filterType !== 'todos' && <span className="w-2 h-2 bg-blue-500 rounded-full" />}
+                </button>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {refStats.map((stat) => (
-                    <div key={stat.tagName} className={`p-3 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-sm`}>
-                      <p className="text-xs text-gray-500 truncate mb-2" title={stat.tagName}>
-                        vs {stat.tagName.substring(0, 25)}...
-                      </p>
-                      <div className="grid grid-cols-3 gap-2 text-center mb-2">
-                        <div>
-                          <TrendingUp className="w-4 h-4 mx-auto text-green-500 mb-1" />
-                          <p className="text-lg font-bold text-green-600">{stat.aumentaron}</p>
-                          <p className="text-xs text-gray-400">Aumentaron</p>
-                        </div>
-                        <div>
-                          <CircleDot className="w-4 h-4 mx-auto text-gray-400 mb-1" />
-                          <p className="text-lg font-bold text-gray-500">{stat.iguales}</p>
-                          <p className="text-xs text-gray-400">Iguales</p>
-                        </div>
-                        <div>
-                          <TrendingDown className="w-4 h-4 mx-auto text-red-500 mb-1" />
-                          <p className="text-lg font-bold text-red-600">{stat.disminuyeron}</p>
-                          <p className="text-xs text-gray-400">Disminuyeron</p>
-                        </div>
-                      </div>
-                      <div className="border-t pt-2 flex justify-between text-sm">
-                        <span className="text-gray-500">Δ Total:</span>
-                        <span className={`font-semibold ${stat.sumDiff >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {stat.sumDiff >= 0 ? '+' : ''}{stat.sumDiff} ({stat.sumDiff >= 0 ? '+' : ''}${stat.sumDiffUSD.toLocaleString('es-CL', { minimumFractionDigits: 0 })})
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-xs text-gray-400">
-                        <span>Tasa de ajuste:</span>
-                        <span className={stat.tasaAjuste >= 100 ? 'text-green-500' : 'text-amber-500'}>
-                          {stat.tasaAjuste.toFixed(1)}%
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Tabla de comparación */}
-        {selectedTags.length >= 2 && (
-          <div className="flex-1 overflow-auto">
-            <table className="w-full text-sm">
-              <thead className={`sticky top-0 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} z-10`}>
-                <tr className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                  {onViewInManual && (
-                    <th className="text-center p-2 font-semibold w-10">
-                      <BookOpen className="w-4 h-4 mx-auto opacity-50" />
-                    </th>
-                  )}
-                  <th 
-                    className="text-left p-2 font-semibold cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
-                    onClick={() => handleSort('codigoSAP')}
-                  >
-                    <span className="flex items-center gap-1">
-                      Código SAP {getSortIcon('codigoSAP')}
-                    </span>
-                  </th>
-                  {!compactView && (
-                    <th 
-                      className="text-left p-2 font-semibold cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
-                      onClick={() => handleSort('textoBreve')}
-                    >
-                      <span className="flex items-center gap-1">
-                        Descripción {getSortIcon('textoBreve')}
-                      </span>
-                    </th>
-                  )}
-                  <th 
-                    className="text-right p-2 font-semibold cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
-                    onClick={() => handleSort('valorUnitario')}
-                  >
-                    <span className="flex items-center justify-end gap-1">
-                      Valor {getSortIcon('valorUnitario')}
-                    </span>
-                  </th>
-                  {selectedTags.map((tag, idx) => {
-                    const isSolicitud = tagsByType.solicitud.includes(tag);
-                    return (
-                      <th 
-                        key={tag} 
-                        className={`text-center p-2 font-semibold min-w-[90px] cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700
-                          ${isSolicitud ? 'bg-blue-50 dark:bg-blue-900/20' : 'bg-green-50 dark:bg-green-900/20'}`}
-                        onClick={() => handleSort(`tag${idx + 1}` as SortField)}
-                      >
-                        <span className="flex items-center justify-center gap-1">
-                          <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold
-                            ${isSolicitud ? 'bg-blue-500 text-white' : 'bg-green-500 text-white'}`}>
-                            {idx + 1}
-                          </span>
-                        </span>
-                        <span className="text-xs block truncate opacity-70" title={tag}>{tag.substring(0, 15)}</span>
-                      </th>
-                    );
-                  })}
-                  {selectedTags.length === 2 && (
-                    <>
-                      <th 
-                        className="text-center p-2 font-semibold cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
-                        onClick={() => handleSort('diferencia')}
-                      >
-                        <span className="flex items-center justify-center gap-1">
-                          Dif. {getSortIcon('diferencia')}
-                        </span>
-                      </th>
-                      {!compactView && (
-                        <th className="text-center p-2 font-semibold">Dif. USD</th>
-                      )}
-                    </>
-                  )}
-                  {/* Columna de Estado de cobertura */}
-                  {solicitudTag && stockTag && (
-                    <th 
-                      className="text-center p-2 font-semibold cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 min-w-[80px]"
-                      onClick={() => handleSort('estado')}
-                      title="Estado de cobertura (bodega vs solicitado)"
-                    >
-                      <span className="flex items-center justify-center gap-1">
-                        <Target className="w-4 h-4" /> {getSortIcon('estado')}
-                      </span>
-                    </th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {repuestosConTags.map((r, idx) => {
-                  const cantidades = selectedTags.map(tag => getCantidadTag(r, tag) ?? 0);
-                  const diferencia = selectedTags.length === 2 ? cantidades[0] - cantidades[1] : 0;
-                  const difUSD = diferencia * r.valorUnitario;
-                  
-                  return (
-                    <tr 
-                      key={r.id} 
-                      className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-100'} 
-                        ${idx % 2 === 1 ? (isDarkMode ? 'bg-gray-750' : 'bg-gray-50') : ''}
-                        hover:bg-blue-50 dark:hover:bg-blue-900/10`}
-                    >
-                      {onViewInManual && (
-                        <td className="p-1 text-center">
-                          <button
-                            onClick={() => onViewInManual(r)}
-                            className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-500 hover:text-blue-700 transition-colors"
-                            title="Ver en manual"
-                          >
-                            <BookOpen className="w-4 h-4" />
-                          </button>
-                        </td>
-                      )}
-                      <td className="p-2 font-mono text-xs">{r.codigoSAP}</td>
-                      {!compactView && (
-                        <td className="p-2 truncate max-w-[200px]" title={r.textoBreve}>{r.textoBreve}</td>
-                      )}
-                      <td className="p-2 text-right text-xs">${r.valorUnitario.toFixed(2)}</td>
-                      {selectedTags.map((tag) => {
-                        const cantidad = getCantidadTag(r, tag);
-                        const noTiene = cantidad === null || cantidad === 0;
-                        const isSolicitud = tagsByType.solicitud.includes(tag);
-                        
-                        return (
-                          <td 
-                            key={tag} 
-                            className={`p-2 text-center font-medium
-                              ${noTiene ? 'text-gray-300 dark:text-gray-600' : ''}
-                              ${!noTiene && isSolicitud ? 'text-blue-600' : ''}
-                              ${!noTiene && !isSolicitud ? 'text-green-600' : ''}
-                            `}
-                          >
-                            {noTiene ? <Minus className="w-4 h-4 mx-auto opacity-30" /> : cantidad}
-                          </td>
-                        );
-                      })}
-                      {selectedTags.length === 2 && (
+                {showFilters && (
+                  <div className={`absolute top-full left-0 mt-1 w-64 rounded-lg shadow-xl border z-20
+                    ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+                    <div className="p-2 space-y-1">
+                      <p className="text-xs text-gray-500 px-3 py-1 font-medium">Filtros generales</p>
+                      {[
+                        { value: 'todos', label: 'Todos' },
+                        { value: 'con-diferencia', label: 'Con diferencia' },
+                        { value: 'en-ambos', label: 'En ambos' },
+                        { value: 'faltante-alguno', label: 'Falta en alguno' },
+                      ].map(opt => (
+                        <button
+                          key={opt.value}
+                          onClick={() => { setFilterType(opt.value as FilterType); setShowFilters(false); }}
+                          className={`w-full text-left px-3 py-2 rounded text-sm flex items-center justify-between
+                            ${filterType === opt.value ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                        >
+                          {opt.label}
+                          {filterType === opt.value && <Check className="w-4 h-4" />}
+                        </button>
+                      ))}
+                      
+                      {solicitudTag && stockTag && (
                         <>
-                          <td className={`p-2 text-center font-bold
-                            ${diferencia > 0 ? 'text-green-600' : diferencia < 0 ? 'text-red-600' : 'text-gray-400'}
-                          `}>
-                            {diferencia > 0 ? `+${diferencia}` : diferencia === 0 ? '=' : diferencia}
-                          </td>
-                          {!compactView && (
-                            <td className={`p-2 text-center text-xs
-                              ${difUSD > 0 ? 'text-green-600' : difUSD < 0 ? 'text-red-600' : 'text-gray-400'}
-                            `}>
-                              {difUSD !== 0 ? `${difUSD > 0 ? '+' : ''}$${difUSD.toFixed(2)}` : '-'}
-                            </td>
-                          )}
+                          <div className="border-t my-2 mx-2 opacity-30" />
+                          <p className="text-xs text-gray-500 px-3 py-1 font-medium">Cobertura</p>
+                          {[
+                            { value: 'cubierto', label: '🟢 Cubiertos' },
+                            { value: 'parcial', label: '🟡 Parciales' },
+                            { value: 'sin-stock', label: '🔴 Sin stock' },
+                          ].map(opt => (
+                            <button
+                              key={opt.value}
+                              onClick={() => { setFilterType(opt.value as FilterType); setShowFilters(false); }}
+                              className={`w-full text-left px-3 py-2 rounded text-sm flex items-center justify-between
+                                ${filterType === opt.value ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                            >
+                              {opt.label}
+                              {filterType === opt.value && <Check className="w-4 h-4" />}
+                            </button>
+                          ))}
                         </>
                       )}
-                      {/* Celda de estado de cobertura */}
-                      {solicitudTag && stockTag && (() => {
-                        const estado = getEstadoCobertura(r, solicitudTag, stockTag);
-                        const estadoConfig = {
-                          'cubierto': { icon: CheckCircle2, color: 'text-green-500', bg: 'bg-green-100 dark:bg-green-900/30', label: 'Cubierto' },
-                          'parcial': { icon: AlertCircle, color: 'text-amber-500', bg: 'bg-amber-100 dark:bg-amber-900/30', label: 'Parcial' },
-                          'sin-stock': { icon: XCircle, color: 'text-red-500', bg: 'bg-red-100 dark:bg-red-900/30', label: 'Sin stock' },
-                          'no-solicitado': { icon: Minus, color: 'text-gray-400', bg: '', label: 'N/S' },
-                          'sin-datos': { icon: Minus, color: 'text-gray-300', bg: '', label: '-' },
-                        };
-                        const config = estadoConfig[estado];
-                        const IconComp = config.icon;
-                        return (
-                          <td className={`p-2 text-center ${config.bg}`} title={config.label}>
-                            <IconComp className={`w-5 h-5 mx-auto ${config.color}`} />
-                          </td>
-                        );
-                      })()}
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot className={`sticky bottom-0 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} font-bold border-t-2 ${isDarkMode ? 'border-gray-600' : 'border-gray-300'}`}>
-                <tr>
-                  {onViewInManual && <td></td>}
-                  <td className="p-2" colSpan={compactView ? 2 : 3}>TOTALES ({repuestosConTags.length})</td>
-                  {selectedTags.map(tag => (
-                    <td key={tag} className="p-2 text-center">
-                      {stats[tag]?.total || 0}
-                    </td>
-                  ))}
-                  {selectedTags.length === 2 && (
-                    <>
-                      <td className={`p-2 text-center ${(diffStats?.sumDiff || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {(diffStats?.sumDiff || 0) >= 0 ? '+' : ''}{diffStats?.sumDiff || 0}
-                      </td>
-                      {!compactView && (
-                        <td className={`p-2 text-center ${(diffStats?.sumDiffUSD || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          ${(diffStats?.sumDiffUSD || 0).toLocaleString('es-CL', { minimumFractionDigits: 2 })}
-                        </td>
-                      )}
-                    </>
-                  )}
-                  {/* Celda vacía para columna de estado */}
-                  {solicitudTag && stockTag && coberturaStats && (
-                    <td className="p-2 text-center text-xs text-gray-500">
-                      {coberturaStats.tasaCobertura.toFixed(0)}%
-                    </td>
-                  )}
-                </tr>
-              </tfoot>
-            </table>
-            
-            {repuestosConTags.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                {searchTerm || filterType !== 'todos' 
-                  ? 'No hay repuestos que coincidan con los filtros'
-                  : 'No hay repuestos con los contextos seleccionados'
-                }
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        )}
 
-        {/* Estado inicial */}
-        {selectedTags.length < 2 && (
-          <div className="flex-1 flex items-center justify-center p-8">
-            <div className="text-center text-gray-500">
-              <GitCompare className="w-16 h-16 mx-auto mb-4 opacity-30" />
-              <p className="text-lg">Selecciona al menos 2 contextos/eventos arriba</p>
-              <p className="text-sm">para ver la comparación lado a lado</p>
+              {/* Vista compacta */}
+              <button
+                onClick={() => setCompactView(!compactView)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm
+                  ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}
+                  ${compactView ? 'text-blue-600' : ''}`}
+              >
+                {compactView ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                {compactView ? 'Normal' : 'Compacto'}
+              </button>
+
+              {/* Info */}
+              <div className="ml-auto text-sm text-gray-500">
+                {repuestosConTags.length} repuestos
+                {filterType !== 'todos' && ' (filtrado)'}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Footer */}
-        <div className={`p-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} flex justify-between items-center`}>
-          <div className="text-sm text-gray-500 flex items-center gap-4">
-            <span>{repuestosConTags.length} repuestos en comparación</span>
-            {searchTerm && <span className="text-blue-500">Filtrado: "{searchTerm}"</span>}
-            {filterType !== 'todos' && <span className="text-blue-500">Filtro activo</span>}
-          </div>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
-          >
-            Cerrar
-          </button>
-        </div>
+          {/* Tabla */}
+          {selectedTags.length >= 2 ? (
+            <div className="flex-1 overflow-auto">
+              <table className="w-full text-sm">
+                <thead className={`sticky top-0 z-10 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+                  <tr className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                    {onViewInManual && (
+                      <th className="text-center p-2 font-semibold w-10">
+                        <BookOpen className="w-4 h-4 mx-auto opacity-50" />
+                      </th>
+                    )}
+                    <th 
+                      className="text-left p-2 font-semibold cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                      onClick={() => handleSort('codigoSAP')}
+                    >
+                      <span className="flex items-center gap-1">
+                        Código SAP {getSortIcon('codigoSAP')}
+                      </span>
+                    </th>
+                    {!compactView && (
+                      <th 
+                        className="text-left p-2 font-semibold cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                        onClick={() => handleSort('textoBreve')}
+                      >
+                        <span className="flex items-center gap-1">
+                          Descripción {getSortIcon('textoBreve')}
+                        </span>
+                      </th>
+                    )}
+                    <th 
+                      className="text-right p-2 font-semibold cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                      onClick={() => handleSort('valorUnitario')}
+                    >
+                      <span className="flex items-center justify-end gap-1">
+                        Valor {getSortIcon('valorUnitario')}
+                      </span>
+                    </th>
+                    {selectedTags.map((tag, idx) => {
+                      const isSolicitud = tagsByType.solicitud.includes(tag);
+                      return (
+                        <th 
+                          key={tag} 
+                          className={`text-center p-2 font-semibold min-w-[80px] cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700
+                            ${isSolicitud ? 'bg-blue-50 dark:bg-blue-900/20' : 'bg-green-50 dark:bg-green-900/20'}`}
+                          onClick={() => handleSort(`tag${idx + 1}` as SortField)}
+                          title={tag}
+                        >
+                          <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold mx-auto text-white
+                            ${isSolicitud ? 'bg-blue-500' : 'bg-green-500'}`}>
+                            {idx + 1}
+                          </span>
+                        </th>
+                      );
+                    })}
+                    {selectedTags.length === 2 && (
+                      <>
+                        <th 
+                          className="text-center p-2 font-semibold cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                          onClick={() => handleSort('diferencia')}
+                        >
+                          <span className="flex items-center justify-center gap-1">
+                            Dif. {getSortIcon('diferencia')}
+                          </span>
+                        </th>
+                        {!compactView && <th className="text-center p-2 font-semibold">Dif. $</th>}
+                      </>
+                    )}
+                    {solicitudTag && stockTag && (
+                      <th 
+                        className="text-center p-2 font-semibold cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 w-16"
+                        onClick={() => handleSort('estado')}
+                        title="Estado de cobertura"
+                      >
+                        <Target className="w-4 h-4 mx-auto" />
+                      </th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {repuestosConTags.map((r, idx) => {
+                    const cantidades = selectedTags.map(tag => getCantidadTag(r, tag) ?? 0);
+                    const diferencia = selectedTags.length === 2 ? cantidades[0] - cantidades[1] : 0;
+                    const difUSD = diferencia * r.valorUnitario;
+                    
+                    return (
+                      <tr 
+                        key={r.id} 
+                        className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-100'} 
+                          ${idx % 2 === 1 ? (isDarkMode ? 'bg-gray-800/50' : 'bg-gray-50') : ''}
+                          hover:bg-blue-50 dark:hover:bg-blue-900/10`}
+                      >
+                        {onViewInManual && (
+                          <td className="p-1 text-center">
+                            <button
+                              onClick={() => onViewInManual(r)}
+                              className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-500"
+                              title="Ver en manual"
+                            >
+                              <BookOpen className="w-4 h-4" />
+                            </button>
+                          </td>
+                        )}
+                        <td className="p-2 font-mono text-xs">{r.codigoSAP}</td>
+                        {!compactView && (
+                          <td className="p-2 truncate max-w-[250px]" title={r.textoBreve}>{r.textoBreve}</td>
+                        )}
+                        <td className="p-2 text-right text-xs">${r.valorUnitario.toFixed(2)}</td>
+                        {selectedTags.map((tag) => {
+                          const cantidad = getCantidadTag(r, tag);
+                          const noTiene = cantidad === null || cantidad === 0;
+                          const isSolicitud = tagsByType.solicitud.includes(tag);
+                          
+                          return (
+                            <td 
+                              key={tag} 
+                              className={`p-2 text-center font-medium
+                                ${noTiene ? 'text-gray-300 dark:text-gray-600' : ''}
+                                ${!noTiene && isSolicitud ? 'text-blue-600' : ''}
+                                ${!noTiene && !isSolicitud ? 'text-green-600' : ''}
+                              `}
+                            >
+                              {noTiene ? <Minus className="w-4 h-4 mx-auto opacity-30" /> : cantidad}
+                            </td>
+                          );
+                        })}
+                        {selectedTags.length === 2 && (
+                          <>
+                            <td className={`p-2 text-center font-bold
+                              ${diferencia > 0 ? 'text-green-600' : diferencia < 0 ? 'text-red-600' : 'text-gray-400'}
+                            `}>
+                              {diferencia > 0 ? `+${diferencia}` : diferencia === 0 ? '=' : diferencia}
+                            </td>
+                            {!compactView && (
+                              <td className={`p-2 text-center text-xs
+                                ${difUSD > 0 ? 'text-green-600' : difUSD < 0 ? 'text-red-600' : 'text-gray-400'}
+                              `}>
+                                {difUSD !== 0 ? `${difUSD > 0 ? '+' : ''}$${difUSD.toFixed(0)}` : '-'}
+                              </td>
+                            )}
+                          </>
+                        )}
+                        {solicitudTag && stockTag && (() => {
+                          const estado = getEstadoCobertura(r, solicitudTag, stockTag);
+                          const config = {
+                            'cubierto': { icon: CheckCircle2, color: 'text-green-500', bg: 'bg-green-100 dark:bg-green-900/30' },
+                            'parcial': { icon: AlertCircle, color: 'text-amber-500', bg: 'bg-amber-100 dark:bg-amber-900/30' },
+                            'sin-stock': { icon: XCircle, color: 'text-red-500', bg: 'bg-red-100 dark:bg-red-900/30' },
+                            'no-solicitado': { icon: Minus, color: 'text-gray-400', bg: '' },
+                            'sin-datos': { icon: Minus, color: 'text-gray-300', bg: '' },
+                          }[estado];
+                          const IconComp = config.icon;
+                          return (
+                            <td className={`p-2 text-center ${config.bg}`}>
+                              <IconComp className={`w-5 h-5 mx-auto ${config.color}`} />
+                            </td>
+                          );
+                        })()}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot className={`sticky bottom-0 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} font-bold border-t-2`}>
+                  <tr>
+                    {onViewInManual && <td></td>}
+                    <td className="p-2" colSpan={compactView ? 2 : 3}>TOTALES ({repuestosConTags.length})</td>
+                    {selectedTags.map(tag => (
+                      <td key={tag} className="p-2 text-center">{stats[tag]?.total || 0}</td>
+                    ))}
+                    {selectedTags.length === 2 && (
+                      <>
+                        <td className={`p-2 text-center ${(diffStats?.sumDiff || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {(diffStats?.sumDiff || 0) >= 0 ? '+' : ''}{diffStats?.sumDiff || 0}
+                        </td>
+                        {!compactView && (
+                          <td className={`p-2 text-center ${(diffStats?.sumDiffUSD || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            ${(diffStats?.sumDiffUSD || 0).toLocaleString('es-CL', { minimumFractionDigits: 0 })}
+                          </td>
+                        )}
+                      </>
+                    )}
+                    {solicitudTag && stockTag && coberturaStats && (
+                      <td className="p-2 text-center text-xs">{coberturaStats.tasaCobertura.toFixed(0)}%</td>
+                    )}
+                  </tr>
+                </tfoot>
+              </table>
+              
+              {repuestosConTags.length === 0 && (
+                <div className="text-center py-12 text-gray-500">
+                  {searchTerm || filterType !== 'todos' 
+                    ? 'No hay repuestos que coincidan con los filtros'
+                    : 'No hay repuestos con los contextos seleccionados'
+                  }
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center text-gray-500">
+                <GitCompare className="w-20 h-20 mx-auto mb-4 opacity-20" />
+                <p className="text-xl mb-2">Selecciona al menos 2 contextos</p>
+                <p className="text-sm">Usa el panel izquierdo para elegir qué comparar</p>
+              </div>
+            </div>
+          )}
+        </main>
       </div>
     </div>
   );

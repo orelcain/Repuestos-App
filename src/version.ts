@@ -1,8 +1,20 @@
 // Versión de la aplicación
-export const APP_VERSION = '3.6.3';
+export const APP_VERSION = '3.6.4';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '3.6.4',
+    date: '2025-01-21',
+    changes: [
+      'MEJORA: Comparador de Contextos ahora es vista de pantalla completa',
+      'NUEVO: Sidebar colapsable con configuración y estadísticas',
+      'NUEVO: Panel de cobertura integrado en sidebar',
+      'MEJORA: Tabla de comparación ocupa todo el espacio disponible',
+      'MEJORA: Botón Volver al inicio en header del comparador',
+      'MEJORA: Barra de herramientas simplificada y limpia',
+    ]
+  },
   {
     version: '3.6.3',
     date: '2025-01-21',
