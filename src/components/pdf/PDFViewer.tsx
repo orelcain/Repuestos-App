@@ -710,15 +710,20 @@ export function PDFViewer({
       ctx.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height);
     }
     
-    // Dibujar resaltados de búsqueda
+    // Dibujar resaltados de búsqueda con efecto más visible
     if (highlightPositions.length > 0) {
-      ctx.fillStyle = 'rgba(255, 255, 0, 0.4)';
-      ctx.strokeStyle = 'rgba(255, 200, 0, 0.8)';
-      ctx.lineWidth = 2;
+      // Fondo amarillo semitransparente
+      ctx.fillStyle = 'rgba(255, 255, 0, 0.5)';
+      ctx.strokeStyle = 'rgba(255, 180, 0, 1)';
+      ctx.lineWidth = 3;
       
       highlightPositions.forEach(pos => {
-        ctx.fillRect(pos.x, pos.y, pos.width, pos.height);
-        ctx.strokeRect(pos.x, pos.y, pos.width, pos.height);
+        // Sombra para destacar más
+        ctx.shadowColor = 'rgba(255, 200, 0, 0.8)';
+        ctx.shadowBlur = 8;
+        ctx.fillRect(pos.x - 2, pos.y - 2, pos.width + 4, pos.height + 4);
+        ctx.shadowBlur = 0;
+        ctx.strokeRect(pos.x - 2, pos.y - 2, pos.width + 4, pos.height + 4);
       });
     }
   }, [highlightPositions, marker, currentPage]);
@@ -852,7 +857,7 @@ export function PDFViewer({
             <ChevronLeft className="w-5 h-5" />
           </button>
           
-          <span className="text-sm">
+          <span className="text-sm font-medium bg-gray-700 px-4 py-1 rounded-lg min-w-[80px] text-center">
             {currentPage} / {totalPages}
           </span>
           
@@ -958,7 +963,7 @@ export function PDFViewer({
               <ChevronLeft className="w-5 h-5" />
             </button>
             
-            <span className="text-sm font-medium px-2">
+            <span className="text-sm font-medium bg-gray-700 px-4 py-1 rounded-lg min-w-[70px] text-center">
               {currentPage} / {totalPages}
             </span>
             

@@ -703,163 +703,76 @@ export function PDFMarkerEditor({
   return (
     <div className="h-full flex flex-col bg-gray-800">
       {/* Header */}
-      <div className="px-4 py-3 bg-gray-900 text-white">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold text-lg">Marcar en Manual</h3>
-          <button onClick={onCancel} className="p-2 rounded hover:bg-gray-700">
+      <div className="px-4 py-2 bg-gray-900 text-white">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-semibold">Marcar en Manual</h3>
+          <button onClick={onCancel} className="p-1.5 rounded hover:bg-gray-700">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Tabs de búsqueda */}
-        <div className="flex gap-2 mb-3">
+        {/* Búsqueda en PDF - compacta */}
+        <div className="flex gap-2 mb-2">
+          <div className="relative flex-1">
+            <FileSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              value={pdfSearchTerm}
+              onChange={(e) => setPdfSearchTerm(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  searchInPDF(pdfSearchTerm);
+                }
+              }}
+              placeholder="Buscar en PDF (ej: 200.1234, Baader)..."
+              className="w-full pl-9 pr-3 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
           <button
-            onClick={() => setSearchMode('repuesto')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
-              searchMode === 'repuesto' 
-                ? 'bg-primary-600 text-white' 
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-            }`}
+            onClick={() => searchInPDF(pdfSearchTerm)}
+            disabled={pdfSearching || !pdfSearchTerm.trim()}
+            className="px-3 py-1.5 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
           >
-            <Search className="w-4 h-4" />
-            Buscar Repuesto
-          </button>
-          <button
-            onClick={() => setSearchMode('pdf')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
-              searchMode === 'pdf' 
-                ? 'bg-primary-600 text-white' 
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-            }`}
-          >
-            <FileSearch className="w-4 h-4" />
-            Buscar en PDF
+            {pdfSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
           </button>
         </div>
-        
-        {/* Búsqueda de repuesto */}
-        {searchMode === 'repuesto' && repuestos.length > 0 && (
-          <div className="relative mb-2">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                value={repuestoSearchTerm}
-                onChange={(e) => {
-                  setRepuestoSearchTerm(e.target.value);
-                  setShowRepuestoSearch(true);
-                }}
-                onFocus={() => setShowRepuestoSearch(true)}
-                onKeyDown={handleRepuestoSearchKeyDown}
-                placeholder="Buscar por código SAP, Baader o descripción..."
-                className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-            </div>
-            
-            {showRepuestoSearch && repuestoSearchResults.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-gray-700 border border-gray-600 rounded-lg shadow-xl max-h-60 overflow-y-auto z-50">
-                {repuestoSearchResults.map((r, index) => (
-                  <button
-                    key={r.id}
-                    onClick={() => handleSelectSearchResult(r)}
-                    className={`w-full px-4 py-3 text-left hover:bg-gray-600 flex items-center gap-3 ${
-                      index === selectedSearchIndex ? 'bg-gray-600' : ''
-                    }`}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs bg-gray-800 px-2 py-0.5 rounded text-primary-400">
-                          {r.codigoSAP}
-                        </span>
-                        {r.codigoBaader && (
-                          <span className="font-mono text-xs text-gray-400">{r.codigoBaader}</span>
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-300 truncate mt-1">
-                        {r.descripcion || r.textoBreve}
-                      </p>
-                    </div>
-                    {r.vinculosManual?.length > 0 && (
-                      <span className="text-xs bg-green-600 px-2 py-0.5 rounded text-white">Marcado</span>
-                    )}
-                  </button>
-                ))}
+
+        {/* Resultados de búsqueda en PDF - compactos */}
+        {pdfSearchResults.length > 0 && (
+          <div className="bg-gray-700 rounded-lg p-2 mb-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-300">
+                {pdfSearchResults.length} resultado(s) - Pág. {pdfSearchResults[currentPdfResultIndex]?.pageNum}
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={goToPrevPdfResult}
+                  className="p-1 rounded hover:bg-gray-600"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="text-xs">
+                  {currentPdfResultIndex + 1}/{pdfSearchResults.length}
+                </span>
+                <button
+                  onClick={goToNextPdfResult}
+                  className="p-1 rounded hover:bg-gray-600"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
-            )}
+            </div>
           </div>
         )}
 
-        {/* Búsqueda en PDF */}
-        {searchMode === 'pdf' && (
-          <div className="space-y-2 mb-2">
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <FileSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  value={pdfSearchTerm}
-                  onChange={(e) => setPdfSearchTerm(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      searchInPDF(pdfSearchTerm);
-                    }
-                  }}
-                  placeholder="Buscar texto en el PDF (ej: 200.1234)..."
-                  className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
-              <button
-                onClick={() => searchInPDF(pdfSearchTerm)}
-                disabled={pdfSearching || !pdfSearchTerm.trim()}
-                className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {pdfSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                Buscar
-              </button>
-            </div>
-
-            {/* Resultados de búsqueda en PDF */}
-            {pdfSearchResults.length > 0 && (
-              <div className="bg-gray-700 rounded-lg p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-300">
-                    {pdfSearchResults.length} resultado(s) encontrado(s)
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={goToPrevPdfResult}
-                      className="p-1 rounded hover:bg-gray-600"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </button>
-                    <span className="text-sm">
-                      {currentPdfResultIndex + 1} / {pdfSearchResults.length}
-                    </span>
-                    <button
-                      onClick={goToNextPdfResult}
-                      className="p-1 rounded hover:bg-gray-600"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-                <div className="text-xs text-gray-400 bg-gray-800 rounded p-2 max-h-16 overflow-y-auto">
-                  <span className="text-primary-400">Pág. {pdfSearchResults[currentPdfResultIndex]?.pageNum}: </span>
-                  {pdfSearchResults[currentPdfResultIndex]?.text}
-                </div>
-              </div>
-            )}
-
-            {pdfSearchTerm && !pdfSearching && pdfSearchResults.length === 0 && (
-              <p className="text-sm text-amber-400">
-                No se encontró "{pdfSearchTerm}" en el PDF. Intenta con otro término.
-              </p>
-            )}
-          </div>
+        {pdfSearchTerm && !pdfSearching && pdfSearchResults.length === 0 && (
+          <p className="text-xs text-amber-400 mb-2">
+            No se encontró "{pdfSearchTerm}" en el PDF
+          </p>
         )}
         
         {/* Repuesto actual */}
-        <p className="text-sm text-gray-400 truncate">
+        <p className="text-xs text-gray-400 truncate">
           <span className="text-primary-400 font-medium">Marcando:</span> {currentDescription}
         </p>
       </div>

@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '3.6.5';
+export const APP_VERSION = '3.6.6';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '3.6.6',
+    date: '2025-01-21',
+    changes: [
+      'MEJORA: Editor de marcador más compacto (solo búsqueda en PDF)',
+      'MEJORA: Indicador de página más grande y visible en visor PDF',
+      'MEJORA: Resaltado de texto encontrado con amarillo más brillante y sombra',
+      'UX: Interfaz de agregar marcador más limpia y enfocada',
+    ]
+  },
   {
     version: '3.6.5',
     date: '2025-01-21',
