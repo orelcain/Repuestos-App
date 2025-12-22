@@ -988,8 +988,14 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
                           <td className="p-1 text-center">
                             <button
                               onClick={() => onViewInManual(r)}
-                              className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-500"
-                              title="Ver en manual"
+                              className={`p-1 rounded ${
+                                r.vinculosManual && r.vinculosManual.length > 0
+                                  ? 'hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-500'
+                                  : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 dark:text-gray-500'
+                              }`}
+                              title={r.vinculosManual && r.vinculosManual.length > 0 
+                                ? "Ver en manual (tiene marcador)" 
+                                : "Ver en manual (sin marcador)"}
                             >
                               <BookOpen className="w-4 h-4" />
                             </button>

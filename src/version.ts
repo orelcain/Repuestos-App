@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '3.6.6';
+export const APP_VERSION = '3.6.7';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '3.6.7',
+    date: '2025-01-21',
+    changes: [
+      'FIX: Icono "Ver en manual" ahora diferencia visualmente',
+      'Azul: repuestos CON marcador en manual',
+      'Gris: repuestos SIN marcador en manual',
+      'MEJORA: Tooltip indica si tiene o no marcador',
+    ]
+  },
   {
     version: '3.6.6',
     date: '2025-01-21',
