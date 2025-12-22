@@ -1405,6 +1405,7 @@ export function Dashboard() {
         onClose={() => setShowContextComparator(false)}
         repuestos={repuestos}
         isDarkMode={isDark}
+        pdfUrl={pdfUrl}
         onViewInManual={(repuesto: Repuesto) => {
           setShowContextComparator(false);
           handleViewManual(repuesto);

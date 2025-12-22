@@ -4,11 +4,12 @@ import {
   ArrowUpDown, ArrowUp, ArrowDown, Filter, Download,
   Eye, EyeOff, BarChart3, Percent, BookOpen, Target, 
   CheckCircle2, XCircle, AlertCircle,
-  Home, PanelLeftClose, PanelLeftOpen
+  Home, PanelLeftClose, PanelLeftOpen, PanelRightClose
 } from 'lucide-react';
-import { Repuesto, TagAsignado, getTagNombre, isTagAsignado } from '../types';
+import { Repuesto, TagAsignado, getTagNombre, isTagAsignado, VinculoManual } from '../types';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
+import { PDFViewer } from './pdf/PDFViewer';
 
 // Obtener tipo de tag
 function getTagTipo(tag: string | TagAsignado): 'solicitud' | 'stock' {
@@ -26,6 +27,7 @@ interface ContextComparatorProps {
   repuestos: Repuesto[];
   isDarkMode: boolean;
   onViewInManual?: (repuesto: Repuesto) => void;
+  pdfUrl?: string | null;
 }
 
 // Tipos de ordenamiento
@@ -74,7 +76,8 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
   onClose,
   repuestos,
   isDarkMode,
-  onViewInManual
+  onViewInManual,
+  pdfUrl
 }) => {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -84,6 +87,12 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
   const [showFilters, setShowFilters] = useState(false);
   const [compactView, setCompactView] = useState(false);
   const [referenceTagIndex, setReferenceTagIndex] = useState<number>(0);
+  
+  // Estados para panel PDF lateral
+  const [showPDFPanel, setShowPDFPanel] = useState(false);
+  const [pdfRepuesto, setPdfRepuesto] = useState<Repuesto | null>(null);
+  const [pdfTargetPage, setPdfTargetPage] = useState<number | undefined>();
+  const [pdfMarker, setPdfMarker] = useState<VinculoManual | undefined>();
   
   const tagsByType = useMemo(() => getAllUniqueTagsByType(repuestos), [repuestos]);
   // Lista combinada de todos los tags disponibles
@@ -899,7 +908,7 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
               <table className="w-full text-sm">
                 <thead className={`sticky top-0 z-10 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
                   <tr className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                    {onViewInManual && (
+                    {(pdfUrl || onViewInManual) && (
                       <th className="text-center p-2 font-semibold w-10">
                         <BookOpen className="w-4 h-4 mx-auto opacity-50" />
                       </th>
@@ -977,6 +986,25 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
                     const diferencia = selectedTags.length === 2 ? cantidades[0] - cantidades[1] : 0;
                     const difUSD = diferencia * r.valorUnitario;
                     
+                    // Handler para ver en manual
+                    const handleViewManual = () => {
+                      if (pdfUrl) {
+                        // Abrir panel PDF interno
+                        setPdfRepuesto(r);
+                        if (r.vinculosManual && r.vinculosManual.length > 0) {
+                          setPdfTargetPage(r.vinculosManual[0].pagina);
+                          setPdfMarker(r.vinculosManual[0]);
+                        } else {
+                          setPdfTargetPage(undefined);
+                          setPdfMarker(undefined);
+                        }
+                        setShowPDFPanel(true);
+                      } else if (onViewInManual) {
+                        // Fallback al comportamiento anterior
+                        onViewInManual(r);
+                      }
+                    };
+                    
                     return (
                       <tr 
                         key={r.id} 
@@ -984,10 +1012,10 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
                           ${idx % 2 === 1 ? (isDarkMode ? 'bg-gray-800/50' : 'bg-gray-50') : ''}
                           hover:bg-blue-50 dark:hover:bg-blue-900/10`}
                       >
-                        {onViewInManual && (
+                        {(pdfUrl || onViewInManual) && (
                           <td className="p-1 text-center">
                             <button
-                              onClick={() => onViewInManual(r)}
+                              onClick={handleViewManual}
                               className={`p-1 rounded ${
                                 r.vinculosManual && r.vinculosManual.length > 0
                                   ? 'hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-500'
@@ -1062,7 +1090,7 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
                 </tbody>
                 <tfoot className={`sticky bottom-0 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} font-bold border-t-2`}>
                   <tr>
-                    {onViewInManual && <td></td>}
+                    {(pdfUrl || onViewInManual) && <td></td>}
                     <td className="p-2" colSpan={compactView ? 2 : 3}>TOTALES ({repuestosConTags.length})</td>
                     {selectedTags.map(tag => (
                       <td key={tag} className="p-2 text-center">{stats[tag]?.total || 0}</td>
@@ -1105,6 +1133,68 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
             </div>
           )}
         </main>
+
+        {/* Panel lateral del visor PDF */}
+        {pdfUrl && (
+          <div 
+            className={`fixed top-0 right-0 h-full bg-gray-900 shadow-2xl transition-all duration-300 z-50 flex flex-col ${
+              showPDFPanel ? 'w-[600px]' : 'w-0'
+            }`}
+            style={{ overflow: 'hidden' }}
+          >
+            {showPDFPanel && (
+              <>
+                {/* Header del panel PDF */}
+                <div className="flex items-center justify-between px-4 py-2 bg-gray-800 border-b border-gray-700">
+                  <div className="flex items-center gap-2 text-white min-w-0">
+                    <BookOpen className="w-5 h-5 text-blue-400 flex-shrink-0" />
+                    <span className="font-medium truncate">
+                      {pdfRepuesto?.codigoSAP || 'Manual PDF'}
+                    </span>
+                    {pdfRepuesto?.vinculosManual && pdfRepuesto.vinculosManual.length > 0 && (
+                      <span className="text-xs bg-green-600 px-2 py-0.5 rounded flex-shrink-0">
+                        Con marcador
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setShowPDFPanel(false)}
+                    className="p-2 rounded hover:bg-gray-700 text-gray-400 hover:text-white transition-colors"
+                    title="Cerrar visor"
+                  >
+                    <PanelRightClose className="w-5 h-5" />
+                  </button>
+                </div>
+                
+                {/* Descripción del repuesto */}
+                {pdfRepuesto && (
+                  <div className="px-4 py-2 bg-gray-850 border-b border-gray-700 text-xs text-gray-400">
+                    <p className="truncate" title={pdfRepuesto.textoBreve}>
+                      {pdfRepuesto.textoBreve}
+                    </p>
+                  </div>
+                )}
+                
+                {/* Visor PDF */}
+                <div className="flex-1 min-h-0">
+                  <PDFViewer
+                    pdfUrl={pdfUrl}
+                    targetPage={pdfTargetPage}
+                    marker={pdfMarker}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Overlay cuando el panel PDF está abierto */}
+        {showPDFPanel && (
+          <div 
+            className="fixed inset-0 bg-black/20 z-40"
+            onClick={() => setShowPDFPanel(false)}
+          />
+        )}
       </div>
     </div>
   );

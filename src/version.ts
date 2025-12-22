@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '3.6.8';
+export const APP_VERSION = '3.6.9';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '3.6.9',
+    date: '2025-01-21',
+    changes: [
+      'NUEVO: Panel lateral de visor PDF en el Comparador de Contextos',
+      'MEJORA: Al presionar "Ver en manual" se abre un panel deslizable sin salir del comparador',
+      'MEJORA: El panel muestra código SAP, descripción y si tiene marcador',
+      'UX: Click fuera del panel o botón X para cerrarlo',
+    ]
+  },
   {
     version: '3.6.8',
     date: '2025-01-21',
