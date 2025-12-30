@@ -75,7 +75,6 @@ export function useRepuestos(machineId: string | null) {
     try {
       // Firebase no acepta undefined, convertir a null
       const collectionPath = getCollectionPath(machineId);
-      const historialRef = collection(db, `${collectionPath}/${repuestoId}/historial`);
       const safeValorAnterior = valorAnterior === undefined ? null : valorAnterior;
       const safeValorNuevo = valorNuevo === undefined ? null : valorNuevo;
       
@@ -92,7 +91,10 @@ export function useRepuestos(machineId: string | null) {
 
   // Crear repuesto
   const createRepuesto = useCallback(async (data: RepuestoFormData): Promise<string> => {
+    if (!machineId) throw new Error('Machine ID is required');
+    
     try {
+      const collectionPath = getCollectionPath(machineId);
       const newRepuesto = {
         ...data,
         total: (data.cantidadSolicitada * data.valorUnitario) + (data.cantidadStockBodega * data.valorUnitario),
@@ -114,7 +116,7 @@ export function useRepuestos(machineId: string | null) {
       console.error('Error al crear repuesto:', err);
       throw err;
     }
-  }, []);
+  }, [machineId]);
 
   // Actualizar repuesto
   const updateRepuesto = useCallback(async (
@@ -122,7 +124,10 @@ export function useRepuestos(machineId: string | null) {
     data: Partial<Repuesto>,
     originalData?: Repuesto
   ) => {
+    if (!machineId) throw new Error('Machine ID is required');
+    
     try {
+      const collectionPath = getCollectionPath(machineId);
       const updateData = {
         ...data,
         updatedAt: Timestamp.now()
@@ -162,11 +167,14 @@ export function useRepuestos(machineId: string | null) {
       console.error('Error al actualizar repuesto:', err);
       throw err;
     }
-  }, []);
+  }, [machineId]);
 
   // Eliminar repuesto
   const deleteRepuesto = useCallback(async (id: string) => {
+    if (!machineId) throw new Error('Machine ID is required');
+    
     try {
+      const collectionPath = getCollectionPath(machineId);
       // Primero eliminar el historial
       const historialRef = collection(db, `${collectionPath}/${id}/historial`);
       const historialSnapshot = await getDocs(historialRef);
@@ -183,11 +191,14 @@ export function useRepuestos(machineId: string | null) {
       console.error('Error al eliminar repuesto:', err);
       throw err;
     }
-  }, []);
+  }, [machineId]);
 
   // Obtener historial de un repuesto
   const getHistorial = useCallback(async (repuestoId: string): Promise<HistorialCambio[]> => {
+    if (!machineId) return [];
+    
     try {
+      const collectionPath = getCollectionPath(machineId);
       const q = query(
         collection(db, `${collectionPath}/${repuestoId}/historial`),
         orderBy('fecha', 'desc')
@@ -204,11 +215,14 @@ export function useRepuestos(machineId: string | null) {
       console.error('Error al obtener historial:', err);
       return [];
     }
-  }, []);
+  }, [machineId]);
 
   // Importar repuestos masivamente (para carga inicial)
   const importRepuestos = useCallback(async (data: RepuestoFormData[]) => {
+    if (!machineId) throw new Error('Machine ID is required');
+    
     try {
+      const collectionPath = getCollectionPath(machineId);
       const batch = writeBatch(db);
       
       for (const item of data) {
@@ -230,11 +244,14 @@ export function useRepuestos(machineId: string | null) {
       console.error('Error al importar repuestos:', err);
       throw err;
     }
-  }, []);
+  }, [machineId]);
 
   // Renombrar un tag en todos los repuestos
   const renameTag = useCallback(async (oldTagName: string, newTagName: string) => {
+    if (!machineId) throw new Error('Machine ID is required');
+    
     try {
+      const collectionPath = getCollectionPath(machineId);
       const batch = writeBatch(db);
       let updatedCount = 0;
 
@@ -258,11 +275,14 @@ export function useRepuestos(machineId: string | null) {
       console.error('Error al renombrar tag:', err);
       throw err;
     }
-  }, [repuestos]);
+  }, [repuestos, machineId]);
 
   // Eliminar un tag de todos los repuestos
   const deleteTag = useCallback(async (tagName: string) => {
+    if (!machineId) throw new Error('Machine ID is required');
+    
     try {
+      const collectionPath = getCollectionPath(machineId);
       const batch = writeBatch(db);
       let updatedCount = 0;
 
@@ -286,7 +306,7 @@ export function useRepuestos(machineId: string | null) {
       console.error('Error al eliminar tag:', err);
       throw err;
     }
-  }, [repuestos]);
+  }, [repuestos, machineId]);
 
   // Migrar tags: sincronizar cantidades de tags con valores del repuesto
   // REGLA: Asigna tags basándose en las cantidades legacy del repuesto
@@ -294,10 +314,13 @@ export function useRepuestos(machineId: string | null) {
   // - cantidadStockBodega > 0 → tag "Stock en bodega Dic 2025"
   // Si tiene ambas cantidades > 0, recibe AMBOS tags
   const migrateTagsToNewSystem = useCallback(async () => {
+    if (!machineId) throw new Error('Machine ID is required');
+    
     const TAG_SOLICITUD = 'Cantidad Solicitada Dic 2025';
     const TAG_STOCK = 'Stock en bodega Dic 2025';
     
     try {
+      const collectionPath = getCollectionPath(machineId);
       const batch = writeBatch(db);
       let migratedCount = 0;
       let solicitudCount = 0;
@@ -369,18 +392,21 @@ export function useRepuestos(machineId: string | null) {
       console.error('Error al migrar tags:', err);
       throw err;
     }
-  }, [repuestos]);
+  }, [repuestos, machineId]);
 
   // Restaurar tags desde historial de Firebase
   const restoreTagsFromHistory = useCallback(async () => {
+    if (!machineId) throw new Error('Machine ID is required');
+    
     try {
+      const collectionPath = getCollectionPath(machineId);
       let restoredCount = 0;
       const errors: string[] = [];
       
       for (const repuesto of repuestos) {
         try {
           // Buscar en historial cambios de 'tags'
-        const historialRef = collection(db, `${collectionPath}/${repuestoId}/historial`);
+          const historialRef = collection(db, `${collectionPath}/${repuesto.id}/historial`);
           const q = query(historialRef, orderBy('fecha', 'desc'));
           const snapshot = await getDocs(q);
           
@@ -418,7 +444,7 @@ export function useRepuestos(machineId: string | null) {
       console.error('Error al restaurar tags:', err);
       throw err;
     }
-  }, [repuestos]);
+  }, [repuestos, machineId]);
 
   // Agregar un tag a múltiples repuestos por código SAP
   const addTagToRepuestosByCodigo = useCallback(async (
@@ -427,7 +453,10 @@ export function useRepuestos(machineId: string | null) {
     tagTipo: 'solicitud' | 'stock',
     cantidades: Record<string, number> // { codigoSAP: cantidad }
   ) => {
+    if (!machineId) throw new Error('Machine ID is required');
+    
     try {
+      const collectionPath = getCollectionPath(machineId);
       const batch = writeBatch(db);
       let addedCount = 0;
       const errors: string[] = [];
@@ -476,7 +505,7 @@ export function useRepuestos(machineId: string | null) {
       console.error('Error al agregar tag a repuestos:', err);
       throw err;
     }
-  }, [repuestos]);
+  }, [repuestos, machineId]);
 
   return {
     repuestos,
