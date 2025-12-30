@@ -1,1 +1,1 @@
-if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/Baader-200-Repuestos-app/sw.js', { scope: '/Baader-200-Repuestos-app/' })})}
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/Repuestos-App/sw.js', { scope: '/Repuestos-App/' })})}
