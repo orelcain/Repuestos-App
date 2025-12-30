@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.0.5';
+export const APP_VERSION = '4.0.6';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.0.6',
+    date: '2025-12-30',
+    changes: [
+      '🔇 MEJORA: Silenciados warnings 404 cuando no hay manual',
+      'Errores 404 ya no se muestran para máquinas nuevas sin manual',
+      'Mensaje de éxito más claro al crear máquina',
+      'Las máquinas se crean correctamente - los errores eran solo visuales',
+    ],
+  },
   {
     version: '4.0.5',
     date: '2025-12-30',

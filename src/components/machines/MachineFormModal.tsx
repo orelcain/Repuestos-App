@@ -119,11 +119,13 @@ export function MachineFormModal({ isOpen, onClose, machine }: MachineFormModalP
         // Agregar tab y establecer como activa
         addMachineTab(machineId);
         setCurrentMachine(machineId);
+        
+        console.log(`✅ Máquina "${nombre}" creada exitosamente con ID: ${machineId}`);
       }
 
       onClose();
     } catch (err) {
-      console.error('Error saving machine:', err);
+      console.error('❌ Error saving machine:', err);
       setError(err instanceof Error ? err.message : 'Error al guardar la máquina');
     } finally {
       setLoading(false);

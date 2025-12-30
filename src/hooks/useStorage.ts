@@ -121,7 +121,8 @@ export function useStorage(machineId: string | null) {
         const url = await getDownloadURL(storageRef);
         console.log(`✅ Manual encontrado en: ${path}`);
         return url;
-      } catch (err) {
+      } catch {
+        // Silenciosamente continuar - no son errores críticos
         continue;
       }
     }
@@ -140,12 +141,16 @@ export function useStorage(machineId: string | null) {
             return url;
           }
         }
-      } catch (err) {
+      } catch {
+        // Silenciosamente continuar
         continue;
       }
     }
 
-    console.warn(`⚠️ No se encontró ningún PDF en las carpetas: ${folders.join(', ')}`);
+    // Solo mostrar warning si es máquina con datos (Baader 200)
+    if (machineId === 'baader-200') {
+      console.warn(`⚠️ No se encontró manual para Baader 200`);
+    }
     return null;
   }, [machineId]);
 
