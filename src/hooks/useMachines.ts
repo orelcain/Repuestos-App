@@ -4,6 +4,7 @@ import {
   doc,
   getDocs, 
   getDoc,
+  setDoc,
   addDoc, 
   updateDoc, 
   deleteDoc,
@@ -50,31 +51,22 @@ export function useMachines() {
       // Si no hay máquinas, crear automáticamente "Baader 200"
       if (machinesData.length === 0) {
         console.log('🔧 No hay máquinas, creando Baader 200 por defecto...');
-        const baaderMachine: Omit<Machine, 'id' | 'createdAt'> = {
+        const baaderMachine = {
           nombre: 'Baader 200',
           marca: 'Baader',
           modelo: '200',
-          descripcion: 'Máquina principal - Datos migrados de repuestosBaader200',
+          descripcion: 'Máquina principal - Datos de repuestosBaader200',
           activa: true,
           color: '#3b82f6',
           orden: 0,
-          updatedAt: new Date(),
-        };
-        
-        const docRef = doc(db, COLLECTION_NAME, 'baader-200');
-        await updateDoc(docRef, {
-          ...baaderMachine,
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now(),
-        }).catch(async () => {
-          // Si no existe, crearlo
-          const { id } = await addDoc(collection(db, COLLECTION_NAME), {
-            ...baaderMachine,
-            createdAt: Timestamp.now(),
-            updatedAt: Timestamp.now(),
-          });
-          console.log('✅ Máquina Baader 200 creada:', id);
-        });
+        };
+        
+        // Crear con ID fijo "baader-200"
+        const docRef = doc(db, COLLECTION_NAME, 'baader-200');
+        await setDoc(docRef, baaderMachine);
+        console.log('✅ Máquina Baader 200 creada con ID: baader-200');
         
         // Recargar después de crear
         const newSnapshot = await getDocs(q);

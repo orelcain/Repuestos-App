@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.0.1';
+export const APP_VERSION = '4.0.2';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.0.2',
+    date: '2025-12-30',
+    changes: [
+      '🔥 FIX CRÍTICO: Máquina Baader 200 ahora usa ID fijo "baader-200"',
+      'Corregido uso de setDoc en lugar de addDoc para ID predecible',
+      'Script fix-baader-machine.mjs para limpiar máquinas incorrectas',
+      'Ahora los datos de repuestosBaader200 se cargan correctamente',
+    ],
+  },
   {
     version: '4.0.1',
     date: '2025-12-30',
