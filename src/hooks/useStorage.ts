@@ -104,19 +104,34 @@ export function useStorage(machineId: string | null) {
       return null;
     }
 
-    try {
-      // COMPATIBILIDAD: Para Baader 200, intentar ruta antigua primero
-      const path = machineId === 'baader-200'
-        ? `manual/${manualName}.pdf`
-        : `machines/${machineId}/manuales/${manualName}.pdf`;
-      
-      const storageRef = ref(storage, path);
-      const url = await getDownloadURL(storageRef);
-      return url;
-    } catch (err) {
-      console.error('Manual no encontrado:', err);
-      return null;
+    // Lista de rutas posibles para buscar el manual (en orden de prioridad)
+    const possiblePaths = machineId === 'baader-200' 
+      ? [
+          `manual/${manualName}.pdf`,           // Ruta antigua singular
+          `manuales/${manualName}.pdf`,         // Ruta antigua plural
+          `manual/manual_principal.pdf`,        // Hardcoded nombre por defecto
+          `manuales/manual_principal.pdf`,      // Plural con nombre por defecto
+        ]
+      : [
+          `machines/${machineId}/manuales/${manualName}.pdf`,
+          `machines/${machineId}/manual/${manualName}.pdf`,
+        ];
+
+    // Intentar cada ruta hasta encontrar el archivo
+    for (const path of possiblePaths) {
+      try {
+        const storageRef = ref(storage, path);
+        const url = await getDownloadURL(storageRef);
+        console.log(`✅ Manual encontrado en: ${path}`);
+        return url;
+      } catch (err) {
+        // Continuar con la siguiente ruta
+        continue;
+      }
     }
+
+    console.warn(`⚠️ Manual no encontrado en ninguna de las rutas probadas para machineId: ${machineId}`);
+    return null;
   }, [machineId]);
 
   return {

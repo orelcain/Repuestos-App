@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.0.2';
+export const APP_VERSION = '4.0.3';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.0.3',
+    date: '2025-12-30',
+    changes: [
+      '🔍 MEJORA: getManualURL ahora intenta múltiples rutas posibles',
+      'Busca en manual/, manuales/, y variantes del nombre',
+      'Los marcadores (vínculos) están en repuestos - cargan automáticamente',
+      'Mensaje mejorado cuando no se encuentra el PDF',
+    ],
+  },
   {
     version: '4.0.2',
     date: '2025-12-30',
