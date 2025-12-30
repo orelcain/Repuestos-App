@@ -1,8 +1,23 @@
 // Versión de la aplicación
-export const APP_VERSION = '3.7.0';
+export const APP_VERSION = '4.0.0';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.0.0',
+    date: '2025-12-30',
+    changes: [
+      '🚀 NUEVA ARQUITECTURA: Sistema multi-máquina con aislamiento completo',
+      'Sistema de tabs drag & drop para cambiar entre máquinas',
+      'Cada máquina tiene sus propios repuestos, manuales y estadísticas',
+      'Colores personalizados por máquina (8 predefinidos + picker)',
+      'Persistencia de tabs abiertos en localStorage',
+      'Rutas dinámicas: machines/{machineId}/repuestos',
+      'Backup por máquina en localStorage',
+      'Renombrado repositorio: Baader-200-Repuestos-app → Repuestos-App',
+      'BREAKING CHANGE: Estructura de datos migrada a machines/{machineId}/',
+    ],
+  },
   {
     version: '3.7.0',
     date: '2025-01-21',
