@@ -1,4 +1,5 @@
 import { AuthProvider, useAuth } from './hooks/useAuth';
+import { MachineProvider } from './contexts/MachineContext';
 import { LoginForm } from './components/auth/LoginForm';
 import { Dashboard } from './components/Dashboard';
 
@@ -26,7 +27,9 @@ function AppContent() {
 function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <MachineProvider>
+        <AppContent />
+      </MachineProvider>
     </AuthProvider>
   );
 }

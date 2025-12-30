@@ -3,7 +3,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage
 import { storage } from '../config/firebase';
 import { ImagenRepuesto } from '../types';
 
-export function useStorage() {
+export function useStorage(machineId: string | null) {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
 
@@ -13,13 +13,17 @@ export function useStorage() {
     repuestoId: string,
     tipo: 'manual' | 'real'
   ): Promise<ImagenRepuesto> => {
+    if (!machineId) {
+      throw new Error('Machine ID is required');
+    }
+
     setUploading(true);
     setProgress(0);
 
     try {
       const timestamp = Date.now();
       const fileName = `${timestamp}_${file.name}`;
-      const path = `repuestos/${repuestoId}/${tipo}/${fileName}`;
+      const path = `machines/${machineId}/repuestos/${repuestoId}/${tipo}/${fileName}`;
       const storageRef = ref(storage, path);
 
       await uploadBytes(storageRef, file);
@@ -45,7 +49,7 @@ export function useStorage() {
       setUploading(false);
       setProgress(0);
     }
-  }, []);
+  }, [machineId]);
 
   // Eliminar imagen
   const deleteImage = useCallback(async (url: string) => {
@@ -59,12 +63,16 @@ export function useStorage() {
   }, []);
 
   // Subir PDF del manual
-  const uploadManualPDF = useCallback(async (file: File): Promise<string> => {
+  const uploadManualPDF = useCallback(async (file: File, manualName: string = 'manual_principal'): Promise<string> => {
+    if (!machineId) {
+      throw new Error('Machine ID is required');
+    }
+
     setUploading(true);
     setProgress(0);
 
     try {
-      const path = `manual/BAADER 200 n°parte y materiales.pdf`;
+      const path = `machines/${machineId}/manuales/${manualName}.pdf`;
       const storageRef = ref(storage, path);
 
       await uploadBytes(storageRef, file);
@@ -79,12 +87,16 @@ export function useStorage() {
       setUploading(false);
       setProgress(0);
     }
-  }, []);
+  }, [machineId]);
 
   // Obtener URL del manual
-  const getManualURL = useCallback(async (): Promise<string | null> => {
+  const getManualURL = useCallback(async (manualName: string = 'manual_principal'): Promise<string | null> => {
+    if (!machineId) {
+      return null;
+    }
+
     try {
-      const path = `manual/BAADER 200 n°parte y materiales.pdf`;
+      const path = `machines/${machineId}/manuales/${manualName}.pdf`;
       const storageRef = ref(storage, path);
       const url = await getDownloadURL(storageRef);
       return url;
@@ -92,7 +104,7 @@ export function useStorage() {
       console.error('Manual no encontrado:', err);
       return null;
     }
-  }, []);
+  }, [machineId]);
 
   return {
     uploading,

@@ -15,8 +15,8 @@ const DEFAULT_TAGS: TagGlobal[] = [
   { nombre: 'Preventivo mensual', tipo: 'solicitud' }
 ];
 
-// Documento donde se guardan los tags globales
-const SETTINGS_DOC = 'settings/tags';
+// Construir ruta del documento dinámicamente por máquina
+const getSettingsDocPath = (machineId: string) => `machines/${machineId}/settings/tags`;
 
 // Helper para migrar tags antiguos (strings) al nuevo formato
 function migrateOldTags(tags: (string | TagGlobal)[]): TagGlobal[] {
@@ -30,7 +30,7 @@ function migrateOldTags(tags: (string | TagGlobal)[]): TagGlobal[] {
   });
 }
 
-export function useTags(repuestos?: Repuesto[]) {
+export function useTags(repuestos?: Repuesto[], machineId?: string | null) {
   const [tags, setTags] = useState<TagGlobal[]>(DEFAULT_TAGS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,7 +72,14 @@ export function useTags(repuestos?: Repuesto[]) {
 
   // Escuchar cambios en tiempo real
   useEffect(() => {
-    const docRef = doc(db, SETTINGS_DOC);
+    if (!machineId) {
+      setTags(DEFAULT_TAGS);
+      setLoading(false);
+      return;
+    }
+
+    const docPath = getSettingsDocPath(machineId);
+    const docRef = doc(db, docPath);
     
     const unsubscribe = onSnapshot(docRef, 
       (snapshot) => {
@@ -110,12 +117,15 @@ export function useTags(repuestos?: Repuesto[]) {
     );
 
     return () => unsubscribe();
-  }, []);
+  }, [machineId]);
 
   // Guardar tags en Firestore
   const saveTags = useCallback(async (newTags: TagGlobal[]) => {
+    if (!machineId) return;
+
     try {
-      const docRef = doc(db, SETTINGS_DOC);
+      const docPath = getSettingsDocPath(machineId);
+      const docRef = doc(db, docPath);
       await setDoc(docRef, { 
         tags: newTags, 
         updatedAt: new Date() 
@@ -126,7 +136,7 @@ export function useTags(repuestos?: Repuesto[]) {
       setError((err as Error).message);
       return false;
     }
-  }, []);
+  }, [machineId]);
 
   // Agregar un tag nuevo si no existe
   const addTag = useCallback(async (nombre: string, tipo: 'solicitud' | 'stock' = 'solicitud') => {

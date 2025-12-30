@@ -148,6 +148,35 @@ export interface ExportData {
   format: 'excel' | 'pdf';
 }
 
+// === SISTEMA MULTI-MÁQUINA ===
+
+// Máquina/Equipo individual con sus datos y configuración
+export interface Machine {
+  id: string;                    // ID único (slug): ej. "baader-200", "marel-i-cut"
+  nombre: string;                // Nombre para mostrar: "Baader 200"
+  marca: string;                 // Fabricante: "Baader"
+  modelo: string;                // Modelo específico: "200"
+  descripcion?: string;          // Descripción adicional opcional
+  activa: boolean;               // Si está activa/archivada
+  color: string;                 // Color para la tab (hex): "#3b82f6"
+  orden: number;                 // Orden de las tabs (para drag & drop)
+  createdAt: Date;               // Fecha de creación
+  updatedAt?: Date;              // Última modificación
+}
+
+// Estado del contexto de máquinas
+export interface MachineContextType {
+  currentMachine: Machine | null;
+  machines: Machine[];
+  openMachineTabs: string[];     // IDs de las máquinas abiertas en tabs
+  tabsOrder: string[];           // Orden personalizado de las tabs
+  loading: boolean;
+  setCurrentMachine: (machineId: string) => void;
+  addMachineTab: (machineId: string) => void;
+  removeMachineTab: (machineId: string) => void;
+  reorderTabs: (newOrder: string[]) => void;
+}
+
 // Toast/Notificación
 export interface Toast {
   id: string;

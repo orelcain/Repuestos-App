@@ -7,6 +7,7 @@ import { useToast } from '../hooks/useToast';
 import { useTheme } from '../hooks/useTheme';
 import { useUndoRedo } from '../hooks/useUndoRedo';
 import { usePDFPreloader, setGlobalPDFCache } from '../hooks/usePDFPreloader';
+import { useMachineContext } from '../contexts/MachineContext';
 import { Repuesto, RepuestoFormData, ImagenRepuesto, VinculoManual } from '../types';
 import { APP_VERSION } from '../version';
 
@@ -52,6 +53,7 @@ import { ToastContainer, Button } from './ui';
 import ReportsModal from './reports/ReportsModal';
 import { BackupModal } from './backup/BackupModal';
 import { useBackupSystem } from '../hooks/useBackupSystem';
+import { MachineTabs } from './machines/MachineTabs';
 
 import { exportToExcel, exportToPDF } from '../utils/exportUtils';
 
@@ -93,6 +95,10 @@ type MainView = 'repuestos' | 'stats';
 
 export function Dashboard() {
   const { user, signOut } = useAuth();
+  const { currentMachine, loading: machineLoading } = useMachineContext();
+  
+  const machineId = currentMachine?.id || null;
+  
   const { 
     repuestos, 
     loading, 
@@ -103,8 +109,8 @@ export function Dashboard() {
     importRepuestos,
     renameTag,
     deleteTag
-  } = useRepuestos();
-  const { uploadImage, getManualURL } = useStorage();
+  } = useRepuestos(machineId);
+  const { uploadImage, getManualURL } = useStorage(machineId);
   const { lastSelectedRepuestoId, setLastSelectedRepuesto } = useLocalStorage();
   const { toasts, removeToast, success, error } = useToast();
   const { toggleTheme, isDark } = useTheme();
@@ -166,7 +172,7 @@ export function Dashboard() {
   const [showBackupModal, setShowBackupModal] = useState(false);
   
   // Sistema de backup automático
-  const backupSystem = useBackupSystem(repuestos);
+  const backupSystem = useBackupSystem(repuestos, machineId);
   
   // Wrapper de updateRepuesto con backup automático
   const updateRepuestoWithBackup = useCallback(async (
@@ -702,21 +708,33 @@ export function Dashboard() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col transition-colors">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3">
-        <div className="flex items-center justify-between">
+      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        {/* Machine Tabs */}
+        <MachineTabs />
+        
+        <div className="px-4 py-3 flex items-center justify-between">
           {/* Logo y título */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">B</span>
+            <div 
+              className="w-10 h-10 rounded-lg flex items-center justify-center"
+              style={{ backgroundColor: currentMachine?.color || '#3b82f6' }}
+            >
+              <span className="text-white font-bold text-lg">
+                {currentMachine?.nombre?.charAt(0) || 'R'}
+              </span>
             </div>
             <div>
               <h1 className="font-bold text-gray-800 dark:text-gray-100 text-lg flex items-center gap-2">
-                Baader 200
+                {currentMachine?.nombre || 'Repuestos'}
                 <span className="text-xs font-normal bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 px-2 py-0.5 rounded-full">
                   v{APP_VERSION}
                 </span>
               </h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Gestión de Repuestos</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {currentMachine?.marca && currentMachine?.modelo 
+                  ? `${currentMachine.marca} ${currentMachine.modelo}` 
+                  : 'Gestión de Repuestos'}
+              </p>
             </div>
           </div>
 

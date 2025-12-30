@@ -30,10 +30,10 @@ export function LoginForm() {
         {/* Logo/Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-600 rounded-xl mb-4">
-            <span className="text-2xl font-bold text-white">B</span>
+            <span className="text-2xl font-bold text-white">R</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-800">Baader 200</h1>
-          <p className="text-gray-600 mt-1">Gestión de Repuestos</p>
+          <h1 className="text-2xl font-bold text-gray-800">Repuestos</h1>
+          <p className="text-gray-600 mt-1">Gestión Multi-Máquina</p>
         </div>
 
         {/* Form */}

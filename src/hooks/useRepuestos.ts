@@ -15,17 +15,24 @@ import {
 import { db } from '../config/firebase';
 import { Repuesto, HistorialCambio, RepuestoFormData } from '../types';
 
-// Colección específica para Baader 200 (separada de otras apps)
-const COLLECTION_NAME = 'repuestosBaader200';
+// Construir ruta de colección dinámica por máquina
+const getCollectionPath = (machineId: string) => `machines/${machineId}/repuestos`;
 
-export function useRepuestos() {
+export function useRepuestos(machineId: string | null) {
   const [repuestos, setRepuestos] = useState<Repuesto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Escuchar cambios en tiempo real
   useEffect(() => {
-    const q = query(collection(db, COLLECTION_NAME), orderBy('codigoSAP'));
+    if (!machineId) {
+      setRepuestos([]);
+      setLoading(false);
+      return;
+    }
+
+    const collectionPath = getCollectionPath(machineId);
+    const q = query(collection(db, collectionPath), orderBy('codigoSAP'));
     
     const unsubscribe = onSnapshot(q, 
       (snapshot) => {
@@ -47,7 +54,7 @@ export function useRepuestos() {
     );
 
     return () => unsubscribe();
-  }, []);
+  }, [machineId]);
 
   // Agregar historial de cambios
   const addHistorial = async (
@@ -56,12 +63,16 @@ export function useRepuestos() {
     valorAnterior: string | number | null | undefined, 
     valorNuevo: string | number | null | undefined
   ) => {
+    if (!machineId) return;
+    
     try {
       // Firebase no acepta undefined, convertir a null
+      const collectionPath = getCollectionPath(machineId);
+      const historialRef = collection(db, `${collectionPath}/${repuestoId}/historial`);
       const safeValorAnterior = valorAnterior === undefined ? null : valorAnterior;
       const safeValorNuevo = valorNuevo === undefined ? null : valorNuevo;
       
-      await addDoc(collection(db, COLLECTION_NAME, repuestoId, 'historial'), {
+      await addDoc(collection(db, `${collectionPath}/${repuestoId}/historial`), {
         campo,
         valorAnterior: safeValorAnterior,
         valorNuevo: safeValorNuevo,
@@ -86,7 +97,7 @@ export function useRepuestos() {
         updatedAt: Timestamp.now()
       };
 
-      const docRef = await addDoc(collection(db, COLLECTION_NAME), newRepuesto);
+      const docRef = await addDoc(collection(db, collectionPath), newRepuesto);
       
       // Registrar creación en historial
       await addHistorial(docRef.id, 'creacion', null, JSON.stringify(data));
@@ -125,7 +136,7 @@ export function useRepuestos() {
       }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await updateDoc(doc(db, COLLECTION_NAME, id), updateData as any);
+      await updateDoc(doc(db, collectionPath, id), updateData as any);
 
       // Registrar cambios en historial
       if (originalData) {
@@ -150,7 +161,7 @@ export function useRepuestos() {
   const deleteRepuesto = useCallback(async (id: string) => {
     try {
       // Primero eliminar el historial
-      const historialRef = collection(db, COLLECTION_NAME, id, 'historial');
+      const historialRef = collection(db, `${collectionPath}/${id}/historial`);
       const historialSnapshot = await getDocs(historialRef);
       
       const batch = writeBatch(db);
@@ -160,7 +171,7 @@ export function useRepuestos() {
       await batch.commit();
 
       // Luego eliminar el repuesto
-      await deleteDoc(doc(db, COLLECTION_NAME, id));
+      await deleteDoc(doc(db, collectionPath, id));
     } catch (err) {
       console.error('Error al eliminar repuesto:', err);
       throw err;
@@ -171,7 +182,7 @@ export function useRepuestos() {
   const getHistorial = useCallback(async (repuestoId: string): Promise<HistorialCambio[]> => {
     try {
       const q = query(
-        collection(db, COLLECTION_NAME, repuestoId, 'historial'),
+        collection(db, `${collectionPath}/${repuestoId}/historial`),
         orderBy('fecha', 'desc')
       );
       const snapshot = await getDocs(q);
@@ -194,7 +205,7 @@ export function useRepuestos() {
       const batch = writeBatch(db);
       
       for (const item of data) {
-        const docRef = doc(collection(db, COLLECTION_NAME));
+        const docRef = doc(collection(db, collectionPath));
         batch.set(docRef, {
           ...item,
           total: item.cantidadSolicitada * item.valorUnitario,
@@ -223,7 +234,7 @@ export function useRepuestos() {
       for (const repuesto of repuestos) {
         if (repuesto.tags?.includes(oldTagName)) {
           const newTags = repuesto.tags.map(t => t === oldTagName ? newTagName : t);
-          batch.update(doc(db, COLLECTION_NAME, repuesto.id), { 
+          batch.update(doc(db, collectionPath, repuesto.id), { 
             tags: newTags,
             updatedAt: Timestamp.now()
           });
@@ -251,7 +262,7 @@ export function useRepuestos() {
       for (const repuesto of repuestos) {
         if (repuesto.tags?.includes(tagName)) {
           const newTags = repuesto.tags.filter(t => t !== tagName);
-          batch.update(doc(db, COLLECTION_NAME, repuesto.id), { 
+          batch.update(doc(db, collectionPath, repuesto.id), { 
             tags: newTags,
             updatedAt: Timestamp.now()
           });
@@ -323,14 +334,14 @@ export function useRepuestos() {
         }
         
         if (needsUpdate) {
-          batch.update(doc(db, COLLECTION_NAME, repuesto.id), {
+          batch.update(doc(db, collectionPath, repuesto.id), {
             tags: newTags,
             updatedAt: Timestamp.now()
           });
           migratedCount++;
         } else {
           if (repuesto.tags && repuesto.tags.length > 0) {
-            batch.update(doc(db, COLLECTION_NAME, repuesto.id), {
+            batch.update(doc(db, collectionPath, repuesto.id), {
               tags: [],
               updatedAt: Timestamp.now()
             });
@@ -362,7 +373,7 @@ export function useRepuestos() {
       for (const repuesto of repuestos) {
         try {
           // Buscar en historial cambios de 'tags'
-          const historialRef = collection(db, COLLECTION_NAME, repuesto.id, 'historial');
+        const historialRef = collection(db, `${collectionPath}/${repuestoId}/historial`);
           const q = query(historialRef, orderBy('fecha', 'desc'));
           const snapshot = await getDocs(q);
           
@@ -381,7 +392,7 @@ export function useRepuestos() {
               }
               
               if (Array.isArray(tagsAnteriores)) {
-                await updateDoc(doc(db, COLLECTION_NAME, repuesto.id), {
+                await updateDoc(doc(db, collectionPath, repuesto.id), {
                   tags: tagsAnteriores,
                   updatedAt: Timestamp.now()
                 });
@@ -442,7 +453,7 @@ export function useRepuestos() {
 
         const newTags = [...existingTags, nuevoTag];
         
-        batch.update(doc(db, COLLECTION_NAME, repuesto.id), {
+        batch.update(doc(db, collectionPath, repuesto.id), {
           tags: newTags,
           updatedAt: Timestamp.now()
         });

@@ -9,15 +9,15 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
-        name: 'Baader 200 - Gestión de Repuestos',
-        short_name: 'Baader200',
-        description: 'Aplicación para gestión visual de repuestos Baader 200',
+        name: 'Repuestos - App',
+        short_name: 'Repuestos',
+        description: 'Aplicación para gestión visual de repuestos multi-máquina',
         theme_color: '#1e40af',
         background_color: '#f8fafc',
         display: 'standalone',
         orientation: 'any',
-        start_url: '/Baader-200-Repuestos-app/',
-        scope: '/Baader-200-Repuestos-app/',
+        start_url: '/Repuestos-App/',
+        scope: '/Repuestos-App/',
         icons: []
       },
       workbox: {
@@ -35,7 +35,7 @@ export default defineConfig({
       }
     })
   ],
-  base: '/Baader-200-Repuestos-app/',
+  base: '/Repuestos-App/',
   resolve: {
     alias: {
       '@': '/src'

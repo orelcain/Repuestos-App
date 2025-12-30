@@ -29,7 +29,8 @@ export interface BackupSystemState {
   autoBackupEnabled: boolean;
 }
 
-const STORAGE_KEY = 'baader200_backup_system';
+// Generar storage key dinámico por máquina
+const getStorageKey = (machineId: string) => `repuestos_backup_${machineId}`;
 const MAX_BACKUPS = 50; // Máximo de backups incrementales a guardar
 const FULL_BACKUP_INTERVAL = 10; // Crear backup completo cada 10 cambios
 
@@ -108,10 +109,19 @@ function formatDate(isoDate: string): string {
   });
 }
 
-export function useBackupSystem(repuestos: Repuesto[]) {
+export function useBackupSystem(repuestos: Repuesto[], machineId: string | null) {
   const [state, setState] = useState<BackupSystemState>(() => {
+    if (!machineId) {
+      return {
+        backups: [],
+        lastBackupTime: null,
+        autoBackupEnabled: true
+      };
+    }
+
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const storageKey = getStorageKey(machineId);
+      const saved = localStorage.getItem(storageKey);
       if (saved) {
         return JSON.parse(saved);
       }
@@ -130,8 +140,11 @@ export function useBackupSystem(repuestos: Repuesto[]) {
 
   // Guardar estado en localStorage
   useEffect(() => {
+    if (!machineId) return;
+
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      const storageKey = getStorageKey(machineId);
+      localStorage.setItem(storageKey, JSON.stringify(state));
     } catch (e) {
       console.error('Error guardando estado de backup:', e);
       // Si localStorage está lleno, eliminar backups antiguos
@@ -140,7 +153,7 @@ export function useBackupSystem(repuestos: Repuesto[]) {
         setState(prev => ({ ...prev, backups: trimmedBackups }));
       }
     }
-  }, [state]);
+  }, [state, machineId]);
 
   // Crear backup completo
   const createFullBackup = useCallback((descripcion = 'Backup completo manual') => {
