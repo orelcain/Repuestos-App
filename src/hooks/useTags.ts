@@ -16,7 +16,13 @@ const DEFAULT_TAGS: TagGlobal[] = [
 ];
 
 // Construir ruta del documento dinámicamente por máquina
-const getSettingsDocPath = (machineId: string) => `machines/${machineId}/settings/tags`;
+const getSettingsDocPath = (machineId: string) => {
+  // COMPATIBILIDAD TEMPORAL: Para Baader 200, usar ruta antigua
+  if (machineId === 'baader-200') {
+    return 'settings/tags';
+  }
+  return `machines/${machineId}/settings/tags`;
+};
 
 // Helper para migrar tags antiguos (strings) al nuevo formato
 function migrateOldTags(tags: (string | TagGlobal)[]): TagGlobal[] {

@@ -47,7 +47,56 @@ export function useMachines() {
         } as Machine;
       });
       
-      setMachines(machinesData);
+      // Si no hay máquinas, crear automáticamente "Baader 200"
+      if (machinesData.length === 0) {
+        console.log('🔧 No hay máquinas, creando Baader 200 por defecto...');
+        const baaderMachine: Omit<Machine, 'id' | 'createdAt'> = {
+          nombre: 'Baader 200',
+          marca: 'Baader',
+          modelo: '200',
+          descripcion: 'Máquina principal - Datos migrados de repuestosBaader200',
+          activa: true,
+          color: '#3b82f6',
+          orden: 0,
+          updatedAt: new Date(),
+        };
+        
+        const docRef = doc(db, COLLECTION_NAME, 'baader-200');
+        await updateDoc(docRef, {
+          ...baaderMachine,
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
+        }).catch(async () => {
+          // Si no existe, crearlo
+          const { id } = await addDoc(collection(db, COLLECTION_NAME), {
+            ...baaderMachine,
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now(),
+          });
+          console.log('✅ Máquina Baader 200 creada:', id);
+        });
+        
+        // Recargar después de crear
+        const newSnapshot = await getDocs(q);
+        const newMachinesData = newSnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            nombre: data.nombre,
+            marca: data.marca,
+            modelo: data.modelo,
+            descripcion: data.descripcion || '',
+            activa: data.activa !== false,
+            color: data.color || '#3b82f6',
+            orden: data.orden || 0,
+            createdAt: data.createdAt?.toDate() || new Date(),
+            updatedAt: data.updatedAt?.toDate(),
+          } as Machine;
+        });
+        setMachines(newMachinesData);
+      } else {
+        setMachines(machinesData);
+      }
     } catch (err) {
       console.error('Error fetching machines:', err);
       setError('Error al cargar las máquinas');

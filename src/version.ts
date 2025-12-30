@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.0.0';
+export const APP_VERSION = '4.0.1';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.0.1',
+    date: '2025-12-30',
+    changes: [
+      '🔧 FIX: Baader 200 ahora se crea automáticamente como primera máquina',
+      'Compatibilidad completa con datos existentes en repuestosBaader200',
+      'Backup, tags y storage funcionan con estructura antigua',
+      'Los repuestos de Baader 200 se cargan correctamente',
+    ],
+  },
   {
     version: '4.0.0',
     date: '2025-12-30',

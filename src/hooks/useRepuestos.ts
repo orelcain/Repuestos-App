@@ -16,7 +16,13 @@ import { db } from '../config/firebase';
 import { Repuesto, HistorialCambio, RepuestoFormData } from '../types';
 
 // Construir ruta de colección dinámica por máquina
-const getCollectionPath = (machineId: string) => `machines/${machineId}/repuestos`;
+const getCollectionPath = (machineId: string) => {
+  // COMPATIBILIDAD TEMPORAL: Para Baader 200, leer de la colección antigua
+  if (machineId === 'baader-200') {
+    return 'repuestosBaader200';
+  }
+  return `machines/${machineId}/repuestos`;
+};
 
 export function useRepuestos(machineId: string | null) {
   const [repuestos, setRepuestos] = useState<Repuesto[]>([]);
@@ -32,6 +38,7 @@ export function useRepuestos(machineId: string | null) {
     }
 
     const collectionPath = getCollectionPath(machineId);
+    console.log(`📂 Cargando repuestos de: ${collectionPath}`);
     const q = query(collection(db, collectionPath), orderBy('codigoSAP'));
     
     const unsubscribe = onSnapshot(q, 

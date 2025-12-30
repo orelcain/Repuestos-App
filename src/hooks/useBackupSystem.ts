@@ -30,7 +30,13 @@ export interface BackupSystemState {
 }
 
 // Generar storage key dinámico por máquina
-const getStorageKey = (machineId: string) => `repuestos_backup_${machineId}`;
+const getStorageKey = (machineId: string) => {
+  // COMPATIBILIDAD: Para Baader 200, usar key antigua
+  if (machineId === 'baader-200') {
+    return 'repuestos_backup';
+  }
+  return `repuestos_backup_${machineId}`;
+};
 const MAX_BACKUPS = 50; // Máximo de backups incrementales a guardar
 const FULL_BACKUP_INTERVAL = 10; // Crear backup completo cada 10 cambios
 

@@ -23,7 +23,12 @@ export function useStorage(machineId: string | null) {
     try {
       const timestamp = Date.now();
       const fileName = `${timestamp}_${file.name}`;
-      const path = `machines/${machineId}/repuestos/${repuestoId}/${tipo}/${fileName}`;
+      
+      // COMPATIBILIDAD: Para Baader 200, usar rutas antiguas
+      const path = machineId === 'baader-200'
+        ? `repuestos/${repuestoId}/${tipo}/${fileName}`
+        : `machines/${machineId}/repuestos/${repuestoId}/${tipo}/${fileName}`;
+      
       const storageRef = ref(storage, path);
 
       await uploadBytes(storageRef, file);
@@ -72,7 +77,11 @@ export function useStorage(machineId: string | null) {
     setProgress(0);
 
     try {
-      const path = `machines/${machineId}/manuales/${manualName}.pdf`;
+      // COMPATIBILIDAD: Para Baader 200, usar ruta antigua
+      const path = machineId === 'baader-200'
+        ? `manual/${manualName}.pdf`
+        : `machines/${machineId}/manuales/${manualName}.pdf`;
+      
       const storageRef = ref(storage, path);
 
       await uploadBytes(storageRef, file);
@@ -96,7 +105,11 @@ export function useStorage(machineId: string | null) {
     }
 
     try {
-      const path = `machines/${machineId}/manuales/${manualName}.pdf`;
+      // COMPATIBILIDAD: Para Baader 200, intentar ruta antigua primero
+      const path = machineId === 'baader-200'
+        ? `manual/${manualName}.pdf`
+        : `machines/${machineId}/manuales/${manualName}.pdf`;
+      
       const storageRef = ref(storage, path);
       const url = await getDownloadURL(storageRef);
       return url;
