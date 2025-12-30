@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.0.4';
+export const APP_VERSION = '4.0.5';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.0.5',
+    date: '2025-12-30',
+    changes: [
+      '🔍 MEJORA: Búsqueda inteligente de manuales PDF',
+      'Usa listAll() para encontrar cualquier PDF en carpeta manual/',
+      'Encuentra "BAADER 200 Partes y materiales.pdf" automáticamente',
+      'Ya no requiere nombre exacto "manual_principal.pdf"',
+    ],
+  },
   {
     version: '4.0.4',
     date: '2025-12-30',

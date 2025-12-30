@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, deleteObject, listAll } from 'firebase/storage';
 import { storage } from '../config/firebase';
 import { ImagenRepuesto } from '../types';
 
@@ -98,39 +98,54 @@ export function useStorage(machineId: string | null) {
     }
   }, [machineId]);
 
-  // Obtener URL del manual
+  // Obtener URL del manual - busca cualquier PDF en las carpetas
   const getManualURL = useCallback(async (manualName: string = 'manual_principal'): Promise<string | null> => {
     if (!machineId) {
       return null;
     }
 
-    // Lista de rutas posibles para buscar el manual (en orden de prioridad)
-    const possiblePaths = machineId === 'baader-200' 
-      ? [
-          `manual/${manualName}.pdf`,           // Ruta antigua singular
-          `manuales/${manualName}.pdf`,         // Ruta antigua plural
-          `manual/manual_principal.pdf`,        // Hardcoded nombre por defecto
-          `manuales/manual_principal.pdf`,      // Plural con nombre por defecto
-        ]
-      : [
-          `machines/${machineId}/manuales/${manualName}.pdf`,
-          `machines/${machineId}/manual/${manualName}.pdf`,
-        ];
+    // Determinar carpetas donde buscar según la máquina
+    const folders = machineId === 'baader-200' 
+      ? ['manual', 'manuales']  // Rutas antiguas para Baader 200
+      : [`machines/${machineId}/manuales`, `machines/${machineId}/manual`];
 
-    // Intentar cada ruta hasta encontrar el archivo
-    for (const path of possiblePaths) {
+    // 1. Intentar primero con nombres específicos
+    const specificPaths = folders.flatMap(folder => [
+      `${folder}/${manualName}.pdf`,
+      `${folder}/manual_principal.pdf`,
+    ]);
+
+    for (const path of specificPaths) {
       try {
         const storageRef = ref(storage, path);
         const url = await getDownloadURL(storageRef);
         console.log(`✅ Manual encontrado en: ${path}`);
         return url;
       } catch (err) {
-        // Continuar con la siguiente ruta
         continue;
       }
     }
 
-    console.warn(`⚠️ Manual no encontrado en ninguna de las rutas probadas para machineId: ${machineId}`);
+    // 2. Si no encuentra con nombres específicos, listar TODOS los PDFs en las carpetas
+    for (const folder of folders) {
+      try {
+        const folderRef = ref(storage, folder);
+        const listResult = await listAll(folderRef);
+        
+        // Buscar el primer archivo PDF
+        for (const item of listResult.items) {
+          if (item.name.toLowerCase().endsWith('.pdf')) {
+            const url = await getDownloadURL(item);
+            console.log(`✅ Manual encontrado (listado): ${folder}/${item.name}`);
+            return url;
+          }
+        }
+      } catch (err) {
+        continue;
+      }
+    }
+
+    console.warn(`⚠️ No se encontró ningún PDF en las carpetas: ${folders.join(', ')}`);
     return null;
   }, [machineId]);
 
