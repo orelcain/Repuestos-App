@@ -134,7 +134,8 @@ export function MachineFormModal({ isOpen, onClose, machine }: MachineFormModalP
     }
 
     try {
-      const url = await uploadManualPDF(file);
+      const nameWithoutExt = file.name.replace(/\.[^/.]+$/, '') || 'manual';
+      const url = await uploadManualPDF(file, nameWithoutExt);
       const nuevosManuales = [...manuales, url];
       setManuales(nuevosManuales);
       

@@ -77,10 +77,16 @@ export function useStorage(machineId: string | null) {
     setProgress(0);
 
     try {
+      // Usar nombre único por archivo para evitar sobrescribir
+      const timestamp = Date.now();
+      const baseName = manualName || 'manual';
+      const ext = file.name.split('.').pop() || 'pdf';
+      const uniqueName = `${baseName}_${timestamp}.${ext}`;
+
       // COMPATIBILIDAD: Para Baader 200, usar ruta antigua
       const path = machineId === 'baader-200'
-        ? `manual/${manualName}.pdf`
-        : `machines/${machineId}/manuales/${manualName}.pdf`;
+        ? `manual/${uniqueName}`
+        : `machines/${machineId}/manuales/${uniqueName}`;
       
       const storageRef = ref(storage, path);
 

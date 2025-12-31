@@ -1,8 +1,17 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.4.4';
+export const APP_VERSION = '4.4.5';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.4.5',
+    date: '2025-12-31',
+    changes: [
+      '🐛 FIX: Manuales se suben con nombre único por archivo para evitar sobreescrituras',
+      '📈 UX: El progreso de carga del manual llega a 100% tras subir',
+      '🔤 FIX: El nombre del archivo se respeta al subir manuales (no usa nombre fijo)'
+    ]
+  },
   {
     version: '4.4.4',
     date: '2025-12-31',
