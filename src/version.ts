@@ -1,8 +1,17 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.1.0';
+export const APP_VERSION = '4.1.1';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.1.1',
+    date: '2025-12-31',
+    changes: [
+      '🐛 FIX: Modal de crear máquina no abría desde menú dropdown',
+      'Agregado delay de 10ms para cerrar menú antes de abrir modal',
+      'Resuelve conflicto entre handleClickOutside y apertura del modal',
+    ],
+  },
   {
     version: '4.1.0',
     date: '2025-12-31',
