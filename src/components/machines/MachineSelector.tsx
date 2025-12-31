@@ -13,7 +13,12 @@ import { MachineFormModal } from './MachineFormModal';
  * - Sin múltiples tabs
  * - Lógica simple y directa
  */
-export function MachineSelector() {
+
+interface MachineSelectorProps {
+  onEditMachine?: (machine: Machine) => void;
+}
+
+export function MachineSelector({ onEditMachine }: MachineSelectorProps) {
   const { currentMachine, machines, setCurrentMachine, loading } = useMachineContext();
   
   const [isOpen, setIsOpen] = useState(false);
@@ -48,8 +53,13 @@ export function MachineSelector() {
 
   const handleEditMachine = (machine: Machine, e: React.MouseEvent) => {
     e.stopPropagation();
-    setEditingMachine(machine);
     setIsOpen(false);
+    // Si se pasó un callback externo, usarlo; sino usar el modal interno
+    if (onEditMachine) {
+      onEditMachine(machine);
+    } else {
+      setEditingMachine(machine);
+    }
   };
 
   const handleNewMachine = () => {

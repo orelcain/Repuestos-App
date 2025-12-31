@@ -54,6 +54,7 @@ import ReportsModal from './reports/ReportsModal';
 import { BackupModal } from './backup/BackupModal';
 import { useBackupSystem } from '../hooks/useBackupSystem';
 import { MachineSelector } from './machines/MachineSelector';
+import { MachineFormModal } from './machines/MachineFormModal';
 
 import { exportToExcel, exportToPDF } from '../utils/exportUtils';
 
@@ -213,6 +214,9 @@ export function Dashboard() {
   
   // Modal de comparador de contextos
   const [showContextComparator, setShowContextComparator] = useState(false);
+  
+  // Modal para editar máquina (abrir desde "Agregar Manual")
+  const [editingMachineModal, setEditingMachineModal] = useState<Machine | null>(null);
   
   // Hook de deshacer/rehacer
   const {
@@ -739,7 +743,7 @@ export function Dashboard() {
         <div className="px-4 py-3 flex items-center justify-between">
           {/* Selector de Máquina y versión */}
           <div className="flex items-center gap-4">
-            <MachineSelector />
+            <MachineSelector onEditMachine={(machine) => setEditingMachineModal(machine)} />
             <span className="text-xs font-normal bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 px-2 py-0.5 rounded-full">
               v{APP_VERSION}
             </span>
@@ -1147,7 +1151,7 @@ export function Dashboard() {
                     }}
                   />
                 </Suspense>
-              ) : (
+              ) : pdfUrl ? (
                 <Suspense fallback={<PDFLoadingFallback />}>
                   <PDFViewer
                     pdfUrl={pdfUrl}
@@ -1161,6 +1165,32 @@ export function Dashboard() {
                     preloadedText={pdfPreloader.textContent}
                   />
                 </Suspense>
+              ) : (
+                <div className="flex items-center justify-center h-full bg-gray-50 dark:bg-gray-900 p-8">
+                  <div className="text-center max-w-md">
+                    <div className="w-20 h-20 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <FileText className="w-10 h-10 text-gray-400 dark:text-gray-500" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      No hay manual disponible
+                    </h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                      Esta máquina aún no tiene manuales cargados. 
+                      {currentMachine ? ` Puedes agregar manuales desde la configuración de "${currentMachine.nombre}".` : ''}
+                    </p>
+                    <Button
+                      variant="primary"
+                      onClick={() => {
+                        if (currentMachine) {
+                          setEditingMachineModal(currentMachine);
+                        }
+                      }}
+                      icon={<Upload className="w-4 h-4" />}
+                    >
+                      Agregar Manual
+                    </Button>
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -1436,6 +1466,15 @@ export function Dashboard() {
           handleViewManual(repuesto);
         }}
       />
+
+      {/* Modal para editar máquina (agregar manuales) */}
+      {editingMachineModal && (
+        <MachineFormModal
+          isOpen={!!editingMachineModal}
+          onClose={() => setEditingMachineModal(null)}
+          machine={editingMachineModal}
+        />
+      )}
 
       {/* Toast Container */}
       <ToastContainer toasts={toasts} onRemove={removeToast} />

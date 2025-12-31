@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.4.5';
+export const APP_VERSION = '4.5.0';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.5.0',
+    date: '2025-12-31',
+    changes: [
+      '✨ NEW: Mensaje cuando máquina no tiene manual con botón para agregarlo',
+      '🏭 UX: Cada máquina es independiente - no muestra manual de otras máquinas',
+      '📋 UX: Claridad visual cuando una máquina nueva está lista para configurar',
+      '🔧 Preparación para soporte de múltiples manuales y modelos 3D por máquina'
+    ]
+  },
   {
     version: '4.4.5',
     date: '2025-12-31',
