@@ -1,7 +1,7 @@
 {
   "name": "baader-app",
   "private": true,
-  "version": "4.0.6",
+  "version": "4.0.7",
   "type": "module",
   "homepage": "https://orelcain.github.io/Repuestos-App",
   "scripts": {

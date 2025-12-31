@@ -109,7 +109,33 @@ export function useStorage(machineId: string | null) {
       ? ['manual', 'manuales']  // Rutas antiguas para Baader 200
       : [`machines/${machineId}/manuales`, `machines/${machineId}/manual`];
 
-    // 1. Intentar primero con nombres específicos
+    // Para Baader 200, ir directo a listar (sabemos que tiene archivos)
+    // Para otras máquinas, intentar primero nombres específicos
+    if (machineId === 'baader-200') {
+      // Estrategia: listar directamente para evitar 404s
+      for (const folder of folders) {
+        try {
+          const folderRef = ref(storage, folder);
+          const listResult = await listAll(folderRef);
+          
+          // Buscar el primer archivo PDF
+          for (const item of listResult.items) {
+            if (item.name.toLowerCase().endsWith('.pdf')) {
+              const url = await getDownloadURL(item);
+              console.log(`✅ Manual encontrado: ${folder}/${item.name}`);
+              return url;
+            }
+          }
+        } catch {
+          continue;
+        }
+      }
+      
+      console.warn(`⚠️ No se encontró manual para Baader 200`);
+      return null;
+    }
+
+    // Para máquinas nuevas: intentar nombres específicos primero (más rápido si existe)
     const specificPaths = folders.flatMap(folder => [
       `${folder}/${manualName}.pdf`,
       `${folder}/manual_principal.pdf`,
@@ -119,21 +145,19 @@ export function useStorage(machineId: string | null) {
       try {
         const storageRef = ref(storage, path);
         const url = await getDownloadURL(storageRef);
-        console.log(`✅ Manual encontrado en: ${path}`);
+        console.log(`✅ Manual encontrado: ${path}`);
         return url;
       } catch {
-        // Silenciosamente continuar - no son errores críticos
         continue;
       }
     }
 
-    // 2. Si no encuentra con nombres específicos, listar TODOS los PDFs en las carpetas
+    // Si no encuentra con nombres específicos, listar la carpeta
     for (const folder of folders) {
       try {
         const folderRef = ref(storage, folder);
         const listResult = await listAll(folderRef);
         
-        // Buscar el primer archivo PDF
         for (const item of listResult.items) {
           if (item.name.toLowerCase().endsWith('.pdf')) {
             const url = await getDownloadURL(item);
@@ -142,15 +166,11 @@ export function useStorage(machineId: string | null) {
           }
         }
       } catch {
-        // Silenciosamente continuar
         continue;
       }
     }
 
-    // Solo mostrar warning si es máquina con datos (Baader 200)
-    if (machineId === 'baader-200') {
-      console.warn(`⚠️ No se encontró manual para Baader 200`);
-    }
+    // Silenciosamente retornar null para máquinas nuevas sin manual
     return null;
   }, [machineId]);
 

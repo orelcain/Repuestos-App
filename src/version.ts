@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.0.6';
+export const APP_VERSION = '4.0.7';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.0.7',
+    date: '2025-12-31',
+    changes: [
+      '🚀 OPTIMIZACIÓN: Eliminados errores 404 al cargar app',
+      'Baader 200 usa listAll() directamente (sin intentos de rutas)',
+      'Máquinas nuevas intentan nombres específicos primero',
+      'Consola limpia sin warnings innecesarios',
+    ],
+  },
   {
     version: '4.0.6',
     date: '2025-12-30',
