@@ -11,7 +11,8 @@ import {
   query,
   orderBy,
   Timestamp,
-  writeBatch
+  writeBatch,
+  onSnapshot
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { Machine } from '../types';
@@ -237,9 +238,59 @@ export function useMachines() {
     return machine !== null;
   };
 
-  // Cargar máquinas al montar el componente
+  // Listener en tiempo real para cambios en máquinas
   useEffect(() => {
-    fetchMachines();
+    setLoading(true);
+    const q = query(collection(db, COLLECTION_NAME), orderBy('orden', 'asc'));
+    
+    const unsubscribe = onSnapshot(q, 
+      (snapshot) => {
+        const machinesData = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            nombre: data.nombre,
+            marca: data.marca,
+            modelo: data.modelo,
+            descripcion: data.descripcion || '',
+            activa: data.activa !== false,
+            color: data.color || '#3b82f6',
+            orden: data.orden || 0,
+            manuals: data.manuals || [],
+            createdAt: data.createdAt?.toDate() || new Date(),
+            updatedAt: data.updatedAt?.toDate(),
+          } as Machine;
+        });
+        
+        setMachines(machinesData);
+        setLoading(false);
+        
+        // Si no hay máquinas, crear Baader 200 por defecto
+        if (machinesData.length === 0) {
+          const baaderMachine = {
+            nombre: 'Baader 200',
+            marca: 'Baader',
+            modelo: '200',
+            descripcion: 'Máquina principal',
+            activa: true,
+            color: '#3b82f6',
+            orden: 0,
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now(),
+          };
+          
+          const docRef = doc(db, COLLECTION_NAME, 'baader-200');
+          setDoc(docRef, baaderMachine);
+        }
+      },
+      (err) => {
+        console.error('Error en listener de máquinas:', err);
+        setError('Error al cargar las máquinas');
+        setLoading(false);
+      }
+    );
+    
+    return () => unsubscribe();
   }, []);
 
   return {

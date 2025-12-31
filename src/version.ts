@@ -1,19 +1,17 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.3.0';
+export const APP_VERSION = '4.3.1';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
   {
-    version: '4.3.0',
+    version: '4.3.1',
     date: '2025-01-01',
     changes: [
-      '🎯 NUEVO: Selector de máquinas simple (dropdown) reemplaza sistema de tabs',
-      '✨ Un solo click para cambiar de máquina',
-      '🛠️ Botón de editar máquina junto a cada opción',
-      '➕ Botón "Crear nueva máquina" en el dropdown',
-      '🧹 Eliminado sistema de tabs complejo con DnD',
-      '📉 Código reducido ~300 líneas (MachineContext simplificado)',
-      '⚡ Mejor rendimiento sin estados de tabs/orden',
+      '🐛 FIX: Manuales ahora se guardan en Firestore inmediatamente al subir/eliminar',
+      '🔄 Listener en tiempo real en useMachines - cambios instantáneos',
+      '⚙️ MachineContext actualiza currentMachine cuando machines[] cambia',
+      '📖 Cada máquina ahora carga su propio manual (manuals[])',
+      '✅ Confirmación en consola al agregar/eliminar manuales',
     ],
   },
   {

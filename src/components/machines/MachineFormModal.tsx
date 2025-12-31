@@ -135,15 +135,38 @@ export function MachineFormModal({ isOpen, onClose, machine }: MachineFormModalP
 
     try {
       const url = await uploadManualPDF(file);
-      setManuales(prev => [...prev, url]);
+      const nuevosManuales = [...manuales, url];
+      setManuales(nuevosManuales);
+      
+      // Actualizar inmediatamente en Firestore
+      await updateMachine(machine.id, {
+        manuals: nuevosManuales,
+      });
+      
+      console.log('✅ Manual agregado y guardado en Firestore');
     } catch (err) {
       console.error('Error uploading manual:', err);
       setError(err instanceof Error ? err.message : 'Error al subir el manual');
     }
   };
 
-  const handleRemoveManual = (index: number) => {
-    setManuales(prev => prev.filter((_, i) => i !== index));
+  const handleRemoveManual = async (index: number) => {
+    if (!machine) return;
+    
+    try {
+      const nuevosManuales = manuales.filter((_, i) => i !== index);
+      setManuales(nuevosManuales);
+      
+      // Actualizar inmediatamente en Firestore
+      await updateMachine(machine.id, {
+        manuals: nuevosManuales,
+      });
+      
+      console.log('✅ Manual eliminado y guardado en Firestore');
+    } catch (err) {
+      console.error('Error removing manual:', err);
+      setError(err instanceof Error ? err.message : 'Error al eliminar el manual');
+    }
   };
 
   return (
