@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { Machine } from '../types';
 import { useMachines } from '../hooks/useMachines';
 
@@ -31,6 +31,7 @@ export function MachineProvider({ children }: MachineProviderProps) {
   
   const [currentMachine, setCurrentMachineState] = useState<Machine | null>(null);
   const [loading, setLoading] = useState(true);
+  const currentMachineIdRef = useRef<string | null>(null);
 
   // Inicializar: cargar máquina guardada o la primera disponible
   useEffect(() => {
@@ -75,23 +76,23 @@ export function MachineProvider({ children }: MachineProviderProps) {
     initializeMachine();
   }, [machines, machinesLoading, getMachine]);
 
-  // Actualizar currentMachine cuando machines cambie (para reflejar cambios en manuals[])
+  // Sincronizar cambios cuando machines[] se actualiza desde Firestore
+  // Solo actualizar si la máquina actual cambió (ej: manuals[] modificados)
   useEffect(() => {
-    console.log('\n🔄 [MachineContext] useEffect - sync machines');
-    console.log('   currentMachine:', currentMachine?.id);
-    console.log('   machines count:', machines.length);
+    if (!currentMachineIdRef.current || machines.length === 0) return;
     
-    if (currentMachine && machines.length > 0) {
-      const updatedMachine = machines.find(m => m.id === currentMachine.id);
-      if (updatedMachine && JSON.stringify(updatedMachine) !== JSON.stringify(currentMachine)) {
-        console.log('   🔄 Máquina actualizada, recargando...', updatedMachine.nombre);
-        console.log('   📄 Manuals actualizados:', updatedMachine.manuals?.length || 0);
+    const updatedMachine = machines.find(m => m.id === currentMachineIdRef.current);
+    if (updatedMachine) {
+      const currentManuals = currentMachine?.manuals?.length || 0;
+      const updatedManuals = updatedMachine.manuals?.length || 0;
+      
+      // Solo actualizar si cambió el número de manuales o otras propiedades relevantes
+      if (currentManuals !== updatedManuals) {
+        console.log('🔄 [MachineContext] Manuals actualizados:', currentManuals, '→', updatedManuals);
         setCurrentMachineState(updatedMachine);
-      } else {
-        console.log('   ✅ Máquina sin cambios');
       }
     }
-  }, [machines, currentMachine]);
+  }, [machines]); // Solo machines, NO currentMachine
 
   // Cambiar máquina actual - función simple y directa
   const setCurrentMachine = useCallback(async (machineId: string) => {
@@ -109,6 +110,7 @@ export function MachineProvider({ children }: MachineProviderProps) {
       console.log('   ✅ Machine encontrada:', machine.nombre);
       console.log('   📄 Manuals de la máquina:', machine.manuals?.length || 0);
       
+      currentMachineIdRef.current = machineId;
       setCurrentMachineState(machine);
       localStorage.setItem(STORAGE_KEY, machineId);
       console.log('   💾 Guardado en localStorage');
