@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { Machine, MachineContextType } from '../types';
 import { useMachines } from '../hooks/useMachines';
 
@@ -89,8 +89,16 @@ export function MachineProvider({ children }: MachineProviderProps) {
   }, [machines, machinesLoading, getMachine]);
 
   // Cambiar máquina actual
-  const setCurrentMachine = async (machineId: string) => {
+  const setCurrentMachine = useCallback(async (machineId: string) => {
     try {
+      // Evitar llamadas redundantes - si ya es la máquina actual, no hacer nada
+      setCurrentMachineState(current => {
+        if (current?.id === machineId) {
+          return current;
+        }
+        return current; // Temporalmente retornamos current, se actualizará abajo
+      });
+
       const machine = await getMachine(machineId);
       if (!machine) {
         console.error(`Machine ${machineId} not found`);
@@ -100,61 +108,96 @@ export function MachineProvider({ children }: MachineProviderProps) {
       setCurrentMachineState(machine);
       localStorage.setItem(STORAGE_KEYS.CURRENT_MACHINE, machineId);
 
-      // Asegurar que la máquina esté en tabs abiertas
-      if (!openMachineTabs.includes(machineId)) {
-        addMachineTab(machineId);
-      }
+      // Asegurar que la máquina esté en tabs abiertas (sin llamar setCurrentMachine de nuevo)
+      setOpenMachineTabs(currentTabs => {
+        if (currentTabs.includes(machineId)) {
+          return currentTabs;
+        }
+        
+        const newOpenTabs = [...currentTabs, machineId];
+        localStorage.setItem(STORAGE_KEYS.OPEN_TABS, JSON.stringify(newOpenTabs));
+        
+        setTabsOrder(currentOrder => {
+          const newTabsOrder = [...currentOrder, machineId];
+          localStorage.setItem(STORAGE_KEYS.TABS_ORDER, JSON.stringify(newTabsOrder));
+          return newTabsOrder;
+        });
+        
+        return newOpenTabs;
+      });
     } catch (error) {
       console.error('Error setting current machine:', error);
     }
-  };
+  }, [getMachine]);
 
   // Agregar tab de máquina
-  const addMachineTab = (machineId: string) => {
-    if (openMachineTabs.includes(machineId)) return;
+  const addMachineTab = useCallback((machineId: string) => {
+    setOpenMachineTabs(currentTabs => {
+      if (currentTabs.includes(machineId)) {
+        return currentTabs;
+      }
 
-    const newOpenTabs = [...openMachineTabs, machineId];
-    const newTabsOrder = [...tabsOrder, machineId];
+      const newOpenTabs = [...currentTabs, machineId];
+      localStorage.setItem(STORAGE_KEYS.OPEN_TABS, JSON.stringify(newOpenTabs));
+      
+      setTabsOrder(currentOrder => {
+        const newTabsOrder = [...currentOrder, machineId];
+        localStorage.setItem(STORAGE_KEYS.TABS_ORDER, JSON.stringify(newTabsOrder));
+        return newTabsOrder;
+      });
+      
+      return newOpenTabs;
+    });
 
-    setOpenMachineTabs(newOpenTabs);
-    setTabsOrder(newTabsOrder);
-
-    localStorage.setItem(STORAGE_KEYS.OPEN_TABS, JSON.stringify(newOpenTabs));
-    localStorage.setItem(STORAGE_KEYS.TABS_ORDER, JSON.stringify(newTabsOrder));
-
-    // Si no hay máquina actual, establecer esta como actual
-    if (!currentMachine) {
-      setCurrentMachine(machineId);
-    }
-  };
+    // Si no hay máquina actual, establecer esta como actual (sin causar loop)
+    setCurrentMachineState(current => {
+      if (!current) {
+        // Solo actualizar localStorage, la máquina se cargará con getMachine en setCurrentMachine
+        localStorage.setItem(STORAGE_KEYS.CURRENT_MACHINE, machineId);
+        getMachine(machineId).then(machine => {
+          if (machine) {
+            setCurrentMachineState(machine);
+          }
+        });
+      }
+      return current;
+    });
+  }, [getMachine]);
 
   // Remover tab de máquina
-  const removeMachineTab = (machineId: string) => {
-    const newOpenTabs = openMachineTabs.filter(id => id !== machineId);
-    const newTabsOrder = tabsOrder.filter(id => id !== machineId);
-
-    setOpenMachineTabs(newOpenTabs);
-    setTabsOrder(newTabsOrder);
-
-    localStorage.setItem(STORAGE_KEYS.OPEN_TABS, JSON.stringify(newOpenTabs));
-    localStorage.setItem(STORAGE_KEYS.TABS_ORDER, JSON.stringify(newTabsOrder));
-
-    // Si cerramos la máquina actual, cambiar a otra
-    if (currentMachine?.id === machineId) {
-      if (newOpenTabs.length > 0) {
-        setCurrentMachine(newOpenTabs[0]);
-      } else {
-        setCurrentMachineState(null);
-        localStorage.removeItem(STORAGE_KEYS.CURRENT_MACHINE);
-      }
-    }
-  };
+  const removeMachineTab = useCallback((machineId: string) => {
+    setOpenMachineTabs(currentTabs => {
+      const newOpenTabs = currentTabs.filter(id => id !== machineId);
+      localStorage.setItem(STORAGE_KEYS.OPEN_TABS, JSON.stringify(newOpenTabs));
+      
+      setTabsOrder(currentOrder => {
+        const newTabsOrder = currentOrder.filter(id => id !== machineId);
+        localStorage.setItem(STORAGE_KEYS.TABS_ORDER, JSON.stringify(newTabsOrder));
+        return newTabsOrder;
+      });
+      
+      // Si cerramos la máquina actual, cambiar a otra
+      setCurrentMachineState(current => {
+        if (current?.id === machineId) {
+          if (newOpenTabs.length > 0) {
+            setCurrentMachine(newOpenTabs[0]);
+          } else {
+            localStorage.removeItem(STORAGE_KEYS.CURRENT_MACHINE);
+            return null;
+          }
+        }
+        return current;
+      });
+      
+      return newOpenTabs;
+    });
+  }, [setCurrentMachine]);
 
   // Reordenar tabs (para drag & drop)
-  const reorderTabs = (newOrder: string[]) => {
+  const reorderTabs = useCallback((newOrder: string[]) => {
     setTabsOrder(newOrder);
     localStorage.setItem(STORAGE_KEYS.TABS_ORDER, JSON.stringify(newOrder));
-  };
+  }, []);
 
   const value: MachineContextType = {
     currentMachine,

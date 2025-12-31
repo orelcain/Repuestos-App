@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.0.8';
+export const APP_VERSION = '4.0.9';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.0.9',
+    date: '2025-12-31',
+    changes: [
+      '🐛 FIX CRÍTICO: Loop infinito al cambiar de pestaña',
+      'Agregado useCallback a todas las funciones del contexto',
+      'Eliminada llamada recursiva en setCurrentMachine/addMachineTab',
+      'Pestañas ahora cambian instantáneamente sin re-renders infinitos',
+    ],
+  },
   {
     version: '4.0.8',
     date: '2025-12-31',
