@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -17,9 +17,8 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useMachineContext } from '../../contexts/MachineContext';
-import { useMachines } from '../../hooks/useMachines';
 import { Machine } from '../../types';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, ChevronDown, FolderOpen } from 'lucide-react';
 import { MachineFormModal } from './MachineFormModal';
 import Tooltip from '../common/Tooltip';
 
@@ -102,11 +101,11 @@ export function MachineTabs() {
     openMachineTabs,
     tabsOrder,
     setCurrentMachine,
+    addMachineTab,
     removeMachineTab,
     reorderTabs,
   } = useMachineContext();
 
-  const { getActiveMachines } = useMachines();
   const [showNewMachineModal, setShowNewMachineModal] = useState(false);
 
   const sensors = useSensors(
@@ -147,18 +146,94 @@ export function MachineTabs() {
 
   const handleNewMachine = () => {
     setShowNewMachineModal(true);
+    setShowAddMenu(false);
   };
+
+  const handleOpenExistingMachine = (machineId: string) => {
+    addMachineTab(machineId);
+    setCurrentMachine(machineId);
+    setShowAddMenu(false);
+  };
+
+  // Máquinas que no están abiertas en tabs
+  const closedMachines = machines.filter(
+    m => m.activa && !openMachineTabs.includes(m.id)
+  );
+
+  // Estado del menú dropdown
+  const [showAddMenu, setShowAddMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Cerrar menú al hacer click fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowAddMenu(false);
+      }
+    };
+
+    if (showAddMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showAddMenu]);
 
   if (orderedMachines.length === 0) {
     return (
       <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
-        <button
-          onClick={handleNewMachine}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          <span className="text-sm font-medium">Nueva Máquina</span>
-        </button>
+        {/* Si hay máquinas cerradas, mostrar opción de abrir */}
+        {closedMachines.length > 0 ? (
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={() => setShowAddMenu(!showAddMenu)}
+              className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+            >
+              <FolderOpen className="w-4 h-4" />
+              <span className="text-sm font-medium">Abrir Máquina</span>
+              <ChevronDown className="w-4 h-4" />
+            </button>
+            
+            {showAddMenu && (
+              <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50 min-w-[200px]">
+                {closedMachines.map(machine => (
+                  <button
+                    key={machine.id}
+                    onClick={() => handleOpenExistingMachine(machine.id)}
+                    className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                  >
+                    <div
+                      className="w-3 h-3 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: machine.color }}
+                    />
+                    <span className="truncate">{machine.nombre}</span>
+                    <span className="text-xs text-gray-400 ml-auto">
+                      {machine.marca} {machine.modelo}
+                    </span>
+                  </button>
+                ))}
+                <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
+                <button
+                  onClick={handleNewMachine}
+                  className="w-full px-4 py-2 text-left text-sm text-primary-600 dark:text-primary-400 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Crear nueva máquina</span>
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={handleNewMachine}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="text-sm font-medium">Nueva Máquina</span>
+          </button>
+        )}
         
         {showNewMachineModal && (
           <MachineFormModal
@@ -193,14 +268,49 @@ export function MachineTabs() {
         </SortableContext>
       </DndContext>
 
-      {/* Botón para agregar nueva máquina */}
-      <button
-        onClick={handleNewMachine}
-        className="flex items-center justify-center w-8 h-8 ml-2 mb-1 rounded-lg bg-gray-200 dark:bg-gray-800 hover:bg-primary-100 dark:hover:bg-primary-900 text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-        title="Nueva máquina"
-      >
-        <Plus className="w-4 h-4" />
-      </button>
+      {/* Botón/menú para agregar máquina */}
+      <div className="relative ml-2 mb-1" ref={menuRef}>
+        <button
+          onClick={() => setShowAddMenu(!showAddMenu)}
+          className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-200 dark:bg-gray-800 hover:bg-primary-100 dark:hover:bg-primary-900 text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+          title={closedMachines.length > 0 ? "Agregar máquina" : "Nueva máquina"}
+        >
+          <Plus className="w-4 h-4" />
+        </button>
+
+        {showAddMenu && (
+          <div className="absolute top-full right-0 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50 min-w-[220px]">
+            {closedMachines.length > 0 && (
+              <>
+                <div className="px-3 py-1 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                  Abrir máquina
+                </div>
+                {closedMachines.map(machine => (
+                  <button
+                    key={machine.id}
+                    onClick={() => handleOpenExistingMachine(machine.id)}
+                    className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                  >
+                    <div
+                      className="w-3 h-3 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: machine.color }}
+                    />
+                    <span className="truncate flex-1">{machine.nombre}</span>
+                  </button>
+                ))}
+                <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
+              </>
+            )}
+            <button
+              onClick={handleNewMachine}
+              className="w-full px-4 py-2 text-left text-sm text-primary-600 dark:text-primary-400 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Crear nueva máquina</span>
+            </button>
+          </div>
+        )}
+      </div>
 
       {showNewMachineModal && (
         <MachineFormModal

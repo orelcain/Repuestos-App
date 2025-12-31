@@ -1,8 +1,19 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.0.9';
+export const APP_VERSION = '4.1.0';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.1.0',
+    date: '2025-12-31',
+    changes: [
+      '✨ NUEVO: Menú dropdown para abrir máquinas existentes',
+      'Al hacer click en + se muestra lista de máquinas cerradas',
+      'Ya no se pierden máquinas al borrar localStorage',
+      'Las máquinas siempre están disponibles desde Firestore',
+      'Separador visual entre "Abrir máquina" y "Crear nueva"',
+    ],
+  },
   {
     version: '4.0.9',
     date: '2025-12-31',
