@@ -99,6 +99,14 @@ export function Dashboard() {
   
   const machineId = currentMachine?.id || null;
   
+  // LOG DE DEBUG: Rastrear cambios de máquina
+  useEffect(() => {
+    console.log('\n🏭 [Dashboard] Machine changed');
+    console.log('   currentMachine:', currentMachine?.id, currentMachine?.nombre);
+    console.log('   machineId:', machineId);
+    console.log('   manuals:', currentMachine?.manuals?.length || 0);
+  }, [currentMachine, machineId]);
+  
   const { 
     repuestos, 
     loading, 

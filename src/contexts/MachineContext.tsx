@@ -77,26 +77,41 @@ export function MachineProvider({ children }: MachineProviderProps) {
 
   // Actualizar currentMachine cuando machines cambie (para reflejar cambios en manuals[])
   useEffect(() => {
+    console.log('\n🔄 [MachineContext] useEffect - sync machines');
+    console.log('   currentMachine:', currentMachine?.id);
+    console.log('   machines count:', machines.length);
+    
     if (currentMachine && machines.length > 0) {
       const updatedMachine = machines.find(m => m.id === currentMachine.id);
       if (updatedMachine && JSON.stringify(updatedMachine) !== JSON.stringify(currentMachine)) {
-        console.log('🔄 Máquina actualizada, recargando...', updatedMachine.nombre);
+        console.log('   🔄 Máquina actualizada, recargando...', updatedMachine.nombre);
+        console.log('   📄 Manuals actualizados:', updatedMachine.manuals?.length || 0);
         setCurrentMachineState(updatedMachine);
+      } else {
+        console.log('   ✅ Máquina sin cambios');
       }
     }
   }, [machines, currentMachine]);
 
   // Cambiar máquina actual - función simple y directa
   const setCurrentMachine = useCallback(async (machineId: string) => {
+    console.log('\n🔄 [MachineContext] setCurrentMachine llamado');
+    console.log('   machineId solicitado:', machineId);
+    console.log('   currentMachine actual:', currentMachine?.id, currentMachine?.nombre);
+    
     try {
       const machine = await getMachine(machineId);
       if (!machine) {
-        console.error(`Machine ${machineId} not found`);
+        console.error(`   ❌ Machine ${machineId} not found`);
         return;
       }
 
+      console.log('   ✅ Machine encontrada:', machine.nombre);
+      console.log('   📄 Manuals de la máquina:', machine.manuals?.length || 0);
+      
       setCurrentMachineState(machine);
       localStorage.setItem(STORAGE_KEY, machineId);
+      console.log('   💾 Guardado en localStorage');
     } catch (error) {
       console.error('Error setting current machine:', error);
     }

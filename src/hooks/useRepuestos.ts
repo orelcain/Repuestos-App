@@ -17,10 +17,16 @@ import { Repuesto, HistorialCambio, RepuestoFormData } from '../types';
 
 // Construir ruta de colección dinámica por máquina
 const getCollectionPath = (machineId: string) => {
-  // COMPATIBILIDAD TEMPORAL: Para Baader 200, leer de la colección antigua
+  // ⚠️ COMPATIBILIDAD TEMPORAL: Para Baader 200, leer de la colección antigua
+  // Esta máquina existía antes del sistema multi-máquina
   if (machineId === 'baader-200') {
+    console.log('   ⚙️ [getCollectionPath] Usando colección legacy para baader-200');
     return 'repuestosBaader200';
   }
+  
+  // Para nuevas máquinas: usar subcolección dentro del documento de la máquina
+  // Estructura: machines/{machineId}/repuestos
+  console.log(`   ⚙️ [getCollectionPath] Usando subcolección para ${machineId}`);
   return `machines/${machineId}/repuestos`;
 };
 
@@ -31,18 +37,25 @@ export function useRepuestos(machineId: string | null) {
 
   // Escuchar cambios en tiempo real
   useEffect(() => {
+    console.log('\n🔍 [useRepuestos] useEffect triggered');
+    console.log('   machineId:', machineId);
+    
     if (!machineId) {
+      console.log('   ❌ No machineId, limpiando repuestos');
       setRepuestos([]);
       setLoading(false);
       return;
     }
 
     const collectionPath = getCollectionPath(machineId);
-    console.log(`📂 Cargando repuestos de: ${collectionPath}`);
+    console.log(`   📂 Collection path: ${collectionPath}`);
     const q = query(collection(db, collectionPath), orderBy('codigoSAP'));
     
     const unsubscribe = onSnapshot(q, 
       (snapshot) => {
+        console.log(`   ✅ Snapshot recibido: ${snapshot.docs.length} repuestos`);
+        console.log('   📦 IDs de repuestos:', snapshot.docs.map(d => d.id));
+        
         const data = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
@@ -50,6 +63,8 @@ export function useRepuestos(machineId: string | null) {
           updatedAt: doc.data().updatedAt?.toDate() || new Date(),
           fechaUltimaActualizacionInventario: doc.data().fechaUltimaActualizacionInventario?.toDate() || null
         })) as Repuesto[];
+        
+        console.log('   💾 Actualizando estado de repuestos');
         setRepuestos(data);
         setLoading(false);
       },
@@ -93,8 +108,14 @@ export function useRepuestos(machineId: string | null) {
   const createRepuesto = useCallback(async (data: RepuestoFormData): Promise<string> => {
     if (!machineId) throw new Error('Machine ID is required');
     
+    console.log('\n🆕 [useRepuestos] createRepuesto llamado');
+    console.log('   machineId:', machineId);
+    
     try {
       const collectionPath = getCollectionPath(machineId);
+      console.log('   📂 Guardando en collection:', collectionPath);
+      console.log('   📦 Datos del repuesto:', { codigoSAP: data.codigoSAP, textoBreve: data.textoBreve });
+      
       const newRepuesto = {
         ...data,
         total: (data.cantidadSolicitada * data.valorUnitario) + (data.cantidadStockBodega * data.valorUnitario),
@@ -107,6 +128,7 @@ export function useRepuestos(machineId: string | null) {
       };
 
       const docRef = await addDoc(collection(db, collectionPath), newRepuesto);
+      console.log('   ✅ Repuesto creado con ID:', docRef.id);
       
       // Registrar creación en historial
       await addHistorial(docRef.id, 'creacion', null, JSON.stringify(data));
