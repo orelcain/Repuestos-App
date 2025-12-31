@@ -1,8 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.4.3';
+export const APP_VERSION = '4.4.4';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.4.4',
+    date: '2025-12-31',
+    changes: [
+      '🐛 FIX: Manuales aislados por máquina, sin fallback de Baader 200 en otras',
+      '🧹 CLEAN: pdfUrl se limpia al cambiar de máquina para evitar mostrar el PDF previo'
+    ]
+  },
   {
     version: '4.4.3',
     date: '2025-12-31',

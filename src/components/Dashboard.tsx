@@ -227,23 +227,27 @@ export function Dashboard() {
     peekUndo
   } = useUndoRedo();
 
-  // Cargar URL del manual - primero intenta usar machine.manuals[], luego fallback a Storage
+  // Cargar URL del manual aislando por máquina (sin reutilizar Baader 200 en otras)
   useEffect(() => {
     const loadManual = async () => {
-      if (!currentMachine) {
-        setPdfUrl(null);
-        return;
-      }
+      // Limpiar siempre al cambiar de máquina para no mostrar el PDF previo
+      setPdfUrl(null);
 
-      // 1. Prioridad: usar manuals[] de la m\u00e1quina si existe
+      if (!currentMachine) return;
+
+      // 1) Prioridad: usar manuals[] de la máquina
       if (currentMachine.manuals && currentMachine.manuals.length > 0) {
         setPdfUrl(currentMachine.manuals[0]);
         return;
       }
 
-      // 2. Fallback: buscar en Storage (para compatibilidad con m\u00e1quinas antiguas)
-      const url = await getManualURL();
-      setPdfUrl(url);
+      // 2) Fallback SOLO para Baader 200 (legacy). Otras máquinas deben tener su propio manual.
+      if (currentMachine.id === 'baader-200') {
+        const url = await getManualURL();
+        setPdfUrl(url);
+      } else {
+        setPdfUrl(null);
+      }
     };
 
     loadManual();
