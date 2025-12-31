@@ -174,24 +174,28 @@ export function MachineTabs() {
   useEffect(() => {
     if (!showAddMenu) return;
 
-    // Pequeño delay para que el click del botón no trigger el cierre
+    console.log('✅ showAddMenu es true, registrando listener en 100ms');
+
+    let handler: ((event: MouseEvent) => void) | null = null;
+
     const timeoutId = setTimeout(() => {
-      const handleClickOutside = (event: MouseEvent) => {
+      handler = (event: MouseEvent) => {
         if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
           console.log('👆 Click fuera del menú, cerrando');
           setShowAddMenu(false);
         }
       };
 
-      document.addEventListener('mousedown', handleClickOutside);
-      
-      return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-      };
+      document.addEventListener('mousedown', handler);
+      console.log('📌 Listener registrado');
     }, 100);
 
     return () => {
       clearTimeout(timeoutId);
+      if (handler) {
+        document.removeEventListener('mousedown', handler);
+        console.log('🗑️ Listener removido');
+      }
     };
   }, [showAddMenu]);
 
@@ -297,7 +301,13 @@ export function MachineTabs() {
         </button>
 
         {showAddMenu && (
-          <div className="absolute top-full right-0 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50 min-w-[220px]">
+          <div 
+            className="absolute top-full right-0 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50 min-w-[220px]"
+            onMouseEnter={() => console.log('🖱️ Mouse entró al menú')}
+          >
+            <div className="px-3 py-2 text-xs text-green-600">
+              🟢 Menú renderizado - showAddMenu: {String(showAddMenu)}
+            </div>
             {closedMachines.length > 0 && (
               <>
                 <div className="px-3 py-1 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">

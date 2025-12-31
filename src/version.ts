@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.1.3';
+export const APP_VERSION = '4.1.4';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.1.4',
+    date: '2025-12-31',
+    changes: [
+      '🐛 DEBUG: Más logs para identificar por qué menú no se muestra',
+      'Indicador visual verde en menú para confirmar render',
+      'Logs de useEffect para ver si se registra listener',
+      'Fix cleanup del event listener',
+    ],
+  },
   {
     version: '4.1.3',
     date: '2025-12-31',
