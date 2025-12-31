@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.1.5';
+export const APP_VERSION = '4.1.6';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.1.6',
+    date: '2025-12-31',
+    changes: [
+      '🐛 DEBUG: Menú con estilos inline agresivos para forzar visibilidad',
+      'Position fixed en top-right con z-index 9999',
+      'Borde rojo y fondo lime para diagnóstico visual',
+      'Si se ve: problema es CSS/overflow del contenedor',
+    ],
+  },
   {
     version: '4.1.5',
     date: '2025-12-31',

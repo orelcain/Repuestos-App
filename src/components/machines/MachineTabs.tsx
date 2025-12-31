@@ -327,16 +327,26 @@ export function MachineTabs() {
 
         {showAddMenu && (
           <div 
-            className="absolute top-full right-0 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50 min-w-[220px]"
+            style={{
+              position: 'fixed',
+              top: '80px',
+              right: '20px',
+              zIndex: 9999,
+              backgroundColor: 'white',
+              border: '2px solid red',
+              padding: '10px',
+              minWidth: '250px',
+              boxShadow: '0 10px 50px rgba(0,0,0,0.5)'
+            }}
             onMouseEnter={() => console.log('🖱️ Mouse entró al menú')}
           >
-            <div className="px-3 py-2 text-xs text-green-600">
-              🟢 Menú renderizado - showAddMenu: {String(showAddMenu)}
+            <div style={{ padding: '10px', backgroundColor: 'lime', color: 'black', fontWeight: 'bold' }}>
+              🟢 MENÚ VISIBLE - showAddMenu: {String(showAddMenu)}
             </div>
             {closedMachines.length > 0 && (
               <>
                 <div className="px-3 py-1 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
-                  Abrir máquina
+                  Abrir máquina ({closedMachines.length})
                 </div>
                 {closedMachines.map(machine => (
                   <button
