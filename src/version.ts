@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.1.2';
+export const APP_VERSION = '4.1.3';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.1.3',
+    date: '2025-12-31',
+    changes: [
+      '🐛 FIX: Menú dropdown se cerraba inmediatamente al abrir',
+      'Agregado delay de 100ms antes de registrar handleClickOutside',
+      'Evita que el click del botón + cierre el menú recién abierto',
+      'Ahora el menú permanece visible al hacer click',
+    ],
+  },
   {
     version: '4.1.2',
     date: '2025-12-31',

@@ -170,20 +170,28 @@ export function MachineTabs() {
   const [showAddMenu, setShowAddMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Cerrar menú al hacer click fuera
+  // Cerrar menú al hacer click fuera (con delay para evitar cierre inmediato)
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setShowAddMenu(false);
-      }
-    };
+    if (!showAddMenu) return;
 
-    if (showAddMenu) {
+    // Pequeño delay para que el click del botón no trigger el cierre
+    const timeoutId = setTimeout(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+        if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+          console.log('👆 Click fuera del menú, cerrando');
+          setShowAddMenu(false);
+        }
+      };
+
       document.addEventListener('mousedown', handleClickOutside);
-    }
+      
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }, 100);
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      clearTimeout(timeoutId);
     };
   }, [showAddMenu]);
 
