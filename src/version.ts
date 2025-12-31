@@ -1,16 +1,19 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.1.6';
+export const APP_VERSION = '4.2.0';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
   {
-    version: '4.1.6',
-    date: '2025-12-31',
+    version: '4.2.0',
+    date: '2025-01-01',
     changes: [
-      '🐛 DEBUG: Menú con estilos inline agresivos para forzar visibilidad',
-      'Position fixed en top-right con z-index 9999',
-      'Borde rojo y fondo lime para diagnóstico visual',
-      'Si se ve: problema es CSS/overflow del contenedor',
+      '✅ Sistema multi-máquina completamente funcional',
+      '✅ Menú dropdown para abrir máquinas existentes',
+      '🐛 FIX: Arreglado loop infinito al cambiar entre pestañas',
+      '🐛 FIX: Simplificado handleOpenExistingMachine (solo setCurrentMachine)',
+      '🧹 Eliminados logs de debug y estilos de diagnóstico',
+      '🛠️ Script de limpieza de máquinas duplicadas (clean-duplicates.mjs)',
+      '🎭 Mejoras en manejo de estado de pestañas',
     ],
   },
   {

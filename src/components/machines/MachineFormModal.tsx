@@ -83,16 +83,6 @@ export function MachineFormModal({ isOpen, onClose, machine }: MachineFormModalP
         return;
       }
 
-      // Generar ID único basado en marca y modelo (slug)
-      const generateId = (marca: string, modelo: string) => {
-        return `${marca}-${modelo}`
-          .toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '') // Remover acentos
-          .replace(/[^a-z0-9]+/g, '-') // Reemplazar caracteres especiales por guiones
-          .replace(/^-|-$/g, ''); // Remover guiones al inicio/final
-      };
-
       if (machine) {
         // Actualizar máquina existente
         await updateMachine(machine.id, {
@@ -106,7 +96,6 @@ export function MachineFormModal({ isOpen, onClose, machine }: MachineFormModalP
       } else {
         // Crear nueva máquina
         const machineId = await createMachine({
-          id: generateId(marca, modelo),
           nombre: nombre.trim(),
           marca: marca.trim(),
           modelo: modelo.trim(),

@@ -148,18 +148,15 @@ export function MachineTabs() {
   };
 
   const handleNewMachine = () => {
-    console.log('📝 handleNewMachine llamado');
     setShowAddMenu(false);
     // Pequeño delay para asegurar que el menú se cierre antes de abrir el modal
     setTimeout(() => {
-      console.log('✨ Abriendo modal de nueva máquina');
       setShowNewMachineModal(true);
     }, 10);
   };
 
   const handleOpenExistingMachine = (machineId: string) => {
-    console.log('📂 Abriendo máquina existente:', machineId);
-    addMachineTab(machineId);
+    // setCurrentMachine ya agrega la tab automáticamente en MachineContext
     setCurrentMachine(machineId);
     setShowAddMenu(false);
   };
@@ -177,24 +174,13 @@ export function MachineTabs() {
     const now = Date.now();
     const timeSinceLastClick = now - lastClickTime.current;
     
-    console.log(`🔘 Click en botón + [${timeSinceLastClick}ms desde último click]`);
-    console.log(`   showAddMenu actual: ${showAddMenu}`);
-    
     // Prevenir doble click (menos de 300ms)
     if (timeSinceLastClick < 300) {
-      console.log('⏭️ Click ignorado (muy rápido)');
       return;
     }
     
     lastClickTime.current = now;
-    
-    if (showAddMenu) {
-      console.log('❌ Cerrando menú');
-      setShowAddMenu(false);
-    } else {
-      console.log('✅ Abriendo menú');
-      setShowAddMenu(true);
-    }
+    setShowAddMenu(!showAddMenu);
   };
 
   // Estado del menú dropdown
@@ -203,27 +189,22 @@ export function MachineTabs() {
   useEffect(() => {
     if (!showAddMenu) return;
 
-    console.log('✅ showAddMenu es true, registrando listener en 100ms');
-
     let handler: ((event: MouseEvent) => void) | null = null;
 
     const timeoutId = setTimeout(() => {
       handler = (event: MouseEvent) => {
         if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-          console.log('👆 Click fuera del menú, cerrando');
           setShowAddMenu(false);
         }
       };
 
       document.addEventListener('mousedown', handler);
-      console.log('📌 Listener registrado');
     }, 100);
 
     return () => {
       clearTimeout(timeoutId);
       if (handler) {
         document.removeEventListener('mousedown', handler);
-        console.log('🗑️ Listener removido');
       }
     };
   }, [showAddMenu]);
@@ -326,23 +307,7 @@ export function MachineTabs() {
         </button>
 
         {showAddMenu && (
-          <div 
-            style={{
-              position: 'fixed',
-              top: '80px',
-              right: '20px',
-              zIndex: 9999,
-              backgroundColor: 'white',
-              border: '2px solid red',
-              padding: '10px',
-              minWidth: '250px',
-              boxShadow: '0 10px 50px rgba(0,0,0,0.5)'
-            }}
-            onMouseEnter={() => console.log('🖱️ Mouse entró al menú')}
-          >
-            <div style={{ padding: '10px', backgroundColor: 'lime', color: 'black', fontWeight: 'bold' }}>
-              🟢 MENÚ VISIBLE - showAddMenu: {String(showAddMenu)}
-            </div>
+          <div className="absolute top-full right-0 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50 min-w-[200px]">
             {closedMachines.length > 0 && (
               <>
                 <div className="px-3 py-1 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
