@@ -145,8 +145,11 @@ export function MachineTabs() {
   };
 
   const handleNewMachine = () => {
-    setShowNewMachineModal(true);
     setShowAddMenu(false);
+    // Pequeño delay para asegurar que el menú se cierre antes de abrir el modal
+    setTimeout(() => {
+      setShowNewMachineModal(true);
+    }, 10);
   };
 
   const handleOpenExistingMachine = (machineId: string) => {
