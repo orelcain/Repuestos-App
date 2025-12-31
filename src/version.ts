@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.1.4';
+export const APP_VERSION = '4.1.5';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.1.5',
+    date: '2025-12-31',
+    changes: [
+      '🐛 FIX: Implementado debounce de 300ms en botón +',
+      'Previene clicks rápidos que abren/cierran menú inmediatamente',
+      'Logs con timestamp para detectar eventos duplicados',
+      'Toggle reemplazado por set explícito con validación de tiempo',
+    ],
+  },
   {
     version: '4.1.4',
     date: '2025-12-31',

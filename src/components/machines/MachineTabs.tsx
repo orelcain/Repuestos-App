@@ -107,6 +107,9 @@ export function MachineTabs() {
   } = useMachineContext();
 
   const [showNewMachineModal, setShowNewMachineModal] = useState(false);
+  const [showAddMenu, setShowAddMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const lastClickTime = useRef(0);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -166,10 +169,36 @@ export function MachineTabs() {
     m => m.activa && !openMachineTabs.includes(m.id)
   );
 
-  // Estado del menú dropdown
-  const [showAddMenu, setShowAddMenu] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  // Toggle del menú con debounce
+  const handleToggleMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const now = Date.now();
+    const timeSinceLastClick = now - lastClickTime.current;
+    
+    console.log(`🔘 Click en botón + [${timeSinceLastClick}ms desde último click]`);
+    console.log(`   showAddMenu actual: ${showAddMenu}`);
+    
+    // Prevenir doble click (menos de 300ms)
+    if (timeSinceLastClick < 300) {
+      console.log('⏭️ Click ignorado (muy rápido)');
+      return;
+    }
+    
+    lastClickTime.current = now;
+    
+    if (showAddMenu) {
+      console.log('❌ Cerrando menú');
+      setShowAddMenu(false);
+    } else {
+      console.log('✅ Abriendo menú');
+      setShowAddMenu(true);
+    }
+  };
 
+  // Estado del menú dropdown
+  
   // Cerrar menú al hacer click fuera (con delay para evitar cierre inmediato)
   useEffect(() => {
     if (!showAddMenu) return;
@@ -289,11 +318,7 @@ export function MachineTabs() {
       {/* Botón/menú para agregar máquina */}
       <div className="relative ml-2 mb-1" ref={menuRef}>
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            console.log('🔘 Click en botón +, showAddMenu actual:', showAddMenu);
-            setShowAddMenu(!showAddMenu);
-          }}
+          onClick={handleToggleMenu}
           className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-200 dark:bg-gray-800 hover:bg-primary-100 dark:hover:bg-primary-900 text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
           title={closedMachines.length > 0 ? "Agregar máquina" : "Nueva máquina"}
         >
