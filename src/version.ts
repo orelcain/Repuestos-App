@@ -1,8 +1,17 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.1.1';
+export const APP_VERSION = '4.1.2';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.1.2',
+    date: '2025-12-31',
+    changes: [
+      '🐛 DEBUG: Agregados logs para diagnosticar botón + no funcional',
+      'Agregado stopPropagation al click del botón +',
+      'Logs en handleNewMachine y handleOpenExistingMachine',
+    ],
+  },
   {
     version: '4.1.1',
     date: '2025-12-31',

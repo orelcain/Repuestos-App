@@ -145,14 +145,17 @@ export function MachineTabs() {
   };
 
   const handleNewMachine = () => {
+    console.log('📝 handleNewMachine llamado');
     setShowAddMenu(false);
     // Pequeño delay para asegurar que el menú se cierre antes de abrir el modal
     setTimeout(() => {
+      console.log('✨ Abriendo modal de nueva máquina');
       setShowNewMachineModal(true);
     }, 10);
   };
 
   const handleOpenExistingMachine = (machineId: string) => {
+    console.log('📂 Abriendo máquina existente:', machineId);
     addMachineTab(machineId);
     setCurrentMachine(machineId);
     setShowAddMenu(false);
@@ -274,7 +277,11 @@ export function MachineTabs() {
       {/* Botón/menú para agregar máquina */}
       <div className="relative ml-2 mb-1" ref={menuRef}>
         <button
-          onClick={() => setShowAddMenu(!showAddMenu)}
+          onClick={(e) => {
+            e.stopPropagation();
+            console.log('🔘 Click en botón +, showAddMenu actual:', showAddMenu);
+            setShowAddMenu(!showAddMenu);
+          }}
           className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-200 dark:bg-gray-800 hover:bg-primary-100 dark:hover:bg-primary-900 text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
           title={closedMachines.length > 0 ? "Agregar máquina" : "Nueva máquina"}
         >
