@@ -3,8 +3,9 @@ import { Modal } from '../ui/Modal';
 import { Button, Input } from '../ui';
 import { useMachines } from '../../hooks/useMachines';
 import { useMachineContext } from '../../contexts/MachineContext';
+import { useStorage } from '../../hooks/useStorage';
 import { Machine } from '../../types';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Upload, X, FileText } from 'lucide-react';
 
 interface MachineFormModalProps {
   isOpen: boolean;
@@ -26,6 +27,7 @@ const COLORES_PREDEFINIDOS = [
 export function MachineFormModal({ isOpen, onClose, machine }: MachineFormModalProps) {
   const { createMachine, updateMachine } = useMachines();
   const { addMachineTab, setCurrentMachine } = useMachineContext();
+  const { uploadManualPDF, uploading, progress } = useStorage(machine?.id || null);
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +39,7 @@ export function MachineFormModal({ isOpen, onClose, machine }: MachineFormModalP
   const [descripcion, setDescripcion] = useState('');
   const [color, setColor] = useState('#3b82f6');
   const [activa, setActiva] = useState(true);
+  const [manuales, setManuales] = useState<string[]>([]);
 
   // Inicializar con datos de la máquina si es edición
   useEffect(() => {
@@ -47,6 +50,7 @@ export function MachineFormModal({ isOpen, onClose, machine }: MachineFormModalP
       setDescripcion(machine.descripcion || '');
       setColor(machine.color);
       setActiva(machine.activa);
+      setManuales(machine.manuals || []);
     } else {
       // Reset para creación
       setNombre('');
@@ -55,6 +59,7 @@ export function MachineFormModal({ isOpen, onClose, machine }: MachineFormModalP
       setDescripcion('');
       setColor('#3b82f6');
       setActiva(true);
+      setManuales([]);
     }
   }, [machine, isOpen]);
 
@@ -92,6 +97,7 @@ export function MachineFormModal({ isOpen, onClose, machine }: MachineFormModalP
           descripcion: descripcion.trim(),
           color,
           activa,
+          manuals: manuales,
         });
       } else {
         // Crear nueva máquina
@@ -103,6 +109,7 @@ export function MachineFormModal({ isOpen, onClose, machine }: MachineFormModalP
           color,
           activa: true,
           orden: 0, // Se calculará en el hook
+          manuals: manuales,
         });
 
         // Agregar tab y establecer como activa
@@ -119,6 +126,25 @@ export function MachineFormModal({ isOpen, onClose, machine }: MachineFormModalP
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleUploadManual = async (file: File) => {
+    if (!machine) {
+      setError('Debe crear la máquina primero antes de subir manuales');
+      return;
+    }
+
+    try {
+      const url = await uploadManualPDF(file);
+      setManuales(prev => [...prev, url]);
+    } catch (err) {
+      console.error('Error uploading manual:', err);
+      setError(err instanceof Error ? err.message : 'Error al subir el manual');
+    }
+  };
+
+  const handleRemoveManual = (index: number) => {
+    setManuales(prev => prev.filter((_, i) => i !== index));
   };
 
   return (
@@ -186,6 +212,67 @@ export function MachineFormModal({ isOpen, onClose, machine }: MachineFormModalP
             rows={3}
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-800 dark:text-white"
           />
+        </div>
+
+        {/* Manuales */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Manuales PDF
+          </label>
+          
+          {/* Lista de manuales */}
+          {manuales.length > 0 && (
+            <div className="space-y-2 mb-3">
+              {manuales.map((_url, index) => (
+                <div
+                  key={index}
+                  className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
+                >
+                  <FileText className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <span className="text-sm text-gray-700 dark:text-gray-300 truncate flex-1">
+                    Manual {index + 1}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveManual(index)}
+                    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-red-500"
+                    title="Eliminar manual"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Bot\u00f3n de subir (solo en edici\u00f3n) */}
+          {machine ? (
+            <div>
+              <label className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg border border-gray-300 dark:border-gray-600 cursor-pointer transition-colors">
+                <Upload className="w-4 h-4" />
+                <span className="text-sm">
+                  {uploading ? `Subiendo... ${progress}%` : 'Agregar manual PDF'}
+                </span>
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleUploadManual(file);
+                  }}
+                  className="hidden"
+                  disabled={uploading || loading}
+                />
+              </label>
+              <p className="text-xs text-gray-500 mt-1">
+                Puedes agregar m\u00faltiples manuales para esta m\u00e1quina
+              </p>
+            </div>
+          ) : (
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-blue-600 dark:text-blue-400 text-sm">
+              Los manuales se pueden agregar despu\u00e9s de crear la m\u00e1quina
+            </div>
+          )}
         </div>
 
         {/* Color */}

@@ -160,6 +160,7 @@ export interface Machine {
   activa: boolean;               // Si está activa/archivada
   color: string;                 // Color para la tab (hex): "#3b82f6"
   orden: number;                 // Orden de las tabs (para drag & drop)
+  manuals?: string[];            // URLs de los manuales PDF de esta máquina
   createdAt: Date;               // Fecha de creación
   updatedAt?: Date;              // Última modificación
 }

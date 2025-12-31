@@ -1,19 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.2.0';
+export const APP_VERSION = '4.2.1';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
   {
-    version: '4.2.0',
+    version: '4.2.1',
     date: '2025-01-01',
     changes: [
-      '✅ Sistema multi-máquina completamente funcional',
-      '✅ Menú dropdown para abrir máquinas existentes',
-      '🐛 FIX: Arreglado loop infinito al cambiar entre pestañas',
-      '🐛 FIX: Simplificado handleOpenExistingMachine (solo setCurrentMachine)',
-      '🧹 Eliminados logs de debug y estilos de diagnóstico',
-      '🛠️ Script de limpieza de máquinas duplicadas (clean-duplicates.mjs)',
-      '🎭 Mejoras en manejo de estado de pestañas',
+      '🐛 FIX CRTICO: Loop infinito al cambiar pestañas - eliminado setCurrentMachineState redundante',
+      '📖 Sistema de manuales por máquina implementado',
+      '✨ Campo manuals[] en Machine - soporta múltiples PDFs por máquina',
+      '📝 UI para gestionar manuales en MachineFormModal (subir/eliminar)',
+      '🔄 Dashboard usa currentMachine.manuals[] con fallback a Storage',
+      '🧹 Transición fluida entre pestañas sin parpadeos',
     ],
   },
   {

@@ -43,6 +43,7 @@ export function useMachines() {
           activa: data.activa !== false, // Por defecto true
           color: data.color || '#3b82f6',
           orden: data.orden || 0,
+          manuals: data.manuals || [], // Array de URLs de manuales
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate(),
         } as Machine;
@@ -81,6 +82,7 @@ export function useMachines() {
             activa: data.activa !== false,
             color: data.color || '#3b82f6',
             orden: data.orden || 0,
+            manuals: data.manuals || [],
             createdAt: data.createdAt?.toDate() || new Date(),
             updatedAt: data.updatedAt?.toDate(),
           } as Machine;
@@ -117,6 +119,7 @@ export function useMachines() {
         activa: data.activa !== false,
         color: data.color || '#3b82f6',
         orden: data.orden || 0,
+        manuals: data.manuals || [],
         createdAt: data.createdAt?.toDate() || new Date(),
         updatedAt: data.updatedAt?.toDate(),
       } as Machine;

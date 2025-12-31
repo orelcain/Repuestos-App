@@ -101,7 +101,6 @@ export function MachineTabs() {
     openMachineTabs,
     tabsOrder,
     setCurrentMachine,
-    addMachineTab,
     removeMachineTab,
     reorderTabs,
   } = useMachineContext();

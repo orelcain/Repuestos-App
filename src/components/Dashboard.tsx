@@ -219,12 +219,27 @@ export function Dashboard() {
     peekUndo
   } = useUndoRedo();
 
-  // Cargar URL del manual
+  // Cargar URL del manual - primero intenta usar machine.manuals[], luego fallback a Storage
   useEffect(() => {
-    getManualURL().then(url => {
-      if (url) setPdfUrl(url);
-    });
-  }, [getManualURL]);
+    const loadManual = async () => {
+      if (!currentMachine) {
+        setPdfUrl(null);
+        return;
+      }
+
+      // 1. Prioridad: usar manuals[] de la m\u00e1quina si existe
+      if (currentMachine.manuals && currentMachine.manuals.length > 0) {
+        setPdfUrl(currentMachine.manuals[0]);
+        return;
+      }
+
+      // 2. Fallback: buscar en Storage (para compatibilidad con m\u00e1quinas antiguas)
+      const url = await getManualURL();
+      setPdfUrl(url);
+    };
+
+    loadManual();
+  }, [currentMachine, getManualURL]);
 
   // Guardar PDF en cache global cuando el preloader termine
   useEffect(() => {

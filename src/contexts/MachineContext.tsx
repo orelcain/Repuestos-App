@@ -91,14 +91,6 @@ export function MachineProvider({ children }: MachineProviderProps) {
   // Cambiar máquina actual
   const setCurrentMachine = useCallback(async (machineId: string) => {
     try {
-      // Evitar llamadas redundantes - si ya es la máquina actual, no hacer nada
-      setCurrentMachineState(current => {
-        if (current?.id === machineId) {
-          return current;
-        }
-        return current; // Temporalmente retornamos current, se actualizará abajo
-      });
-
       const machine = await getMachine(machineId);
       if (!machine) {
         console.error(`Machine ${machineId} not found`);
