@@ -1,8 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.4.0';
+export const APP_VERSION = '4.4.1';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.4.1',
+    date: '2025-12-31',
+    changes: [
+      '🐛 FIX: Eliminado loop infinito en Dashboard causado por dependencia circular',
+      '✅ FIXED: useEffect ahora solo depende de currentMachine, no de machineId derivado'
+    ]
+  },
   {
     version: '4.4.0',
     date: '2025-12-31',
