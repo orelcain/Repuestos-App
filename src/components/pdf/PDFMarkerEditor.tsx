@@ -98,7 +98,7 @@ export function PDFMarkerEditor({
   // Estado de búsqueda de repuestos
   const [repuestoSearchTerm, setRepuestoSearchTerm] = useState('');
   const [repuestoSearchResults, setRepuestoSearchResults] = useState<Repuesto[]>([]);
-  const [showRepuestoSearch, setShowRepuestoSearch] = useState(false);
+  const [_showRepuestoSearch, _setShowRepuestoSearch] = useState(false);
   const [selectedSearchIndex, setSelectedSearchIndex] = useState(-1);
 
   // Estado de búsqueda en PDF
@@ -106,9 +106,6 @@ export function PDFMarkerEditor({
   const [pdfSearchResults, setPdfSearchResults] = useState<TextSearchResult[]>([]);
   const [pdfSearching, setPdfSearching] = useState(false);
   const [currentPdfResultIndex, setCurrentPdfResultIndex] = useState(-1);
-
-  // Modo de búsqueda activo
-  const [searchMode, setSearchMode] = useState<'repuesto' | 'pdf'>('repuesto');
 
   // Estado de repuesto actual
   const [currentDescription, setCurrentDescription] = useState(repuestoDescripcion);
@@ -590,7 +587,7 @@ export function PDFMarkerEditor({
   const handleSelectSearchResult = (repuesto: Repuesto) => {
     setCurrentDescription(repuesto.descripcion || repuesto.textoBreve);
     setRepuestoSearchTerm('');
-    setShowRepuestoSearch(false);
+    _setShowRepuestoSearch(false);
     setCurrentMarker(null);
     
     if (overlayRef.current) {
@@ -604,7 +601,7 @@ export function PDFMarkerEditor({
   };
 
   // Keyboard navigation
-  const handleRepuestoSearchKeyDown = (e: React.KeyboardEvent) => {
+  const _handleRepuestoSearchKeyDown = (e: React.KeyboardEvent) => {
     if (!repuestoSearchResults.length) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -616,7 +613,7 @@ export function PDFMarkerEditor({
       e.preventDefault();
       handleSelectSearchResult(repuestoSearchResults[selectedSearchIndex]);
     } else if (e.key === 'Escape') {
-      setShowRepuestoSearch(false);
+      _setShowRepuestoSearch(false);
     }
   };
 

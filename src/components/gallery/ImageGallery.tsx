@@ -5,7 +5,6 @@ import { ImageQualityModal } from './ImageQualityModal';
 import { 
   ChevronLeft, 
   ChevronRight, 
-  Plus, 
   Trash2, 
   Star, 
   StarOff,
@@ -39,7 +38,7 @@ export function ImageGallery({
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [currentFileIndex, setCurrentFileIndex] = useState(0);
   const [showQualityModal, setShowQualityModal] = useState(false);
-  const [showUploadOptions, setShowUploadOptions] = useState(false);
+  const [_showUploadOptions, _setShowUploadOptions] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -129,7 +128,7 @@ export function ImageGallery({
               {/* Botón Galería */}
               <Button
                 size="sm"
-                variant="outline"
+                variant="secondary"
                 onClick={() => fileInputRef.current?.click()}
                 loading={uploading}
                 icon={<ImageIcon className="w-4 h-4" />}
