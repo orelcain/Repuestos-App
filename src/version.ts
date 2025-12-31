@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.3.1';
+export const APP_VERSION = '4.4.0';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.4.0',
+    date: '2025-12-31',
+    changes: [
+      '🔍 NEW: Sistema de logs de debug para validación de aislamiento de datos',
+      '📊 NEW: Logs detallados en useRepuestos, MachineContext y Dashboard',
+      '📋 DOC: Documento completo de diagnóstico del sistema multi-máquina',
+      '✅ VALIDATED: Arquitectura confirmada - cada máquina tiene datos independientes'
+    ]
+  },
   {
     version: '4.3.1',
     date: '2025-01-01',
