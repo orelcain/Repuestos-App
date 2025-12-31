@@ -1,8 +1,17 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.4.1';
+export const APP_VERSION = '4.4.2';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.4.2',
+    date: '2025-12-31',
+    changes: [
+      '🐛 FIX: Loop infinito eliminado definitivamente con useRef',
+      '✅ FIXED: useEffect de sync ahora solo depende de machines[], no de currentMachine',
+      '🔧 IMPROVED: Solo actualiza currentMachine cuando manuals[] realmente cambian'
+    ]
+  },
   {
     version: '4.4.1',
     date: '2025-12-31',
