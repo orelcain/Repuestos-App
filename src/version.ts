@@ -1,8 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.4.2';
+export const APP_VERSION = '4.4.3';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.4.3',
+    date: '2025-12-31',
+    changes: [
+      '🐛 FIX: Previene re-inicialización repetida en MachineProvider usando useRef',
+      '✅ FIXED: Guarda ref al cargar máquina inicial para evitar loops de render'
+    ]
+  },
   {
     version: '4.4.2',
     date: '2025-12-31',
