@@ -37,6 +37,9 @@ export function MachineProvider({ children }: MachineProviderProps) {
   useEffect(() => {
     if (machinesLoading || machines.length === 0) return;
 
+    // Si ya hay una máquina seleccionada, no volver a inicializar
+    if (currentMachineIdRef.current) return;
+
     const initializeMachine = async () => {
       try {
         const savedMachineId = localStorage.getItem(STORAGE_KEY);
@@ -62,6 +65,7 @@ export function MachineProvider({ children }: MachineProviderProps) {
         if (machineToLoad) {
           const machine = await getMachine(machineToLoad);
           if (machine) {
+            currentMachineIdRef.current = machineToLoad;
             setCurrentMachineState(machine);
             localStorage.setItem(STORAGE_KEY, machineToLoad);
           }
