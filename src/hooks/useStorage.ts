@@ -98,7 +98,7 @@ export function useStorage(machineId: string | null) {
     }
   }, [machineId]);
 
-  // Obtener URL del manual - busca cualquier PDF en las carpetas
+  // Obtener URL del manual - busca cualquier PDF en las carpetas usando listAll()
   const getManualURL = useCallback(async (manualName: string = 'manual_principal'): Promise<string | null> => {
     if (!machineId) {
       return null;
@@ -109,68 +109,27 @@ export function useStorage(machineId: string | null) {
       ? ['manual', 'manuales']  // Rutas antiguas para Baader 200
       : [`machines/${machineId}/manuales`, `machines/${machineId}/manual`];
 
-    // Para Baader 200, ir directo a listar (sabemos que tiene archivos)
-    // Para otras máquinas, intentar primero nombres específicos
-    if (machineId === 'baader-200') {
-      // Estrategia: listar directamente para evitar 404s
-      for (const folder of folders) {
-        try {
-          const folderRef = ref(storage, folder);
-          const listResult = await listAll(folderRef);
-          
-          // Buscar el primer archivo PDF
-          for (const item of listResult.items) {
-            if (item.name.toLowerCase().endsWith('.pdf')) {
-              const url = await getDownloadURL(item);
-              console.log(`✅ Manual encontrado: ${folder}/${item.name}`);
-              return url;
-            }
-          }
-        } catch {
-          continue;
-        }
-      }
-      
-      console.warn(`⚠️ No se encontró manual para Baader 200`);
-      return null;
-    }
-
-    // Para máquinas nuevas: intentar nombres específicos primero (más rápido si existe)
-    const specificPaths = folders.flatMap(folder => [
-      `${folder}/${manualName}.pdf`,
-      `${folder}/manual_principal.pdf`,
-    ]);
-
-    for (const path of specificPaths) {
-      try {
-        const storageRef = ref(storage, path);
-        const url = await getDownloadURL(storageRef);
-        console.log(`✅ Manual encontrado: ${path}`);
-        return url;
-      } catch {
-        continue;
-      }
-    }
-
-    // Si no encuentra con nombres específicos, listar la carpeta
+    // Estrategia: usar listAll() para TODAS las máquinas (evita 404s HTTP)
     for (const folder of folders) {
       try {
         const folderRef = ref(storage, folder);
         const listResult = await listAll(folderRef);
         
+        // Buscar el primer archivo PDF
         for (const item of listResult.items) {
           if (item.name.toLowerCase().endsWith('.pdf')) {
             const url = await getDownloadURL(item);
-            console.log(`✅ Manual encontrado (listado): ${folder}/${item.name}`);
+            console.log(`✅ Manual encontrado: ${folder}/${item.name}`);
             return url;
           }
         }
       } catch {
+        // Silenciosamente continuar - carpeta no existe o sin permisos
         continue;
       }
     }
 
-    // Silenciosamente retornar null para máquinas nuevas sin manual
+    // Silenciosamente retornar null (normal para máquinas nuevas sin manual)
     return null;
   }, [machineId]);
 

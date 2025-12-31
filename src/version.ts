@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.0.7';
+export const APP_VERSION = '4.0.8';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.0.8',
+    date: '2025-12-31',
+    changes: [
+      '🔇 FIX: Eliminados 404s al crear máquinas nuevas',
+      'Todas las máquinas usan listAll() directo (sin intentos HTTP)',
+      'Consola 100% limpia sin errores de red',
+      'Lógica simplificada y más robusta',
+    ],
+  },
   {
     version: '4.0.7',
     date: '2025-12-31',
