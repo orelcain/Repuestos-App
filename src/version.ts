@@ -1,18 +1,19 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.2.1';
+export const APP_VERSION = '4.3.0';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
   {
-    version: '4.2.1',
+    version: '4.3.0',
     date: '2025-01-01',
     changes: [
-      '🐛 FIX CRTICO: Loop infinito al cambiar pestañas - eliminado setCurrentMachineState redundante',
-      '📖 Sistema de manuales por máquina implementado',
-      '✨ Campo manuals[] en Machine - soporta múltiples PDFs por máquina',
-      '📝 UI para gestionar manuales en MachineFormModal (subir/eliminar)',
-      '🔄 Dashboard usa currentMachine.manuals[] con fallback a Storage',
-      '🧹 Transición fluida entre pestañas sin parpadeos',
+      '🎯 NUEVO: Selector de máquinas simple (dropdown) reemplaza sistema de tabs',
+      '✨ Un solo click para cambiar de máquina',
+      '🛠️ Botón de editar máquina junto a cada opción',
+      '➕ Botón "Crear nueva máquina" en el dropdown',
+      '🧹 Eliminado sistema de tabs complejo con DnD',
+      '📉 Código reducido ~300 líneas (MachineContext simplificado)',
+      '⚡ Mejor rendimiento sin estados de tabs/orden',
     ],
   },
   {

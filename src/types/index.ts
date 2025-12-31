@@ -165,17 +165,12 @@ export interface Machine {
   updatedAt?: Date;              // Última modificación
 }
 
-// Estado del contexto de máquinas
+// Estado del contexto de máquinas (simplificado)
 export interface MachineContextType {
   currentMachine: Machine | null;
   machines: Machine[];
-  openMachineTabs: string[];     // IDs de las máquinas abiertas en tabs
-  tabsOrder: string[];           // Orden personalizado de las tabs
   loading: boolean;
-  setCurrentMachine: (machineId: string) => void;
-  addMachineTab: (machineId: string) => void;
-  removeMachineTab: (machineId: string) => void;
-  reorderTabs: (newOrder: string[]) => void;
+  setCurrentMachine: (machineId: string) => Promise<void>;
 }
 
 // Toast/Notificación

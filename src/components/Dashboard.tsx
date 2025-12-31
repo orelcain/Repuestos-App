@@ -53,7 +53,7 @@ import { ToastContainer, Button } from './ui';
 import ReportsModal from './reports/ReportsModal';
 import { BackupModal } from './backup/BackupModal';
 import { useBackupSystem } from '../hooks/useBackupSystem';
-import { MachineTabs } from './machines/MachineTabs';
+import { MachineSelector } from './machines/MachineSelector';
 
 import { exportToExcel, exportToPDF } from '../utils/exportUtils';
 
@@ -95,7 +95,7 @@ type MainView = 'repuestos' | 'stats';
 
 export function Dashboard() {
   const { user, signOut } = useAuth();
-  const { currentMachine, loading: machineLoading } = useMachineContext();
+  const { currentMachine } = useMachineContext();
   
   const machineId = currentMachine?.id || null;
   
@@ -724,33 +724,13 @@ export function Dashboard() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col transition-colors">
       {/* Header */}
       <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        {/* Machine Tabs */}
-        <MachineTabs />
-        
         <div className="px-4 py-3 flex items-center justify-between">
-          {/* Logo y título */}
-          <div className="flex items-center gap-3">
-            <div 
-              className="w-10 h-10 rounded-lg flex items-center justify-center"
-              style={{ backgroundColor: currentMachine?.color || '#3b82f6' }}
-            >
-              <span className="text-white font-bold text-lg">
-                {currentMachine?.nombre?.charAt(0) || 'R'}
-              </span>
-            </div>
-            <div>
-              <h1 className="font-bold text-gray-800 dark:text-gray-100 text-lg flex items-center gap-2">
-                {currentMachine?.nombre || 'Repuestos'}
-                <span className="text-xs font-normal bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 px-2 py-0.5 rounded-full">
-                  v{APP_VERSION}
-                </span>
-              </h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {currentMachine?.marca && currentMachine?.modelo 
-                  ? `${currentMachine.marca} ${currentMachine.modelo}` 
-                  : 'Gestión de Repuestos'}
-              </p>
-            </div>
+          {/* Selector de Máquina y versión */}
+          <div className="flex items-center gap-4">
+            <MachineSelector />
+            <span className="text-xs font-normal bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 px-2 py-0.5 rounded-full">
+              v{APP_VERSION}
+            </span>
           </div>
 
           {/* Acciones desktop */}

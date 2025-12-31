@@ -26,7 +26,7 @@ const COLORES_PREDEFINIDOS = [
 
 export function MachineFormModal({ isOpen, onClose, machine }: MachineFormModalProps) {
   const { createMachine, updateMachine } = useMachines();
-  const { addMachineTab, setCurrentMachine } = useMachineContext();
+  const { setCurrentMachine } = useMachineContext();
   const { uploadManualPDF, uploading, progress } = useStorage(machine?.id || null);
   
   const [loading, setLoading] = useState(false);
@@ -112,8 +112,7 @@ export function MachineFormModal({ isOpen, onClose, machine }: MachineFormModalP
           manuals: manuales,
         });
 
-        // Agregar tab y establecer como activa
-        addMachineTab(machineId);
+        // Establecer como activa
         setCurrentMachine(machineId);
         
         console.log(`✅ Máquina "${nombre}" creada exitosamente con ID: ${machineId}`);
