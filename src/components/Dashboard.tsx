@@ -167,10 +167,6 @@ export function Dashboard() {
   // Repuestos filtrados (para exportación)
   const [filteredRepuestos, setFilteredRepuestos] = useState<Repuesto[]>([]);
   
-  // Contexto activo desde RepuestosTable (para exportaciones con el tag correcto)
-  const [activeContextTag, setActiveContextTag] = useState<string | null>(null);
-  const [activeContextTipo, setActiveContextTipo] = useState<'solicitud' | 'stock' | null>(null);
-
   // Contextos duales activos (para pre-asignar al crear repuesto)
   const [activeContexts, setActiveContexts] = useState<{ solicitud: string | null; stock: string | null }>({
     solicitud: null,
@@ -644,12 +640,6 @@ export function Dashboard() {
     success(`Captura de página ${pageNumber} guardada`);
   }, [selectedRepuesto, updateRepuestoWithBackup, success, handleUploadImage]);
 
-  // Callback para recibir cambios de contexto desde RepuestosTable
-  const handleContextChange = (tag: string | null, tipo: 'solicitud' | 'stock' | null) => {
-    setActiveContextTag(tag);
-    setActiveContextTipo(tipo);
-  };
-
   // Callback para recibir cambios de contextos duales
   const handleContextsChange = (contexts: { solicitud: string | null; stock: string | null }) => {
     setActiveContexts(contexts);
@@ -659,10 +649,52 @@ export function Dashboard() {
   const handleExportExcel = () => {
     setShowExcelExportModal(true);
   };
+
+  const buildExportViewLabel = () => {
+    const shownCount = filteredRepuestos.length > 0 ? filteredRepuestos.length : repuestos.length;
+    const totalCount = repuestos.length;
+
+    const hasSolicitud = !!activeContexts.solicitud;
+    const hasStock = !!activeContexts.stock;
+
+    if (!hasSolicitud && !hasStock) {
+      return `Catalogo de repuestos ${shownCount}/${totalCount}`;
+    }
+
+    const parts: string[] = [];
+    if (hasSolicitud) parts.push(`Solicitud ${activeContexts.solicitud}`);
+    if (hasStock) parts.push(`Stock ${activeContexts.stock}`);
+
+    return `${parts.join(' + ')} ${shownCount}/${totalCount}`;
+  };
+
+  const buildExportFilename = (extBase: 'excel' | 'pdf') => {
+    const machineName = currentMachine?.nombre || 'maquina';
+    const viewLabel = buildExportViewLabel();
+    const raw = `${machineName}_${viewLabel}_${extBase}`;
+
+    return raw
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .toLowerCase();
+  };
   
   const confirmExportExcel = () => {
     const toExport = filteredRepuestos.length > 0 ? filteredRepuestos : repuestos;
-    const contextName = activeContextTag || undefined;
+    const hasSolicitud = !!activeContexts.solicitud;
+    const hasStock = !!activeContexts.stock;
+    const onlySolicitud = hasSolicitud && !hasStock;
+    const onlyStock = hasStock && !hasSolicitud;
+
+    // Solo pasamos contextTag/tipoContexto cuando hay un único contexto activo.
+    const contextName = onlySolicitud
+      ? activeContexts.solicitud || undefined
+      : onlyStock
+        ? activeContexts.stock || undefined
+        : undefined;
+    const tipoContexto = onlySolicitud ? 'solicitud' : onlyStock ? 'stock' : null;
     
     exportToExcel(toExport, {
       formato: excelFormato,
@@ -671,11 +703,10 @@ export function Dashboard() {
       incluirPorTags: excelIncluirPorTags,
       incluirEstilos: excelIncluirEstilos,
       contextTag: contextName, // Pasar el contexto activo
-      tipoContexto: activeContextTipo // Pasar el tipo de contexto (solicitud/stock)
-    });
+      tipoContexto // Pasar el tipo de contexto (solicitud/stock) si aplica
+    }, buildExportFilename('excel'));
     
-    const contextInfo = activeContextTag ? ` (contexto: ${activeContextTag})` : '';
-    success(`Excel exportado con ${toExport.length} repuestos${contextInfo}`);
+    success(`Excel exportado: ${buildExportViewLabel()}`);
     setShowExcelExportModal(false);
   };
 
@@ -685,15 +716,24 @@ export function Dashboard() {
   
   const confirmExportPDF = () => {
     const toExport = filteredRepuestos.length > 0 ? filteredRepuestos : repuestos;
-    const contextName = activeContextTag || undefined;
+    const hasSolicitud = !!activeContexts.solicitud;
+    const hasStock = !!activeContexts.stock;
+    const onlySolicitud = hasSolicitud && !hasStock;
+    const onlyStock = hasStock && !hasSolicitud;
+
+    const contextName = onlySolicitud
+      ? activeContexts.solicitud || undefined
+      : onlyStock
+        ? activeContexts.stock || undefined
+        : undefined;
     
     exportToPDF(toExport, { 
       includeCharts: pdfIncludeCharts,
-      contextTag: contextName // Pasar el contexto activo
+      contextTag: contextName, // Pasar el contexto activo si aplica
+      filename: buildExportFilename('pdf')
     });
-    
-    const contextInfo = activeContextTag ? ` (contexto: ${activeContextTag})` : '';
-    success(`PDF exportado con ${toExport.length} repuestos${contextInfo}`);
+
+    success(`PDF exportado: ${buildExportViewLabel()}`);
     setShowPDFExportModal(false);
   };
 
@@ -1194,7 +1234,6 @@ export function Dashboard() {
                   getHistorial={getHistorial}
                   onManageTags={() => setShowTagManager(true)}
                   onFilteredChange={setFilteredRepuestos}
-                  onContextChange={handleContextChange}
                   onContextsChange={handleContextsChange}
                   compactMode={rightPanelMode !== 'hidden'}
                 />

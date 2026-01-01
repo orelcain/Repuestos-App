@@ -692,9 +692,19 @@ export function RepuestosTable({
         <div className="flex items-center justify-between flex-wrap gap-2">
           <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
             <Package className="w-6 h-6 text-primary-600" />
-            Repuestos
+            {hasAnyContext ? 'Repuestos' : 'Catálogo de repuestos'}
             <span className="text-base font-normal text-gray-500 dark:text-gray-400">
               ({filteredRepuestos.length} de {repuestos.length})
+              {hasAnyContext && (
+                <>
+                  {activeContexts.solicitud && (
+                    <span className="ml-2">• Solicitud: {activeContexts.solicitud}</span>
+                  )}
+                  {activeContexts.stock && (
+                    <span className="ml-2">• Stock: {activeContexts.stock}</span>
+                  )}
+                </>
+              )}
             </span>
           </h2>
           <div className="flex items-center gap-2">
