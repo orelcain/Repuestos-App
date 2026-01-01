@@ -1,8 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.8.9';
+export const APP_VERSION = '4.9.0';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.0',
+    date: '2026-01-01',
+    changes: [
+      '📌 FIX: Ver marcador ya no cambia a manual de otra máquina',
+      '🔒 Aislamiento: marker.manualUrl solo aplica si pertenece a currentMachine.manuals'
+    ]
+  },
   {
     version: '4.8.9',
     date: '2026-01-01',

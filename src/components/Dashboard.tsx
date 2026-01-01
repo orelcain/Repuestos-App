@@ -440,11 +440,16 @@ export function Dashboard() {
         error(`Este marcador pertenece a ${marker.machineId}. Cambia a esa máquina primero.`);
         return;
       }
-      
-      // Si el marcador tiene un manual específico, cargarlo
-      if (marker.manualUrl && marker.manualUrl !== pdfUrl) {
-        console.log('🔄 [Dashboard] Loading specific manual from marker:', marker.manualUrl);
-        setPdfUrl(marker.manualUrl);
+
+      // Si el marcador apunta a un manual específico, solo cambiar si pertenece a la máquina actual
+      if (marker.manualUrl && currentMachine?.manuals && currentMachine.manuals.length > 0) {
+        const manualIndex = currentMachine.manuals.findIndex((u) => u === marker.manualUrl);
+        if (manualIndex >= 0 && manualIndex !== selectedManualIndex) {
+          console.log('🔄 [Dashboard] Selecting manual index from marker:', manualIndex);
+          setSelectedManualIndex(manualIndex);
+        } else if (manualIndex === -1) {
+          console.warn('⚠️ [Dashboard] marker.manualUrl no pertenece a los manuales de esta máquina; se mantiene el manual actual');
+        }
       }
       
       setTargetPage(marker.pagina);
@@ -495,10 +500,14 @@ export function Dashboard() {
     const vinculosActuales = markerRepuesto.vinculosManual || [];
     
     // Agregar contexto de máquina y manual actual al marcador
+    const currentManualUrl = (currentMachine.manuals && currentMachine.manuals.length > 0)
+      ? (currentMachine.manuals[selectedManualIndex] || currentMachine.manuals[0])
+      : (pdfUrl || undefined);
+
     const markerWithContext = {
       ...marker,
       machineId: currentMachine.id,
-      manualUrl: pdfUrl || undefined
+      manualUrl: currentManualUrl
     };
     
     if (editingMarker) {
