@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 
 interface RepuestosTableProps {
+  machineId: string | null;
   repuestos: Repuesto[];
   selectedRepuesto: Repuesto | null;
   onSelect: (repuesto: Repuesto | null) => void;
@@ -123,6 +124,7 @@ function HistorialCampoModal({
 }
 
 export function RepuestosTable({
+  machineId,
   repuestos,
   selectedRepuesto,
   onSelect,
@@ -170,7 +172,7 @@ export function RepuestosTable({
   const { columns, toggleColumn, resetColumns, isColumnVisible: baseIsColumnVisible, reorderColumns, getColumn } = useTableColumns();
   
   // Hook para obtener información de tags globales
-  const { tags: globalTags } = useTags();
+  const { tags: globalTags } = useTags(repuestos, machineId);
   
   // Combinar tags globales con tags en uso de repuestos (para incluir tags importados)
   const allAvailableTags = useMemo(() => {
@@ -2086,6 +2088,7 @@ export function RepuestosTable({
       <CreateContextModal
         isOpen={showCreateContextModal}
         onClose={() => setShowCreateContextModal(false)}
+        machineId={machineId}
         onContextCreated={(nombre: string, tipo: 'solicitud' | 'stock') => {
           // Actualizar el contexto correspondiente según el tipo creado
           setActiveContexts(prev => ({ ...prev, [tipo]: nombre }));

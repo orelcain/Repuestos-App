@@ -10,9 +10,10 @@ interface RepuestoFormProps {
   onSave: (data: RepuestoFormData) => Promise<void>;
   repuesto?: Repuesto | null;
   allRepuestos?: Repuesto[];  // Para obtener todos los tags en uso
+  machineId: string | null;
 }
 
-export function RepuestoForm({ isOpen, onClose, onSave, repuesto, allRepuestos }: RepuestoFormProps) {
+export function RepuestoForm({ isOpen, onClose, onSave, repuesto, allRepuestos, machineId }: RepuestoFormProps) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<RepuestoFormData>({
     codigoSAP: '',
@@ -156,6 +157,7 @@ export function RepuestoForm({ isOpen, onClose, onSave, repuesto, allRepuestos }
           onTagsChange={handleTagsChange}
           valorUnitario={formData.valorUnitario}
           allRepuestos={allRepuestos}
+          machineId={machineId}
         />
 
         {/* Botones */}

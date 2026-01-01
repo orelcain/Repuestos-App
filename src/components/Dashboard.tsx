@@ -1169,6 +1169,7 @@ export function Dashboard() {
                 ${rightPanelMode !== 'hidden' ? 'hidden md:block md:w-1/2 lg:w-3/5' : 'w-full'}
               `}>
                 <RepuestosTable
+                  machineId={machineId}
                   repuestos={repuestos}
                   selectedRepuesto={selectedRepuesto}
                   onSelect={handleSelectRepuesto}
@@ -1358,6 +1359,7 @@ export function Dashboard() {
         onClose={() => setShowForm(false)}
         onSave={handleSave}
         repuesto={editRepuesto}
+        machineId={machineId}
         allRepuestos={repuestos}
       />
 
@@ -1385,6 +1387,7 @@ export function Dashboard() {
       <TagManagerModal
         isOpen={showTagManager}
         onClose={() => setShowTagManager(false)}
+        machineId={machineId}
         repuestos={repuestos}
         onRenameTag={renameTag}
         onDeleteTag={deleteTag}

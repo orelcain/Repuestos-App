@@ -8,10 +8,11 @@ interface TagEventSelectorProps {
   onTagsChange: (tags: TagAsignado[]) => void;
   valorUnitario: number;  // Para mostrar cálculo de total
   allRepuestos?: Repuesto[];  // Para obtener todos los tags en uso
+  machineId?: string | null;
 }
 
-export function TagEventSelector({ tags, onTagsChange, valorUnitario, allRepuestos }: TagEventSelectorProps) {
-  const { tags: globalTags, addTag: addGlobalTag, getTagTipo } = useTags(allRepuestos);
+export function TagEventSelector({ tags, onTagsChange, valorUnitario, allRepuestos, machineId }: TagEventSelectorProps) {
+  const { tags: globalTags, addTag: addGlobalTag, getTagTipo } = useTags(allRepuestos, machineId);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTagNombre, setNewTagNombre] = useState('');
   const [newTagCantidad, setNewTagCantidad] = useState(0);

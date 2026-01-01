@@ -13,7 +13,7 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { Repuesto, HistorialCambio, RepuestoFormData } from '../types';
+import { Repuesto, HistorialCambio, RepuestoFormData, getTagNombre, isTagAsignado } from '../types';
 
 // Construir ruta de colección dinámica por máquina
 const getCollectionPath = (machineId: string) => {
@@ -278,14 +278,21 @@ export function useRepuestos(machineId: string | null) {
       let updatedCount = 0;
 
       for (const repuesto of repuestos) {
-        if (repuesto.tags?.includes(oldTagName)) {
-          const newTags = repuesto.tags.map(t => t === oldTagName ? newTagName : t);
-          batch.update(doc(db, collectionPath, repuesto.id), { 
-            tags: newTags,
-            updatedAt: Timestamp.now()
-          });
-          updatedCount++;
-        }
+        const hasTag = repuesto.tags?.some(t => getTagNombre(t) === oldTagName);
+        if (!hasTag) continue;
+
+        const newTags = (repuesto.tags || []).map((t) => {
+          if (isTagAsignado(t)) {
+            return t.nombre === oldTagName ? { ...t, nombre: newTagName } : t;
+          }
+          return t === oldTagName ? newTagName : t;
+        });
+
+        batch.update(doc(db, collectionPath, repuesto.id), {
+          tags: newTags,
+          updatedAt: Timestamp.now()
+        });
+        updatedCount++;
       }
 
       if (updatedCount > 0) {
@@ -309,14 +316,19 @@ export function useRepuestos(machineId: string | null) {
       let updatedCount = 0;
 
       for (const repuesto of repuestos) {
-        if (repuesto.tags?.includes(tagName)) {
-          const newTags = repuesto.tags.filter(t => t !== tagName);
-          batch.update(doc(db, collectionPath, repuesto.id), { 
-            tags: newTags,
-            updatedAt: Timestamp.now()
-          });
-          updatedCount++;
-        }
+        const hasTag = repuesto.tags?.some(t => getTagNombre(t) === tagName);
+        if (!hasTag) continue;
+
+        const newTags = (repuesto.tags || []).filter((t) => {
+          if (isTagAsignado(t)) return t.nombre !== tagName;
+          return t !== tagName;
+        });
+
+        batch.update(doc(db, collectionPath, repuesto.id), {
+          tags: newTags,
+          updatedAt: Timestamp.now()
+        });
+        updatedCount++;
       }
 
       if (updatedCount > 0) {

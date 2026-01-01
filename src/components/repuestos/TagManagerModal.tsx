@@ -6,6 +6,7 @@ import { X, Tag, Edit2, Trash2, Check, AlertTriangle, Plus, ShoppingCart, Packag
 interface TagManagerModalProps {
   isOpen: boolean;
   onClose: () => void;
+  machineId: string | null;
   repuestos: Repuesto[];
   onRenameTag: (oldName: string, newName: string) => Promise<number>;
   onDeleteTag: (tagName: string) => Promise<number>;
@@ -14,19 +15,21 @@ interface TagManagerModalProps {
 export function TagManagerModal({
   isOpen,
   onClose,
+  machineId,
   repuestos,
   onRenameTag,
   onDeleteTag
 }: TagManagerModalProps) {
   const { 
-    tags: globalTags, 
+    tags: allTags,
+    tagsGlobales,
     addTag, 
     removeTag, 
-    renameTag: renameGlobalTag, 
+    renameTag: renameGlobalTag,
     changeTagTipo,
     loading: tagsLoading, 
     addMultipleTags 
-  } = useTags();
+  } = useTags(repuestos, machineId);
   
   const [editingTag, setEditingTag] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
@@ -60,7 +63,7 @@ export function TagManagerModal({
     if (isOpen && !tagsLoading && tagsEnUso.length > 0) {
       const tagsEnUsoNames = tagsEnUso.map(t => t.name);
       const tagsFaltantes = tagsEnUsoNames.filter(tagName => 
-        !globalTags.some(gt => gt.nombre === tagName)
+        !tagsGlobales.some(gt => gt.nombre === tagName)
       );
       
       if (tagsFaltantes.length > 0) {
@@ -73,7 +76,7 @@ export function TagManagerModal({
         addMultipleTags(tagsToAdd);
       }
     }
-  }, [isOpen, tagsLoading, tagsEnUso, globalTags, addMultipleTags]);
+  }, [isOpen, tagsLoading, tagsEnUso, tagsGlobales, addMultipleTags]);
 
   const handleStartEdit = (tagName: string) => {
     setEditingTag(tagName);
@@ -88,6 +91,11 @@ export function TagManagerModal({
 
   const handleSaveEdit = async () => {
     if (!editingTag || !editValue.trim()) return;
+
+    if (!machineId) {
+      setMessage({ type: 'error', text: 'Selecciona una máquina para gestionar tags' });
+      return;
+    }
     
     const newName = editValue.trim();
     
@@ -98,7 +106,7 @@ export function TagManagerModal({
 
     // Verificar duplicados
     const existsInUse = tagsEnUso.some(t => t.name.toLowerCase() === newName.toLowerCase() && t.name !== editingTag);
-    const existsGlobal = globalTags.some(t => t.nombre.toLowerCase() === newName.toLowerCase() && t.nombre !== editingTag);
+    const existsGlobal = allTags.some(t => t.nombre.toLowerCase() === newName.toLowerCase() && t.nombre !== editingTag);
     
     if (existsInUse || existsGlobal) {
       setMessage({ type: 'error', text: 'Ya existe un tag con ese nombre' });
@@ -138,6 +146,11 @@ export function TagManagerModal({
   const handleConfirmDelete = async () => {
     if (!deletingTag) return;
 
+    if (!machineId) {
+      setMessage({ type: 'error', text: 'Selecciona una máquina para gestionar tags' });
+      return;
+    }
+
     setLoading(true);
     try {
       // Eliminar de lista global
@@ -163,8 +176,13 @@ export function TagManagerModal({
     const trimmed = newTagName.trim();
     if (!trimmed) return;
 
+    if (!machineId) {
+      setMessage({ type: 'error', text: 'Selecciona una máquina para gestionar tags' });
+      return;
+    }
+
     const existsInUse = tagsEnUso.some(t => t.name.toLowerCase() === trimmed.toLowerCase());
-    const existsGlobal = globalTags.some(t => t.nombre.toLowerCase() === trimmed.toLowerCase());
+    const existsGlobal = allTags.some(t => t.nombre.toLowerCase() === trimmed.toLowerCase());
     
     if (existsInUse || existsGlobal) {
       setMessage({ type: 'error', text: 'Ya existe un tag con ese nombre' });
@@ -186,6 +204,11 @@ export function TagManagerModal({
   };
 
   const handleChangeTipo = async (tagNombre: string, nuevoTipo: 'solicitud' | 'stock') => {
+    if (!machineId) {
+      setMessage({ type: 'error', text: 'Selecciona una máquina para gestionar tags' });
+      return;
+    }
+
     setLoading(true);
     try {
       await changeTagTipo(tagNombre, nuevoTipo);
@@ -317,8 +340,8 @@ export function TagManagerModal({
   };
 
   // Separar tags por tipo para mejor visualización
-  const tagsSolicitud = globalTags.filter(t => t.tipo === 'solicitud');
-  const tagsStock = globalTags.filter(t => t.tipo === 'stock');
+  const tagsSolicitud = allTags.filter(t => t.tipo === 'solicitud');
+  const tagsStock = allTags.filter(t => t.tipo === 'stock');
 
   return (
     <div 
@@ -342,7 +365,7 @@ export function TagManagerModal({
             <div>
               <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">Gestor de Tags/Eventos</h2>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                {globalTags.length} tags ({tagsSolicitud.length} solicitudes, {tagsStock.length} stock) • {tagsEnUso.reduce((sum, t) => sum + t.count, 0)} asignaciones
+                {allTags.length} tags ({tagsSolicitud.length} solicitudes, {tagsStock.length} stock) • {tagsEnUso.reduce((sum, t) => sum + t.count, 0)} asignaciones
               </p>
             </div>
           </div>
@@ -453,7 +476,7 @@ export function TagManagerModal({
               <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 Cargando tags...
               </div>
-            ) : globalTags.length === 0 ? (
+            ) : allTags.length === 0 ? (
               <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 <Tag className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
                 <p>No hay tags disponibles</p>

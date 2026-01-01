@@ -1,8 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.4';
+export const APP_VERSION = '4.9.5';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.5',
+    date: '2026-01-01',
+    changes: [
+      '🏷️ FIX: Tags/eventos independientes por máquina (guardado y lectura correctos)',
+      '🧹 FIX: Renombrar/eliminar tags funciona con el formato nuevo (TagAsignado)'
+    ]
+  },
   {
     version: '4.9.4',
     date: '2026-01-01',

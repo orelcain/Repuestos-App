@@ -5,15 +5,17 @@ import { X, ShoppingCart, Package, Plus, AlertTriangle } from 'lucide-react';
 interface CreateContextModalProps {
   isOpen: boolean;
   onClose: () => void;
+  machineId: string | null;
   onContextCreated: (tagName: string, tipo: 'solicitud' | 'stock') => void;
 }
 
 export function CreateContextModal({
   isOpen,
   onClose,
+  machineId,
   onContextCreated
 }: CreateContextModalProps) {
-  const { tags: globalTags, addTag } = useTags();
+  const { tags: globalTags, addTag } = useTags(undefined, machineId);
   const [nombre, setNombre] = useState('');
   const [tipo, setTipo] = useState<'solicitud' | 'stock'>('solicitud');
   const [error, setError] = useState<string | null>(null);
@@ -22,6 +24,11 @@ export function CreateContextModal({
   const handleCreate = async () => {
     const trimmedNombre = nombre.trim();
     
+    if (!machineId) {
+      setError('Selecciona una máquina para crear el contexto');
+      return;
+    }
+
     if (!trimmedNombre) {
       setError('Ingresa un nombre para el contexto/evento');
       return;
