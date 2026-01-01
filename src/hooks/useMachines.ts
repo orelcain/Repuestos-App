@@ -179,9 +179,10 @@ export function useMachines() {
       
       await setDoc(docRef, newMachine);
       console.log('✅ [useMachines] Máquina creada con ID:', slug);
+      console.log('📋 [useMachines] Datos enviados a Firebase:', newMachine);
       
-      // Actualizar estado local
-      await fetchMachines();
+      // NO llamar fetchMachines - el listener onSnapshot actualizará automáticamente
+      // await fetchMachines();
       
       return slug;
     } catch (err) {
@@ -276,9 +277,11 @@ export function useMachines() {
     
     const unsubscribe = onSnapshot(q, 
       (snapshot) => {
+        console.log('🔄 [useMachines] Listener actualizado, total docs:', snapshot.docs.length);
+        
         const machinesData = snapshot.docs.map(doc => {
           const data = doc.data();
-          return {
+          const machine = {
             id: doc.id,
             nombre: data.nombre,
             marca: data.marca,
@@ -291,6 +294,9 @@ export function useMachines() {
             createdAt: data.createdAt?.toDate() || new Date(),
             updatedAt: data.updatedAt?.toDate(),
           } as Machine;
+          
+          console.log(`  📦 [useMachines] ${machine.id}: activa=${data.activa} (interpretado como ${machine.activa})`);
+          return machine;
         });
         
         setMachines(machinesData);
