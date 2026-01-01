@@ -153,6 +153,7 @@ export function RepuestosTable({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [tagFilterMode] = useState<'AND' | 'OR'>('OR');
+  const [mobileControlsOpen, setMobileControlsOpen] = useState(false);
   // Doble contexto: 1 solicitud + 1 stock simultáneo
   const [activeContexts, setActiveContexts] = useState<{ solicitud: string | null; stock: string | null }>({
     solicitud: null,
@@ -720,8 +721,53 @@ export function RepuestosTable({
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-800 transition-colors">
       {/* Header con búsqueda */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700 space-y-3">
-        <div className="flex items-center justify-between flex-wrap gap-2">
+      <div className="sticky top-0 z-20 p-3 lg:p-4 border-b border-gray-200 dark:border-gray-700 space-y-3 bg-white dark:bg-gray-800">
+        {/* Header móvil compacto */}
+        <div className="flex items-center justify-between gap-2 lg:hidden">
+          <div className="flex items-center gap-2 min-w-0">
+            <Package className="w-5 h-5 text-primary-600 shrink-0" />
+            <div className="min-w-0">
+              <div className="text-base font-bold text-gray-800 dark:text-gray-100 truncate">
+                {hasAnyContext ? 'Repuestos' : 'Catálogo'}
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                {filteredRepuestos.length} / {repuestos.length}
+                {hasAnyContext && (
+                  <>
+                    {activeContexts.solicitud && <span className="ml-2">• Sol: {activeContexts.solicitud}</span>}
+                    {activeContexts.stock && <span className="ml-2">• Stock: {activeContexts.stock}</span>}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setMobileControlsOpen(v => !v)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-colors ${
+                mobileControlsOpen
+                  ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300 dark:border-primary-700'
+                  : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200'
+              }`}
+              title="Controles"
+            >
+              <SlidersHorizontal className="w-4 h-4" />
+              <ChevronDown className={`w-4 h-4 transition-transform ${mobileControlsOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            <button
+              onClick={onAddNew}
+              className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary-600 text-white hover:bg-primary-700 transition-colors"
+              title="Agregar"
+            >
+              <Plus className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Header desktop */}
+        <div className="hidden lg:flex items-center justify-between flex-wrap gap-2">
           <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
             <Package className="w-6 h-6 text-primary-600" />
             {hasAnyContext ? 'Repuestos' : 'Catálogo de repuestos'}
@@ -739,6 +785,7 @@ export function RepuestosTable({
               )}
             </span>
           </h2>
+
           <div className="flex items-center gap-2">
             {/* Botón último repuesto editado */}
             {ultimoRepuestoEditado && (
@@ -843,8 +890,148 @@ export function RepuestosTable({
           </div>
         </div>
 
+        {/* Panel móvil plegable (contextos/filtros/acciones) */}
+        {mobileControlsOpen && (
+          <div className="lg:hidden space-y-3">
+            <div className="flex flex-wrap gap-2">
+              {ultimoRepuestoEditado && (
+                <button
+                  onClick={irAlUltimoEditado}
+                  className="flex items-center gap-2 px-3 py-2 border border-orange-300 bg-orange-50 text-orange-700 rounded-xl hover:bg-orange-100 transition-colors"
+                  title={`Ir a ${ultimoRepuestoEditado.codigoSAP}`}
+                >
+                  <History className="w-4 h-4" />
+                  <span className="text-sm font-medium">Último editado</span>
+                </button>
+              )}
+
+              {onManageTags && (
+                <button
+                  onClick={() => onManageTags()}
+                  className="flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-xl transition-colors hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+                >
+                  <Tag className="w-4 h-4" />
+                  <span className="text-sm">Gestor de Tags</span>
+                </button>
+              )}
+
+              <button
+                onClick={() => setFilterSinStock(!filterSinStock)}
+                className={`flex items-center gap-2 px-3 py-2 border rounded-xl transition-colors ${
+                  filterSinStock
+                    ? 'border-red-500 bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700'
+                    : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200'
+                }`}
+                title={filterSinStock ? 'Mostrando sin stock' : 'Filtrar sin stock'}
+              >
+                <AlertTriangle className="w-4 h-4" />
+                <span className="text-sm">Sin stock</span>
+              </button>
+
+              {hasAnyContext && onAddToContext && (
+                <button
+                  onClick={() => setShowAddToListModal(true)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl font-medium transition-colors bg-primary-600 hover:bg-primary-700 text-white"
+                  title="Agregar repuestos a la lista activa"
+                >
+                  <ListPlus className="w-4 h-4" />
+                  <span className="text-sm">Agregar a lista</span>
+                </button>
+              )}
+
+              <button
+                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                className={`flex items-center gap-2 px-3 py-2 border rounded-xl transition-colors ${
+                  showAdvancedFilters || filterConManual !== null || filterSinTags !== null || precioMin || precioMax
+                    ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300 dark:border-primary-700'
+                    : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200'
+                }`}
+                title="Filtros avanzados"
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+                <span className="text-sm">Filtros</span>
+              </button>
+            </div>
+
+            {/* Panel de Totales con Selector de Contexto DUAL */}
+            <div className="flex flex-wrap items-center gap-3 px-3 py-3 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-xl border border-gray-200 dark:border-gray-700">
+              <div className="w-full">
+                <div className="text-xs text-gray-600 dark:text-gray-200 uppercase mb-2">Contextos activos</div>
+                <div className="flex flex-col gap-2">
+                  <div className="relative">
+                    <select
+                      value={activeContexts.solicitud || ''}
+                      onChange={(e) => setActiveContexts(prev => ({ ...prev, solicitud: e.target.value || null }))}
+                      className={`w-full px-3 py-2 text-sm font-medium rounded-xl border transition-colors appearance-none cursor-pointer ${
+                        activeContexts.solicitud
+                          ? 'bg-blue-100 dark:bg-blue-900/50 border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-300'
+                          : 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200'
+                      }`}
+                    >
+                      <option value="">🛒 Solicitud...</option>
+                      {allAvailableTags.filter(t => t.tipo === 'solicitud').map(tag => (
+                        <option key={tag.nombre} value={tag.nombre}>🛒 {tag.nombre}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-gray-400 dark:text-gray-300" />
+                  </div>
+
+                  <div className="relative">
+                    <select
+                      value={activeContexts.stock || ''}
+                      onChange={(e) => setActiveContexts(prev => ({ ...prev, stock: e.target.value || null }))}
+                      className={`w-full px-3 py-2 text-sm font-medium rounded-xl border transition-colors appearance-none cursor-pointer ${
+                        activeContexts.stock
+                          ? 'bg-green-100 dark:bg-green-900/50 border-green-300 dark:border-green-600 text-green-700 dark:text-green-300'
+                          : 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200'
+                      }`}
+                    >
+                      <option value="">📦 Stock...</option>
+                      {allAvailableTags.filter(t => t.tipo === 'stock').map(tag => (
+                        <option key={tag.nombre} value={tag.nombre}>📦 {tag.nombre}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-gray-400 dark:text-gray-300" />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {hasAnyContext && (
+                      <button
+                        onClick={() => setActiveContexts({ solicitud: null, stock: null })}
+                        className="flex-1 px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        title="Limpiar contextos"
+                      >
+                        Limpiar contextos
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setShowImportQuantitiesModal(true)}
+                      disabled={(!hasAnyContext && !onImportCatalogoDesdeExcel) || (!onImportCantidadesPorTag && !onImportCatalogoDesdeExcel)}
+                      className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl transition-colors border ${
+                        (onImportCantidadesPorTag || onImportCatalogoDesdeExcel)
+                          ? 'text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 border-gray-300 dark:border-gray-600'
+                          : 'text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-700 opacity-60 cursor-not-allowed'
+                      }`}
+                      title={
+                        (!onImportCantidadesPorTag && !onImportCatalogoDesdeExcel)
+                          ? 'Importación no disponible'
+                          : hasAnyContext
+                            ? 'Importar desde Excel (puede ser catálogo o contexto)'
+                            : 'Importar solo al catálogo (sin contexto)'
+                      }
+                    >
+                      <FileSpreadsheet className="w-4 h-4" />
+                      Importar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Panel de Totales con Selector de Contexto DUAL */}
-        <div className="flex flex-wrap items-center gap-3 px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-xl border border-gray-200 dark:border-gray-700">
+        <div className="hidden lg:flex flex-wrap items-center gap-3 px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-xl border border-gray-200 dark:border-gray-700">
           {/* Selector de Contextos Duales - Solicitud + Stock */}
           <div className="flex items-center gap-3 pr-4 border-r border-gray-300 dark:border-gray-600">
             <div className="text-center">
@@ -1041,7 +1228,7 @@ export function RepuestosTable({
                 ? `Buscar en contextos activos...` 
                 : "Buscar por código SAP, Baader o descripción..."
               }
-              className="w-full pl-12 pr-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full pl-12 pr-4 py-2.5 lg:py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
           </div>
           
@@ -1059,7 +1246,7 @@ export function RepuestosTable({
           
           <button
             onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-            className={`flex items-center gap-2 px-4 py-3 border rounded-xl transition-colors ${
+            className={`hidden lg:flex items-center gap-2 px-4 py-3 border rounded-xl transition-colors ${
               showAdvancedFilters || filterConManual !== null || filterSinTags !== null || precioMin || precioMax
                 ? 'border-primary-500 bg-primary-50 text-primary-700' 
                 : 'border-gray-300 hover:bg-gray-50'
@@ -2051,71 +2238,73 @@ export function RepuestosTable({
                   </div>
                 )}
 
-                {/* Acciones con mejor estilo PWA */}
-                <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onViewManual(repuesto);
-                      }}
-                      className={`p-2.5 rounded-xl transition-colors ${
-                        hasManualMarker 
-                          ? 'bg-primary-100 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400' 
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500'
-                      }`}
-                      title="Ver en manual"
-                    >
-                      <FileText className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onViewPhotos(repuesto);
-                      }}
-                      className={`p-2.5 rounded-xl transition-colors ${
-                        repuesto.fotosReales?.length > 0 
-                          ? 'bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-400' 
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-300 dark:text-gray-600'
-                      }`}
-                      title="Fotos"
-                    >
-                      <Camera className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onViewHistory(repuesto);
-                      }}
-                      className="p-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors"
-                      title="Historial"
-                    >
-                      <History className="w-5 h-5" />
-                    </button>
+                {/* Acciones: solo visibles cuando la tarjeta está expandida */}
+                {isSelected && (
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onViewManual(repuesto);
+                        }}
+                        className={`p-2.5 rounded-xl transition-colors ${
+                          hasManualMarker
+                            ? 'bg-primary-100 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500'
+                        }`}
+                        title="Ver en manual"
+                      >
+                        <FileText className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onViewPhotos(repuesto);
+                        }}
+                        className={`p-2.5 rounded-xl transition-colors ${
+                          repuesto.fotosReales?.length > 0
+                            ? 'bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-400'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-300 dark:text-gray-600'
+                        }`}
+                        title="Fotos"
+                      >
+                        <Camera className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onViewHistory(repuesto);
+                        }}
+                        className="p-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors"
+                        title="Historial"
+                      >
+                        <History className="w-5 h-5" />
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEdit(repuesto);
+                        }}
+                        className="p-2.5 rounded-xl bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 transition-colors"
+                        title="Editar"
+                      >
+                        <Edit2 className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(repuesto);
+                        }}
+                        className="p-2.5 rounded-xl bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 transition-colors"
+                        title="Eliminar"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEdit(repuesto);
-                      }}
-                      className="p-2.5 rounded-xl bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 transition-colors"
-                      title="Editar"
-                    >
-                      <Edit2 className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete(repuesto);
-                      }}
-                      className="p-2.5 rounded-xl bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 transition-colors"
-                      title="Eliminar"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
+                )}
               </div>
             );
           })}

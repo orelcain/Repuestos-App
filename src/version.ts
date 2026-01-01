@@ -1,8 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.18';
+export const APP_VERSION = '4.9.19';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.19',
+    date: '2026-01-01',
+    changes: [
+      '📱 PWA móvil: Header compacto + panel plegable de controles (contextos/filtros/acciones)',
+      '📱 PWA móvil: Acciones en tarjetas solo al expandir (lista más densa)'
+    ]
+  },
   {
     version: '4.9.18',
     date: '2026-01-01',
