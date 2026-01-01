@@ -1,8 +1,15 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.8';
+export const APP_VERSION = '4.9.9';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.9',
+    date: '2026-01-01',
+    changes: [
+      '🧯 FIX: Crash al cargar tabla (onContextsChange undefined)'
+    ]
+  },
   {
     version: '4.9.8',
     date: '2026-01-01',

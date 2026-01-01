@@ -141,6 +141,7 @@ export function RepuestosTable({
   onFilteredChange,
   onAddToContext,
   onContextChange,
+  onContextsChange,
   compactMode = false
 }: RepuestosTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
