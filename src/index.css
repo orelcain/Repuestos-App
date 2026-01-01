@@ -48,6 +48,20 @@
   border-color: #475569;
 }
 
+/*
+  Algunos navegadores (especialmente en Windows) renderizan el dropdown nativo
+  de <select> con fondo claro aunque el control esté en dark.
+  Esto evita texto claro sobre fondo blanco.
+*/
+.dark select {
+  color-scheme: dark;
+}
+
+.dark option {
+  background-color: #0f172a;
+  color: #f1f5f9;
+}
+
 .dark input::placeholder {
   color: #64748b;
 }

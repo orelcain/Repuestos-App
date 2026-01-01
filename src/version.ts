@@ -1,8 +1,15 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.10';
+export const APP_VERSION = '4.9.11';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.11',
+    date: '2026-01-01',
+    changes: [
+      '🎨 UX: Selects en dark sin dropdown blanco (color-scheme + option styles)'
+    ]
+  },
   {
     version: '4.9.10',
     date: '2026-01-01',
