@@ -1,8 +1,15 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.7';
+export const APP_VERSION = '4.9.8';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.8',
+    date: '2026-01-01',
+    changes: [
+      '📝 Docs: backlog e idea MB51 en ideas-pendientes/README.md'
+    ]
+  },
   {
     version: '4.9.7',
     date: '2026-01-01',
