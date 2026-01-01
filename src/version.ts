@@ -1,8 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.1';
+export const APP_VERSION = '4.9.2';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.2',
+    date: '2026-01-01',
+    changes: [
+      '⚡ PERF: Precarga en segundo plano de manuales (máquina actual primero)',
+      '📶 Mobile-safe: en móvil/datos limitados solo precarga la máquina actual'
+    ]
+  },
   {
     version: '4.9.1',
     date: '2026-01-01',

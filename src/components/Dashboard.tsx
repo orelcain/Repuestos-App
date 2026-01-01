@@ -7,6 +7,7 @@ import { useToast } from '../hooks/useToast';
 import { useTheme } from '../hooks/useTheme';
 import { useUndoRedo } from '../hooks/useUndoRedo';
 import { usePDFPreloader, setGlobalPDFCache } from '../hooks/usePDFPreloader';
+import { useManualWarmup } from '../hooks/useManualWarmup';
 import { useMachineContext } from '../contexts/MachineContext';
 import { Repuesto, RepuestoFormData, ImagenRepuesto, VinculoManual, Machine } from '../types';
 import { APP_VERSION } from '../version';
@@ -96,7 +97,7 @@ type MainView = 'repuestos' | 'stats';
 
 export function Dashboard() {
   const { user, signOut } = useAuth();
-  const { currentMachine } = useMachineContext();
+  const { currentMachine, machines } = useMachineContext();
   
   const machineId = currentMachine?.id || null;
   
@@ -145,6 +146,9 @@ export function Dashboard() {
   
   // Precarga del PDF del manual (carga automática después de 3 segundos)
   const pdfPreloader = usePDFPreloader(pdfUrl, 3000);
+
+  // Precarga liviana de manuales (cache de red) para cambios rápidos entre máquinas
+  useManualWarmup(currentMachine, machines);
   
   // Estado de precarga del editor de marcadores
   const [editorReady, setEditorReady] = useState(editorPreloaded);
