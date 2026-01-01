@@ -26,6 +26,14 @@ export function MachineSelector({ onEditMachine }: MachineSelectorProps) {
   const [editingMachine, setEditingMachine] = useState<Machine | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // DEBUG: Log todas las máquinas
+  useEffect(() => {
+    console.log('🔍 [MachineSelector] Total machines:', machines.length);
+    machines.forEach(m => {
+      console.log(`  - ${m.id}: nombre="${m.nombre}" activa=${m.activa}`);
+    });
+  }, [machines]);
+
   // Filtrar solo máquinas activas
   const activeMachines = machines.filter(m => m.activa);
 
