@@ -1,8 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.3';
+export const APP_VERSION = '4.9.4';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.4',
+    date: '2026-01-01',
+    changes: [
+      '📊 UX: Barra de avance de precarga bajo “Manuales [Máquina]”',
+      '🔎 Hover: detalle de progreso por manual + estado del editor'
+    ]
+  },
   {
     version: '4.9.3',
     date: '2026-01-01',

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Machine } from '../types';
 
 function isMobileLikeDevice() {
@@ -25,6 +25,8 @@ function canPrefetchAggressively() {
 
 async function prefetchUrl(url: string): Promise<void> {
   try {
+    setUrlState(url, { status: 'fetching' });
+
     // cache: 'force-cache' ayuda a que el navegador reutilice la descarga
     const resp = await fetch(url, {
       method: 'GET',
@@ -33,17 +35,62 @@ async function prefetchUrl(url: string): Promise<void> {
       credentials: 'omit'
     });
 
-    // Consumir el body garantiza que se descargue completo (mejor para cambios rápidos)
-    // Si falla por tamaño/memoria, el catch lo ignora.
-    if (resp.ok) {
-      await resp.arrayBuffer();
+    if (!resp.ok) {
+      setUrlState(url, { status: 'error' });
+      return;
     }
+
+    const totalHeader = resp.headers.get('content-length');
+    const totalBytes = totalHeader ? Number(totalHeader) : 0;
+
+    // Consumir el body garantiza que se descargue completo.
+    // Si hay content-length y streaming disponible, reportar progreso real.
+    if (resp.body && totalBytes > 0 && typeof resp.body.getReader === 'function') {
+      const reader = resp.body.getReader();
+      let loadedBytes = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) {
+          loadedBytes += value.byteLength;
+          setUrlState(url, { loadedBytes, totalBytes, status: 'fetching' });
+        }
+      }
+
+      setUrlState(url, { loadedBytes: totalBytes, totalBytes, status: 'done' });
+      return;
+    }
+
+    // Fallback: sin streaming o sin content-length
+    await resp.arrayBuffer();
+    setUrlState(url, {
+      loadedBytes: totalBytes > 0 ? totalBytes : undefined,
+      totalBytes: totalBytes > 0 ? totalBytes : undefined,
+      status: 'done'
+    });
   } catch {
     // Silencioso: es solo optimización
+    setUrlState(url, { status: 'error' });
   }
 }
 
+type WarmupStatus = 'queued' | 'fetching' | 'done' | 'error';
+
+type UrlWarmupState = {
+  url: string;
+  status: WarmupStatus;
+  loadedBytes?: number;
+  totalBytes?: number;
+  updatedAt: number;
+};
+
 type QueueItem = { url: string };
+
+type WarmupSnapshot = {
+  running: boolean;
+  byUrl: Record<string, UrlWarmupState>;
+};
 
 const globalQueue = {
   queue: [] as QueueItem[],
@@ -51,7 +98,52 @@ const globalQueue = {
   done: new Set<string>(),
   running: false,
   currentRunToken: 0,
+  byUrl: new Map<string, UrlWarmupState>(),
+  listeners: new Set<(s: WarmupSnapshot) => void>(),
+  notifyScheduled: false,
 };
+
+function toSnapshot(): WarmupSnapshot {
+  const byUrl: Record<string, UrlWarmupState> = {};
+  for (const [url, state] of globalQueue.byUrl.entries()) {
+    byUrl[url] = state;
+  }
+  return {
+    running: globalQueue.running,
+    byUrl,
+  };
+}
+
+function notify() {
+  if (globalQueue.notifyScheduled) return;
+  globalQueue.notifyScheduled = true;
+  requestAnimationFrame(() => {
+    globalQueue.notifyScheduled = false;
+    const snap = toSnapshot();
+    for (const l of globalQueue.listeners) l(snap);
+  });
+}
+
+function setUrlState(url: string, patch: Partial<Omit<UrlWarmupState, 'url' | 'updatedAt'>>) {
+  const prev = globalQueue.byUrl.get(url);
+  const next: UrlWarmupState = {
+    url,
+    status: patch.status || prev?.status || 'queued',
+    loadedBytes: patch.loadedBytes ?? prev?.loadedBytes,
+    totalBytes: patch.totalBytes ?? prev?.totalBytes,
+    updatedAt: Date.now(),
+  };
+  globalQueue.byUrl.set(url, next);
+  notify();
+}
+
+export function subscribeManualWarmup(listener: (s: WarmupSnapshot) => void) {
+  globalQueue.listeners.add(listener);
+  listener(toSnapshot());
+  return () => {
+    globalQueue.listeners.delete(listener);
+  };
+}
 
 function scheduleIdle(fn: () => void) {
   const win = window as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => void };
@@ -68,6 +160,7 @@ function enqueueUrls(urls: string[], priority: 'front' | 'back') {
     if (globalQueue.done.has(url)) continue;
     if (globalQueue.queued.has(url)) continue;
     globalQueue.queued.add(url);
+    setUrlState(url, { status: 'queued' });
     const item = { url };
     if (priority === 'front') globalQueue.queue.unshift(item);
     else globalQueue.queue.push(item);
@@ -77,6 +170,7 @@ function enqueueUrls(urls: string[], priority: 'front' | 'back') {
 async function runQueue(concurrency: number) {
   if (globalQueue.running) return;
   globalQueue.running = true;
+  notify();
   const token = ++globalQueue.currentRunToken;
 
   const worker = async () => {
@@ -92,6 +186,7 @@ async function runQueue(concurrency: number) {
     await Promise.all(new Array(Math.max(1, concurrency)).fill(null).map(() => worker()));
   } finally {
     globalQueue.running = false;
+    notify();
   }
 }
 
@@ -104,6 +199,7 @@ async function runQueue(concurrency: number) {
  */
 export function useManualWarmup(currentMachine: Machine | null, machines: Machine[]) {
   const hasMountedRef = useRef(false);
+  const [snapshot, setSnapshot] = useState<WarmupSnapshot>(() => toSnapshot());
 
   const machineManualUrls = useMemo(() => {
     const byMachine = new Map<string, string[]>();
@@ -113,6 +209,11 @@ export function useManualWarmup(currentMachine: Machine | null, machines: Machin
     }
     return byMachine;
   }, [machines]);
+
+  // Suscribirse a la cola global para mostrar progreso en UI
+  useEffect(() => {
+    return subscribeManualWarmup(setSnapshot);
+  }, []);
 
   useEffect(() => {
     if (!currentMachine) return;
@@ -153,4 +254,65 @@ export function useManualWarmup(currentMachine: Machine | null, machines: Machin
       }
     };
   }, [currentMachine?.id, machineManualUrls]);
+
+  const currentMachineUrls = currentMachine ? (machineManualUrls.get(currentMachine.id) || []) : [];
+
+  const currentMachineProgress = useMemo(() => {
+    if (!currentMachine || currentMachineUrls.length === 0) {
+      return { percent: 0, status: 'queued' as WarmupStatus, items: [] as UrlWarmupState[] };
+    }
+
+    const items = currentMachineUrls
+      .map((u) => snapshot.byUrl[u])
+      .filter(Boolean)
+      .map((s) => s as UrlWarmupState);
+
+    // Si aún no hay estados (primer render), marcar queued
+    const effectiveItems: UrlWarmupState[] = items.length > 0
+      ? items
+      : currentMachineUrls.map((u) => ({
+          url: u,
+          status: 'queued' as WarmupStatus,
+          loadedBytes: undefined,
+          totalBytes: undefined,
+          updatedAt: 0,
+        }));
+
+    // Percent ponderado por bytes cuando haya totalBytes, sino promedio simple.
+    let weightedTotal = 0;
+    let weightedLoaded = 0;
+    let simpleSum = 0;
+    let simpleCount = 0;
+
+    for (const it of effectiveItems) {
+      const total = it.totalBytes;
+      const loaded = it.loadedBytes;
+      if (total && total > 0 && typeof loaded === 'number') {
+        weightedTotal += total;
+        weightedLoaded += Math.min(loaded, total);
+      } else {
+        // Estimar: done=100, fetching=50, queued=0, error=0
+        const est = it.status === 'done' ? 100 : it.status === 'fetching' ? 50 : 0;
+        simpleSum += est;
+        simpleCount += 1;
+      }
+    }
+
+    const pctWeighted = weightedTotal > 0 ? Math.round((weightedLoaded / weightedTotal) * 100) : null;
+    const pctSimple = simpleCount > 0 ? Math.round(simpleSum / simpleCount) : 0;
+    const percent = pctWeighted ?? pctSimple;
+
+    const anyError = effectiveItems.some((i) => i.status === 'error');
+    const allDone = effectiveItems.every((i) => i.status === 'done');
+    const anyFetching = effectiveItems.some((i) => i.status === 'fetching');
+    const status: WarmupStatus = allDone ? 'done' : anyError ? 'error' : anyFetching ? 'fetching' : 'queued';
+
+    return { percent, status, items: effectiveItems };
+  }, [currentMachine, currentMachineUrls, snapshot.byUrl]);
+
+  return {
+    running: snapshot.running,
+    currentMachineProgress,
+    byUrl: snapshot.byUrl,
+  };
 }

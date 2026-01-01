@@ -25,6 +25,7 @@ import { TagManagerModal } from './repuestos/TagManagerModal';
 import { ImageGallery } from './gallery/ImageGallery';
 import { ActivityLogModal } from './ActivityLogModal';
 import { ContextComparator } from './ContextComparator';
+import Tooltip from './common/Tooltip';
 
 // Lazy load PDF components para optimizar carga inicial
 const PDFViewer = lazy(() => import('./pdf/PDFViewer').then(module => ({ default: module.PDFViewer })));
@@ -148,7 +149,7 @@ export function Dashboard() {
   const pdfPreloader = usePDFPreloader(pdfUrl, 3000);
 
   // Precarga liviana de manuales (cache de red) para cambios rápidos entre máquinas
-  useManualWarmup(currentMachine, machines);
+  const manualWarmup = useManualWarmup(currentMachine, machines);
   
   // Estado de precarga del editor de marcadores
   const [editorReady, setEditorReady] = useState(editorPreloaded);
@@ -805,14 +806,88 @@ export function Dashboard() {
               className="relative"
             >
               {currentMachine ? (
-                <>
-                  <span>Manuales {currentMachine.nombre}</span>
+                <div className="flex flex-col items-start">
+                  <div className="flex items-center">
+                    <span>Manuales {currentMachine.nombre}</span>
+                    {currentMachine.manuals && currentMachine.manuals.length > 0 && (
+                      <span className="ml-1.5 px-1.5 py-0.5 text-xs font-semibold bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 rounded-full">
+                        {currentMachine.manuals.length}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Barra de precarga (solo si hay manuales) */}
                   {currentMachine.manuals && currentMachine.manuals.length > 0 && (
-                    <span className="ml-1.5 px-1.5 py-0.5 text-xs font-semibold bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 rounded-full">
-                      {currentMachine.manuals.length}
-                    </span>
+                    <Tooltip
+                      position="bottom"
+                      delay={250}
+                      maxWidth={380}
+                      content={(
+                        <div className="space-y-3">
+                          <div className="text-xs font-semibold text-gray-200">
+                            Precarga manuales: {currentMachine.nombre}
+                          </div>
+
+                          <div className="space-y-2">
+                            {manualWarmup.currentMachineProgress.items.map((it, index) => {
+                              const fileName = it.url.split('/').pop()?.split('?')[0] || `Manual ${index + 1}`;
+                              const decodedName = decodeURIComponent(fileName);
+                              const totalBytes = typeof it.totalBytes === 'number' ? it.totalBytes : 0;
+                              const loadedBytes = typeof it.loadedBytes === 'number' ? it.loadedBytes : 0;
+                              const hasTotal = totalBytes > 0;
+                              const pct = hasTotal
+                                ? Math.max(0, Math.min(100, Math.round((loadedBytes / totalBytes) * 100)))
+                                : it.status === 'done' ? 100 : it.status === 'fetching' ? 50 : 0;
+
+                              return (
+                                <div key={it.url} className="space-y-1">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="text-xs text-gray-300 truncate max-w-[250px]">
+                                      {decodedName}
+                                    </span>
+                                    <span className="text-[11px] text-gray-400">
+                                      {it.status === 'done' ? 'Listo' : it.status === 'fetching' ? `${pct}%` : it.status === 'error' ? 'Error' : 'En cola'}
+                                    </span>
+                                  </div>
+                                  <div className="h-1.5 w-full rounded-full bg-gray-700 overflow-hidden">
+                                    <div
+                                      className={`h-full rounded-full ${it.status === 'done' ? 'bg-primary-400' : it.status === 'fetching' ? 'bg-primary-500' : it.status === 'error' ? 'bg-red-500' : 'bg-gray-600'}`}
+                                      style={{ width: `${pct}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          <div className="pt-2 border-t border-gray-600">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs text-gray-300">Editor de marcadores</span>
+                              <span className="text-[11px] text-gray-400">
+                                {editorReady ? 'Listo' : editorLoading ? 'Cargando' : 'Pendiente'}
+                              </span>
+                            </div>
+                            <div className="mt-1 h-1.5 w-full rounded-full bg-gray-700 overflow-hidden">
+                              <div
+                                className={`${editorReady ? 'bg-primary-400' : editorLoading ? 'bg-primary-500 animate-pulse' : 'bg-gray-600'} h-full rounded-full`}
+                                style={{ width: editorReady ? '100%' : editorLoading ? '60%' : '0%' }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    >
+                      <div className="mt-1 w-[160px]">
+                        <div className="h-1.5 w-full rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                          <div
+                            className={`${manualWarmup.currentMachineProgress.status === 'done' ? 'bg-primary-500' : manualWarmup.currentMachineProgress.status === 'fetching' ? 'bg-primary-600' : manualWarmup.currentMachineProgress.status === 'error' ? 'bg-red-500' : 'bg-gray-400'} h-full rounded-full transition-[width] duration-200`}
+                            style={{ width: `${manualWarmup.currentMachineProgress.percent}%` }}
+                          />
+                        </div>
+                      </div>
+                    </Tooltip>
                   )}
-                </>
+                </div>
               ) : (
                 'Manual'
               )}
