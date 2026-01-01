@@ -1,8 +1,15 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.15';
+export const APP_VERSION = '4.9.16';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.16',
+    date: '2026-01-01',
+    changes: [
+      '🧾 Tabla: En modo catálogo oculta por defecto columnas de Solicitud/Stock y Total General USD'
+    ]
+  },
   {
     version: '4.9.15',
     date: '2026-01-01',

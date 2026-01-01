@@ -262,6 +262,13 @@ export function RepuestosTable({
     if (compactMode && compactHiddenColumns.includes(columnKey)) {
       return false;
     }
+
+    // En modo catálogo (sin contextos activos), ocultar columnas de solicitud/stock y total general.
+    if (!hasAnyContext) {
+      if (solicitudColumns.includes(columnKey)) return false;
+      if (stockColumns.includes(columnKey)) return false;
+      if (columnKey === 'totalUSD') return false;
+    }
     
     // Si hay contextos activos, mostrar columnas según qué contextos estén activos
     if (hasAnyContext) {
