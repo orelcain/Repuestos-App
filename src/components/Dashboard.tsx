@@ -1234,8 +1234,8 @@ export function Dashboard() {
                     onEditMarker={selectedRepuesto ? (marker) => handleMarkInManual(selectedRepuesto, marker) : undefined}
                     onDeleteMarker={selectedRepuesto ? (marker) => handleDeleteMarker(selectedRepuesto, marker.id) : undefined}
                     onAddMarker={selectedRepuesto ? () => handleMarkInManual(selectedRepuesto) : undefined}
-                    preloadedPDF={pdfPreloader.pdf}
-                    preloadedText={pdfPreloader.textContent}
+                    preloadedPDF={pdfPreloader.url === pdfUrl ? pdfPreloader.pdf : null}
+                    preloadedText={pdfPreloader.url === pdfUrl ? pdfPreloader.textContent : undefined}
                   />
                 </Suspense>
               ) : (

@@ -5,6 +5,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
 
 interface PDFPreloaderState {
+  url: string | null;
   pdf: pdfjsLib.PDFDocumentProxy | null;
   loading: boolean;
   loaded: boolean;
@@ -24,6 +25,7 @@ interface UsePDFPreloaderReturn extends PDFPreloaderState {
  */
 export function usePDFPreloader(pdfUrl: string | null, delayMs: number = 3000): UsePDFPreloaderReturn {
   const [state, setState] = useState<PDFPreloaderState>({
+    url: null,
     pdf: null,
     loading: false,
     loaded: false,
@@ -32,7 +34,6 @@ export function usePDFPreloader(pdfUrl: string | null, delayMs: number = 3000): 
     textContent: new Map()
   });
   
-  const hasStartedLoading = useRef(false);
   const preloadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Precargar texto de todas las páginas
@@ -74,9 +75,22 @@ export function usePDFPreloader(pdfUrl: string | null, delayMs: number = 3000): 
 
   // Función de precarga manual
   const preloadPDF = useCallback(async (url: string) => {
-    if (state.loaded || state.loading) return;
+    // Si ya estamos (o estuvimos) cargando este mismo URL, no repetir
+    if (state.url === url && (state.loaded || state.loading)) return;
+    // Si cambió el URL, resetear estado antes de precargar
+    if (state.url !== url) {
+      setState({
+        url,
+        pdf: null,
+        loading: false,
+        loaded: false,
+        error: null,
+        totalPages: 0,
+        textContent: new Map()
+      });
+    }
     
-    setState(prev => ({ ...prev, loading: true, error: null }));
+    setState(prev => ({ ...prev, url, loading: true, error: null }));
     
     try {
       console.log('[PDFPreloader] Iniciando precarga del manual...');
@@ -92,6 +106,7 @@ export function usePDFPreloader(pdfUrl: string | null, delayMs: number = 3000): 
       console.log(`[PDFPreloader] Texto precargado para ${textContent.size} páginas`);
       
       setState({
+        url,
         pdf: pdfDoc,
         loading: false,
         loaded: true,
@@ -104,6 +119,7 @@ export function usePDFPreloader(pdfUrl: string | null, delayMs: number = 3000): 
       console.error('[PDFPreloader] Error al precargar PDF:', err);
       setState(prev => ({
         ...prev,
+        url,
         loading: false,
         error: 'Error al precargar el manual PDF'
       }));
@@ -112,10 +128,12 @@ export function usePDFPreloader(pdfUrl: string | null, delayMs: number = 3000): 
 
   // Iniciar precarga automática después del delay
   useEffect(() => {
-    if (!pdfUrl || hasStartedLoading.current) return;
+    if (!pdfUrl) return;
+
+    // Si ya está listo para este URL, no hacer nada
+    if (state.url === pdfUrl && (state.loaded || state.loading)) return;
     
     preloadTimeoutRef.current = setTimeout(() => {
-      hasStartedLoading.current = true;
       preloadPDF(pdfUrl);
     }, delayMs);
     
@@ -124,7 +142,7 @@ export function usePDFPreloader(pdfUrl: string | null, delayMs: number = 3000): 
         clearTimeout(preloadTimeoutRef.current);
       }
     };
-  }, [pdfUrl, delayMs, preloadPDF]);
+  }, [pdfUrl, delayMs, preloadPDF, state.url, state.loaded, state.loading]);
 
   return {
     ...state,

@@ -1,8 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.0';
+export const APP_VERSION = '4.9.1';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.1',
+    date: '2026-01-01',
+    changes: [
+      '📄 FIX: El visor PDF ya no se queda pegado al primer manual (precarga por URL)',
+      '✅ Marcadores ahora respetan el manual de la máquina seleccionada'
+    ]
+  },
   {
     version: '4.9.0',
     date: '2026-01-01',
