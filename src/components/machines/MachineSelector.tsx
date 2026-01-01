@@ -85,7 +85,7 @@ export function MachineSelector({ onEditMachine }: MachineSelectorProps) {
         {/* Botón principal del selector */}
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-3 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors min-w-[200px]"
+          className="flex items-center gap-3 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors min-w-[200px]"
         >
           {/* Color indicator */}
           <div
@@ -121,7 +121,7 @@ export function MachineSelector({ onEditMachine }: MachineSelectorProps) {
                       group flex items-center gap-3 px-4 py-2 cursor-pointer transition-colors
                       ${currentMachine?.id === machine.id 
                         ? 'bg-primary-50 dark:bg-primary-900/20' 
-                        : 'hover:bg-gray-50 dark:hover:bg-gray-750'
+                        : 'hover:bg-gray-50 dark:hover:bg-gray-700'
                       }
                     `}
                     onClick={() => handleSelectMachine(machine.id)}
@@ -166,7 +166,7 @@ export function MachineSelector({ onEditMachine }: MachineSelectorProps) {
             {/* Botón crear nueva */}
             <button
               onClick={handleNewMachine}
-              className="w-full flex items-center gap-3 px-4 py-2 text-primary-600 dark:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-2 text-primary-600 dark:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               <Plus className="w-4 h-4" />
               <span className="font-medium">Crear nueva máquina</span>

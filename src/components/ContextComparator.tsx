@@ -669,7 +669,7 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
 
               {/* Estadísticas por contexto */}
               {selectedTags.length >= 2 && (
-                <div className={`p-3 rounded-lg ${isDarkMode ? 'bg-gray-750' : 'bg-gray-50'}`}>
+                <div className={`p-3 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
                   <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
                     <BarChart3 className="w-4 h-4 text-purple-500" />
                     Resumen por contexto
@@ -698,7 +698,7 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
 
               {/* Panel de cobertura */}
               {solicitudTag && stockTag && coberturaStats && (
-                <div className={`p-3 rounded-lg border-2 ${isDarkMode ? 'bg-gray-750 border-purple-700' : 'bg-purple-50 border-purple-200'}`}>
+                <div className={`p-3 rounded-lg border-2 ${isDarkMode ? 'bg-gray-700 border-purple-700' : 'bg-purple-50 border-purple-200'}`}>
                   <h3 className="text-sm font-semibold mb-2 flex items-center gap-2 text-purple-700 dark:text-purple-300" title="Análisis de qué tanto el stock en bodega cubre la cantidad solicitada">
                     <Target className="w-4 h-4" />
                     Cobertura de Bodega
@@ -741,7 +741,7 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
 
               {/* Diferencias (2 contextos) */}
               {diffStats && selectedTags.length === 2 && (
-                <div className={`p-3 rounded-lg ${isDarkMode ? 'bg-gray-750' : 'bg-gray-50'}`}>
+                <div className={`p-3 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
                   <h3 className="text-sm font-semibold mb-2 flex items-center gap-2" title={`Comparación entre:\n① ${selectedTags[0]}\n② ${selectedTags[1]}\n\nMuestra cuántos repuestos tienen más, igual o menos cantidad en el contexto ① vs ②`}>
                     <Percent className="w-4 h-4 text-orange-500" />
                     Diferencias
@@ -764,7 +764,7 @@ export const ContextComparator: React.FC<ContextComparatorProps> = ({
 
               {/* Comparación vs referencia (2+ contextos) */}
               {selectedTags.length >= 2 && refStats.length > 0 && (
-                <div className={`p-3 rounded-lg border ${isDarkMode ? 'bg-gray-750 border-blue-700' : 'bg-blue-50 border-blue-200'}`}>
+                <div className={`p-3 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-blue-700' : 'bg-blue-50 border-blue-200'}`}>
                   <h3 className="text-sm font-semibold mb-2 flex items-center gap-2 text-blue-700 dark:text-blue-300" title="Compara cada contexto contra el contexto de referencia seleccionado.\n\nPermite ver cómo varían las cantidades respecto a una base.">
                     <Target className="w-4 h-4" />
                     vs Referencia

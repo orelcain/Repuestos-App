@@ -1,8 +1,15 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.12';
+export const APP_VERSION = '4.9.13';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.13',
+    date: '2026-01-01',
+    changes: [
+      '🎨 UX: Hover correcto en modo oscuro (fix dark:hover:bg-gray-750)'
+    ]
+  },
   {
     version: '4.9.12',
     date: '2026-01-01',
