@@ -1775,39 +1775,49 @@ export function RepuestosTable({
 
       {/* Vista de tarjetas para móvil/tablet */}
       <div className="flex-1 overflow-auto lg:hidden">
-        <div className="p-3 space-y-3">
+        <div className="p-3 space-y-2">
           {paginatedRepuestos.map((repuesto) => {
             const hasManualMarker = repuesto.vinculosManual && repuesto.vinculosManual.length > 0;
             const isLastEdited = ultimoRepuestoEditado?.id === repuesto.id;
+            const isSelected = selectedRepuesto?.id === repuesto.id;
+
+            const cantidadSolicitud = hasAnyContext ? getCantidadPorContexto(repuesto, 'solicitud') : 0;
+            const cantidadStock = hasAnyContext ? getCantidadPorContexto(repuesto, 'stock') : 0;
+            const totalContexto = hasAnyContext
+              ? (repuesto.valorUnitario || 0) * (cantidadSolicitud + cantidadStock)
+              : 0;
+
+            const descripcionCorta =
+              repuesto.textoBreve || repuesto.descripcion || (repuesto.nombreManual ? `Manual: ${repuesto.nombreManual}` : '');
             
             return (
               <div
                 key={repuesto.id}
                 onClick={() => onSelect(selectedRepuesto?.id === repuesto.id ? null : repuesto)}
                 className={`
-                  bg-white dark:bg-gray-800 rounded-2xl border-2 p-4 cursor-pointer transition-all shadow-sm
+                  bg-white dark:bg-gray-800 rounded-xl border p-3 cursor-pointer transition-all
                   ${isLastEdited
-                    ? 'border-orange-400 dark:border-orange-500 bg-orange-50 dark:bg-orange-900/20 shadow-orange-200 dark:shadow-orange-900/30 shadow-md'
-                    : selectedRepuesto?.id === repuesto.id 
-                      ? 'border-primary-500 dark:border-primary-400 shadow-lg shadow-primary-200 dark:shadow-primary-900/30' 
-                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-md'
+                    ? 'border-orange-400 dark:border-orange-500 bg-orange-50 dark:bg-orange-900/20 shadow-sm'
+                    : isSelected
+                      ? 'border-primary-500 dark:border-primary-400 shadow-sm'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                   }
                 `}
               >
                 {/* Badge de último editado */}
                 {isLastEdited && (
-                  <div className="flex items-center gap-1 text-xs font-medium text-orange-600 dark:text-orange-400 mb-2">
-                    <span className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
+                  <div className="flex items-center gap-1 text-xs font-medium text-orange-600 dark:text-orange-400 mb-1">
+                    <span className="w-2 h-2 bg-orange-500 rounded-full" />
                     Último editado
                   </div>
                 )}
                 
                 {/* Header con códigos */}
-                <div className="flex items-start justify-between gap-2 mb-3">
-                  <div className="flex-1 min-w-0 space-y-1.5">
-                    <div className="flex items-center gap-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex items-center gap-2 min-w-0">
                       <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide">SAP</span>
-                      <span className="font-mono text-sm bg-gray-100 dark:bg-gray-700 px-2.5 py-1 rounded-lg font-bold text-gray-800 dark:text-gray-200">
+                      <span className="font-mono text-sm bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-lg font-bold text-gray-800 dark:text-gray-200 truncate">
                         {repuesto.codigoSAP}
                       </span>
                       <button
@@ -1824,7 +1834,7 @@ export function RepuestosTable({
                         )}
                       </button>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
                       <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide">Part#</span>
                       <span className="font-mono text-sm text-primary-600 dark:text-primary-400 font-bold">
                         {repuesto.codigoBaader}
@@ -1850,7 +1860,7 @@ export function RepuestosTable({
                         e.stopPropagation();
                         onMarkInManual(repuesto);
                       }}
-                      className="p-2.5 rounded-xl bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400"
+                      className="p-2 rounded-xl bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400"
                       title="Marcar en manual"
                     >
                       <MapPin className="w-5 h-5" />
@@ -1858,47 +1868,77 @@ export function RepuestosTable({
                   )}
                 </div>
 
-                {/* Descripciones con mejor legibilidad */}
-                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3 mb-3 space-y-1.5">
-                  {/* Descripción SAP */}
-                  {repuesto.textoBreve && (
-                    <p className="text-sm text-gray-800 dark:text-gray-200 font-medium line-clamp-2">
-                      {repuesto.textoBreve}
-                    </p>
-                  )}
-                  {/* Descripción Extendida */}
-                  {repuesto.descripcion && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-                      {repuesto.descripcion}
-                    </p>
-                  )}
-                  {/* Nombre Manual - si es diferente */}
-                  {repuesto.nombreManual && repuesto.nombreManual !== repuesto.textoBreve && (
-                    <p className="text-xs text-primary-600 dark:text-primary-400 italic">
-                      Manual: {repuesto.nombreManual}
-                    </p>
-                  )}
-                  {/* Si no hay ninguna descripción */}
-                  {!repuesto.textoBreve && !repuesto.descripcion && !repuesto.nombreManual && (
-                    <p className="text-sm text-gray-400 dark:text-gray-500 italic">Sin descripción</p>
-                  )}
-                </div>
+                {/* Resumen compacto */}
+                {descripcionCorta && (
+                  <p className="mt-2 text-sm text-gray-700 dark:text-gray-200 line-clamp-1">
+                    {descripcionCorta}
+                  </p>
+                )}
+
+                {hasAnyContext && (
+                  <div className="mt-2 text-xs text-gray-600 dark:text-gray-300 flex flex-wrap gap-x-2 gap-y-1">
+                    {!!activeContexts.solicitud && (
+                      <span className="inline-flex items-center gap-1">
+                        <ShoppingCart className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                        <span className="font-semibold">{cantidadSolicitud}</span>
+                      </span>
+                    )}
+                    {!!activeContexts.stock && (
+                      <span className="inline-flex items-center gap-1">
+                        <Package className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
+                        <span className="font-semibold">{cantidadStock}</span>
+                      </span>
+                    )}
+                    <span className="inline-flex items-center gap-1">
+                      <span className="text-gray-400 dark:text-gray-500">V.U.</span>
+                      <span className="font-semibold">${repuesto.valorUnitario?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}</span>
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <span className="text-gray-400 dark:text-gray-500">Total</span>
+                      <span className="font-semibold">${totalContexto.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </span>
+                  </div>
+                )}
+
+                {/* Detalles solo cuando está seleccionada (expandida) */}
+                {isSelected && (
+                  <>
+                    <div className="mt-2 bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3 space-y-1.5">
+                      {repuesto.textoBreve && (
+                        <p className="text-sm text-gray-800 dark:text-gray-200 font-medium line-clamp-2">
+                          {repuesto.textoBreve}
+                        </p>
+                      )}
+                      {repuesto.descripcion && (
+                        <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                          {repuesto.descripcion}
+                        </p>
+                      )}
+                      {repuesto.nombreManual && repuesto.nombreManual !== repuesto.textoBreve && (
+                        <p className="text-xs text-primary-600 dark:text-primary-400 italic">
+                          Manual: {repuesto.nombreManual}
+                        </p>
+                      )}
+                      {!repuesto.textoBreve && !repuesto.descripcion && !repuesto.nombreManual && (
+                        <p className="text-sm text-gray-400 dark:text-gray-500 italic">Sin descripción</p>
+                      )}
+                    </div>
+                  </>
+                )}
 
                 {/* Tags - si hay contextos, mostrar solo los relevantes (solicitud/stock); si no, mostrar todos */}
-                {repuesto.tags && repuesto.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mb-3">
+                {isSelected && repuesto.tags && repuesto.tags.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
                     {repuesto.tags
                       .filter(tag => {
                         if (!hasAnyContext) return true;
 
-                        // Formato nuevo: TagAsignado
                         if (isTagAsignado(tag)) {
                           const matchesSolicitud = !!activeContexts.solicitud && tag.tipo === 'solicitud' && tag.nombre === activeContexts.solicitud;
                           const matchesStock = !!activeContexts.stock && tag.tipo === 'stock' && tag.nombre === activeContexts.stock;
                           return matchesSolicitud || matchesStock;
                         }
 
-                        // Formato antiguo: string (no conocemos tipo)
                         const tagNombre = String(tag);
                         return (
                           (!!activeContexts.solicitud && tagNombre === activeContexts.solicitud) ||
@@ -1909,11 +1949,11 @@ export function RepuestosTable({
                         const tagInfo = isTagAsignado(tag) ? tag : null;
                         const isSolicitud = tagInfo?.tipo === 'solicitud';
                         return (
-                          <span 
-                            key={`${getTagNombre(tag)}-${index}`} 
-                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold ${
-                              isSolicitud 
-                                ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700' 
+                          <span
+                            key={`${getTagNombre(tag)}-${index}`}
+                            className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold ${
+                              isSolicitud
+                                ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700'
                                 : 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-700'
                             }`}
                           >
@@ -1926,14 +1966,25 @@ export function RepuestosTable({
                 )}
 
                 {/* Grid de datos numéricos - usar cantidades según contextos seleccionados */}
-                <div className="grid grid-cols-2 gap-2 mb-3">
+                {isSelected && (
+                  <div className="mt-3 grid grid-cols-2 gap-2">
                   {/* Cantidad Solicitada */}
                   {(!hasAnyContext || !!activeContexts.solicitud) && (
-                    <div className={`rounded-xl p-3 ${activeContexts.solicitud ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'}`}>
+                    <div
+                      className={`rounded-xl p-3 ${
+                        activeContexts.solicitud
+                          ? 'bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800'
+                          : 'bg-gray-50 dark:bg-gray-700'
+                      }`}
+                    >
                       <span className="text-xs text-gray-500 dark:text-gray-400 block font-medium">
                         {activeContexts.solicitud ? `Solicitada "${activeContexts.solicitud}"` : 'Cant. Solicitada'}
                       </span>
-                      <span className={`text-2xl font-black ${activeContexts.solicitud ? 'text-blue-700' : 'text-gray-800'}`}>
+                      <span
+                        className={`text-2xl font-black ${
+                          activeContexts.solicitud ? 'text-blue-700 dark:text-blue-300' : 'text-gray-800 dark:text-gray-200'
+                        }`}
+                      >
                         {activeContexts.solicitud ? getCantidadPorContexto(repuesto, 'solicitud') : '--'}
                       </span>
                     </div>
@@ -1944,19 +1995,27 @@ export function RepuestosTable({
                     const hasStockContext = !!activeContexts.stock;
                     const stockValue = hasStockContext ? getCantidadPorContexto(repuesto, 'stock') : 0;
                     return (
-                      <div className={`rounded-xl p-3 ${
-                        hasStockContext 
-                          ? stockValue > 0 ? 'bg-green-50 border border-green-200' : 'bg-orange-50 border border-orange-200' 
-                          : 'bg-gray-50'
-                      }`}>
+                      <div
+                        className={`rounded-xl p-3 ${
+                          hasStockContext
+                            ? stockValue > 0
+                              ? 'bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800'
+                              : 'bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-800'
+                            : 'bg-gray-50 dark:bg-gray-700'
+                        }`}
+                      >
                         <span className="text-xs text-gray-500 dark:text-gray-400 block font-medium">
                           {hasStockContext ? `Stock "${activeContexts.stock}"` : 'Stock Bodega'}
                         </span>
-                        <span className={`text-2xl font-black ${
-                          hasStockContext 
-                            ? stockValue > 0 ? 'text-green-700' : 'text-orange-600'
-                            : 'text-gray-500'
-                        }`}>
+                        <span
+                          className={`text-2xl font-black ${
+                            hasStockContext
+                              ? stockValue > 0
+                                ? 'text-green-700 dark:text-green-300'
+                                : 'text-orange-600 dark:text-orange-300'
+                              : 'text-gray-500 dark:text-gray-400'
+                          }`}
+                        >
                           {hasStockContext ? stockValue : '--'}
                         </span>
                       </div>
@@ -1972,7 +2031,13 @@ export function RepuestosTable({
                   </div>
                   
                   {/* Total USD - según contextos */}
-                  <div className={`rounded-xl p-3 ${hasAnyContext ? 'bg-yellow-50 border border-yellow-300' : 'bg-primary-50'}`}>
+                  <div
+                    className={`rounded-xl p-3 ${
+                      hasAnyContext
+                        ? 'bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-800'
+                        : 'bg-primary-50 dark:bg-primary-900/30'
+                    }`}
+                  >
                     <span className="text-xs text-gray-500 dark:text-gray-400 block font-medium">
                       {hasAnyContext ? 'Total Contexto' : 'Total General USD'}
                     </span>
@@ -1983,10 +2048,11 @@ export function RepuestosTable({
                       }
                     </span>
                   </div>
-                </div>
+                  </div>
+                )}
 
                 {/* Acciones con mejor estilo PWA */}
-                <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-600">
+                <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={(e) => {

@@ -1,8 +1,15 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.17';
+export const APP_VERSION = '4.9.18';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.18',
+    date: '2026-01-01',
+    changes: [
+      '📱 PWA móvil: Tarjetas más compactas (resumen por defecto + detalles al expandir)'
+    ]
+  },
   {
     version: '4.9.17',
     date: '2026-01-01',
