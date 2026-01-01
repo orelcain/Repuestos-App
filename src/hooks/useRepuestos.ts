@@ -13,7 +13,15 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { Repuesto, HistorialCambio, RepuestoFormData, getTagNombre, isTagAsignado } from '../types';
+import { Repuesto, HistorialCambio, RepuestoFormData, TagAsignado, getTagNombre, isTagAsignado } from '../types';
+
+export interface ImportCantidadRow {
+  codigoSAP: string;
+  codigoBaader: string;
+  textoBreve?: string;
+  valorUnitario?: number;
+  cantidad: number;
+}
 
 const computeTotalFromTags = (tags: unknown, valorUnitario: number) => {
   if (!Array.isArray(tags) || !Number.isFinite(valorUnitario)) return 0;
@@ -26,6 +34,48 @@ const computeTotalFromTags = (tags: unknown, valorUnitario: number) => {
 const hasAnyStockFromTags = (tags: unknown) => {
   if (!Array.isArray(tags)) return false;
   return tags.some(tag => isTagAsignado(tag) && tag.tipo === 'stock' && (tag.cantidad || 0) > 0);
+};
+
+const normalizeKey = (value: string) => value.trim().toUpperCase();
+
+const upsertTagAsignado = (
+  tags: (string | TagAsignado)[] | undefined,
+  tagName: string,
+  tipo: 'solicitud' | 'stock',
+  cantidad: number
+) => {
+  const safeTags: (string | TagAsignado)[] = Array.isArray(tags) ? tags : [];
+  const found = safeTags.some(t => isTagAsignado(t) && t.nombre === tagName && t.tipo === tipo);
+
+  if (found) {
+    return safeTags.map((t) => {
+      if (isTagAsignado(t) && t.nombre === tagName && t.tipo === tipo) {
+        return { ...t, cantidad };
+      }
+      return t;
+    });
+  }
+
+  return [
+    ...safeTags,
+    {
+      nombre: tagName,
+      tipo,
+      cantidad,
+      fecha: new Date()
+    }
+  ];
+};
+
+const toFiniteNumber = (value: unknown, fallback = 0) => {
+  const num = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
+  return Number.isFinite(num) ? num : fallback;
+};
+
+const chunk = <T,>(arr: T[], size: number) => {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
 };
 
 // Construir ruta de colección dinámica por máquina
@@ -295,6 +345,194 @@ export function useRepuestos(machineId: string | null) {
       throw err;
     }
   }, [machineId]);
+
+  // Importar cantidades por evento/tag (reemplaza cantidad del tag; crea repuesto si no existe)
+  const importCantidadesPorTag = useCallback(async (args: {
+    rows: ImportCantidadRow[];
+    tagName: string;
+    tipo: 'solicitud' | 'stock';
+    placeholder?: string;
+  }) => {
+    if (!machineId) throw new Error('Machine ID is required');
+
+    const { rows, tagName, tipo, placeholder = 'pendiente' } = args;
+    if (!tagName) throw new Error('tagName is required');
+
+    const collectionPath = getCollectionPath(machineId);
+
+    // Índices para encontrar repuestos existentes (sin mezclar máquinas: este hook ya es por machineId)
+    const bySAP = new Map<string, Repuesto>();
+    const byBaader = new Map<string, Repuesto>();
+    repuestos.forEach((r) => {
+      if (r.codigoSAP) bySAP.set(normalizeKey(r.codigoSAP), r);
+      if (r.codigoBaader) byBaader.set(normalizeKey(r.codigoBaader), r);
+    });
+
+    const ops = rows.map((row) => {
+      const codigoSAP = (row.codigoSAP || '').trim() || placeholder;
+      const codigoBaader = (row.codigoBaader || '').trim() || placeholder;
+      const keySAP = codigoSAP !== placeholder ? normalizeKey(codigoSAP) : '';
+      const keyBaader = codigoBaader !== placeholder ? normalizeKey(codigoBaader) : '';
+
+      const existing = (keySAP && bySAP.get(keySAP)) || (keyBaader && byBaader.get(keyBaader)) || null;
+      const cantidad = Math.max(0, toFiniteNumber(row.cantidad, 0));
+      const valorUnitario = Math.max(0, toFiniteNumber(row.valorUnitario, 0));
+      const textoBreve = (row.textoBreve || '').trim();
+
+      return { existing, codigoSAP, codigoBaader, cantidad, valorUnitario, textoBreve };
+    });
+
+    // Limitar batch (500). Usamos 400 para margen.
+    const chunks = chunk(ops, 400);
+    for (const batchOps of chunks) {
+      const batch = writeBatch(db);
+
+      for (const op of batchOps) {
+        if (op.existing) {
+          const r = op.existing;
+
+          const nextTags = upsertTagAsignado(r.tags, tagName, tipo, op.cantidad);
+
+          const nextValorUnitario = r.valorUnitario === 0 && op.valorUnitario > 0 ? op.valorUnitario : r.valorUnitario;
+
+          const nextCodigoSAP = r.codigoSAP === placeholder && op.codigoSAP !== placeholder ? op.codigoSAP : r.codigoSAP;
+          const nextCodigoBaader = r.codigoBaader === placeholder && op.codigoBaader !== placeholder ? op.codigoBaader : r.codigoBaader;
+          const nextTextoBreve = (!r.textoBreve || r.textoBreve.trim().length === 0) && op.textoBreve ? op.textoBreve : r.textoBreve;
+
+          const totalFromTags = computeTotalFromTags(nextTags, nextValorUnitario);
+
+          const updateData: Record<string, unknown> = {
+            tags: nextTags,
+            valorUnitario: nextValorUnitario,
+            codigoSAP: nextCodigoSAP,
+            codigoBaader: nextCodigoBaader,
+            textoBreve: nextTextoBreve,
+            total: totalFromTags,
+            updatedAt: Timestamp.now()
+          };
+
+          if (tipo === 'stock') {
+            (updateData as Record<string, unknown>).fechaUltimaActualizacionInventario = op.cantidad > 0 ? Timestamp.now() : null;
+          }
+
+          batch.update(doc(db, collectionPath, r.id), updateData);
+        } else {
+          const baseValor = op.valorUnitario;
+          const tags: TagAsignado[] = [
+            {
+              nombre: tagName,
+              tipo,
+              cantidad: op.cantidad,
+              fecha: new Date()
+            }
+          ];
+
+          const totalFromTags = computeTotalFromTags(tags, baseValor);
+          const hasStock = tipo === 'stock' ? op.cantidad > 0 : false;
+
+          const docRef = doc(collection(db, collectionPath));
+          batch.set(docRef, {
+            codigoSAP: op.codigoSAP,
+            codigoBaader: op.codigoBaader,
+            textoBreve: op.textoBreve || '',
+            descripcion: op.textoBreve || '',
+            cantidadSolicitada: 0,
+            cantidadStockBodega: 0,
+            valorUnitario: baseValor,
+            total: totalFromTags,
+            fechaUltimaActualizacionInventario: hasStock ? Timestamp.now() : null,
+            tags,
+            vinculosManual: [],
+            imagenesManual: [],
+            fotosReales: [],
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now()
+          });
+        }
+      }
+
+      await batch.commit();
+    }
+  }, [machineId, repuestos]);
+
+  // Importar solo al catálogo (sin asignar a un contexto/tag). Crea repuesto si no existe.
+  const importCatalogoDesdeExcel = useCallback(async (args: {
+    rows: Omit<ImportCantidadRow, 'cantidad'>[];
+    placeholder?: string;
+  }) => {
+    if (!machineId) throw new Error('Machine ID is required');
+
+    const { rows, placeholder = 'pendiente' } = args;
+    const collectionPath = getCollectionPath(machineId);
+
+    const bySAP = new Map<string, Repuesto>();
+    const byBaader = new Map<string, Repuesto>();
+    repuestos.forEach((r) => {
+      if (r.codigoSAP) bySAP.set(normalizeKey(r.codigoSAP), r);
+      if (r.codigoBaader) byBaader.set(normalizeKey(r.codigoBaader), r);
+    });
+
+    const ops = rows.map((row) => {
+      const codigoSAP = (row.codigoSAP || '').trim() || placeholder;
+      const codigoBaader = (row.codigoBaader || '').trim() || placeholder;
+      const keySAP = codigoSAP !== placeholder ? normalizeKey(codigoSAP) : '';
+      const keyBaader = codigoBaader !== placeholder ? normalizeKey(codigoBaader) : '';
+      const existing = (keySAP && bySAP.get(keySAP)) || (keyBaader && byBaader.get(keyBaader)) || null;
+      const valorUnitario = Math.max(0, toFiniteNumber(row.valorUnitario, 0));
+      const textoBreve = (row.textoBreve || '').trim();
+      return { existing, codigoSAP, codigoBaader, valorUnitario, textoBreve };
+    });
+
+    const chunks = chunk(ops, 400);
+    for (const batchOps of chunks) {
+      const batch = writeBatch(db);
+
+      for (const op of batchOps) {
+        if (op.existing) {
+          const r = op.existing;
+          const nextValorUnitario = r.valorUnitario === 0 && op.valorUnitario > 0 ? op.valorUnitario : r.valorUnitario;
+          const nextCodigoSAP = r.codigoSAP === placeholder && op.codigoSAP !== placeholder ? op.codigoSAP : r.codigoSAP;
+          const nextCodigoBaader = r.codigoBaader === placeholder && op.codigoBaader !== placeholder ? op.codigoBaader : r.codigoBaader;
+          const nextTextoBreve = (!r.textoBreve || r.textoBreve.trim().length === 0) && op.textoBreve ? op.textoBreve : r.textoBreve;
+
+          const totalFromTags = computeTotalFromTags(r.tags, nextValorUnitario);
+
+          batch.update(doc(db, collectionPath, r.id), {
+            codigoSAP: nextCodigoSAP,
+            codigoBaader: nextCodigoBaader,
+            textoBreve: nextTextoBreve,
+            descripcion: (!r.descripcion || r.descripcion.trim().length === 0) && op.textoBreve ? op.textoBreve : r.descripcion,
+            valorUnitario: nextValorUnitario,
+            total: totalFromTags,
+            updatedAt: Timestamp.now()
+          });
+        } else {
+          const baseValor = op.valorUnitario;
+          const docRef = doc(collection(db, collectionPath));
+
+          batch.set(docRef, {
+            codigoSAP: op.codigoSAP,
+            codigoBaader: op.codigoBaader,
+            textoBreve: op.textoBreve || '',
+            descripcion: op.textoBreve || '',
+            cantidadSolicitada: 0,
+            cantidadStockBodega: 0,
+            valorUnitario: baseValor,
+            total: 0,
+            fechaUltimaActualizacionInventario: null,
+            tags: [],
+            vinculosManual: [],
+            imagenesManual: [],
+            fotosReales: [],
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now()
+          });
+        }
+      }
+
+      await batch.commit();
+    }
+  }, [machineId, repuestos]);
 
   // Renombrar un tag en todos los repuestos
   const renameTag = useCallback(async (oldTagName: string, newTagName: string) => {
@@ -578,6 +816,8 @@ export function useRepuestos(machineId: string | null) {
     deleteRepuesto,
     getHistorial,
     importRepuestos,
+    importCantidadesPorTag,
+    importCatalogoDesdeExcel,
     renameTag,
     deleteTag,
     migrateTagsToNewSystem,

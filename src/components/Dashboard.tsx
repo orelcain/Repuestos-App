@@ -118,6 +118,8 @@ export function Dashboard() {
     deleteRepuesto, 
     getHistorial,
     importRepuestos,
+    importCantidadesPorTag,
+    importCatalogoDesdeExcel,
     renameTag,
     deleteTag
   } = useRepuestos(machineId);
@@ -1235,6 +1237,8 @@ export function Dashboard() {
                   onManageTags={() => setShowTagManager(true)}
                   onFilteredChange={setFilteredRepuestos}
                   onContextsChange={handleContextsChange}
+                  onImportCantidadesPorTag={importCantidadesPorTag}
+                  onImportCatalogoDesdeExcel={importCatalogoDesdeExcel}
                   compactMode={rightPanelMode !== 'hidden'}
                 />
               </div>

@@ -1,8 +1,17 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.14';
+export const APP_VERSION = '4.9.15';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.15',
+    date: '2026-01-01',
+    changes: [
+      '📥 Repuestos: Importación masiva desde Excel (reemplaza cantidad por tag/contexto)',
+      '📦 Repuestos: Importar “solo al catálogo” (sin contexto) + crea repuesto si no existe',
+      '🛠️ FIX: Hook/useRepuestos expone importadores y corrige errores de sintaxis'
+    ]
+  },
   {
     version: '4.9.14',
     date: '2026-01-01',

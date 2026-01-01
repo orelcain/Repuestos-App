@@ -4,6 +4,7 @@ import { useTableColumns } from '../../hooks/useTableColumns';
 import { useTags } from '../../hooks/useTags';
 import { AddToListModal } from './AddToListModal';
 import { CreateContextModal } from './CreateContextModal';
+import { ImportQuantitiesModal, type ImportCantidadRow } from './ImportQuantitiesModal';
 import { 
   Search, 
   Plus, 
@@ -34,6 +35,7 @@ import {
   ShoppingCart,
   PlusCircle,
   ListPlus,
+  FileSpreadsheet,
   ChevronDown
 } from 'lucide-react';
 
@@ -55,6 +57,8 @@ interface RepuestosTableProps {
   onAddToContext?: (repuestoId: string, tagName: string, cantidad: number, tipo: 'solicitud' | 'stock') => void;
   onContextChange?: (contextTag: string | null, contextTipo: 'solicitud' | 'stock' | null) => void; // Nuevo: notificar cambio de contexto
   onContextsChange?: (contexts: { solicitud: string | null; stock: string | null }) => void; // Nuevo: notificar ambos contextos
+  onImportCantidadesPorTag?: (args: { rows: ImportCantidadRow[]; tagName: string; tipo: 'solicitud' | 'stock' }) => Promise<void>;
+  onImportCatalogoDesdeExcel?: (args: { rows: Omit<ImportCantidadRow, 'cantidad'>[] }) => Promise<void>;
   compactMode?: boolean; // Cuando el panel lateral está abierto
 }
 
@@ -142,6 +146,8 @@ export function RepuestosTable({
   onAddToContext,
   onContextChange,
   onContextsChange,
+  onImportCantidadesPorTag,
+  onImportCatalogoDesdeExcel,
   compactMode = false
 }: RepuestosTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -165,6 +171,7 @@ export function RepuestosTable({
   // Estados para modales de contexto
   const [showAddToListModal, setShowAddToListModal] = useState(false);
   const [showCreateContextModal, setShowCreateContextModal] = useState(false);
+  const [showImportQuantitiesModal, setShowImportQuantitiesModal] = useState(false);
   
   // Estado para ordenamiento
   const [sortColumn, setSortColumn] = useState<string>('codigoSAP');
@@ -204,6 +211,27 @@ export function RepuestosTable({
     // Prioridad: si hay solicitud activa, usar esa; si no, usar stock
     return activeContexts.solicitud || activeContexts.stock || null;
   }, [activeContexts]);
+
+  const handleImportCantidades = async (
+    args:
+      | { mode: 'catalog'; rows: ImportCantidadRow[] }
+      | { mode: 'context'; tipo: 'solicitud' | 'stock'; tagName: string; rows: ImportCantidadRow[] }
+  ) => {
+    if (args.mode === 'catalog') {
+      if (!onImportCatalogoDesdeExcel) throw new Error('Importación no disponible');
+      const rows = args.rows.map(({ codigoSAP, codigoBaader, textoBreve, valorUnitario }) => ({
+        codigoSAP,
+        codigoBaader,
+        textoBreve,
+        valorUnitario
+      }));
+      await onImportCatalogoDesdeExcel({ rows });
+      return;
+    }
+
+    if (!onImportCantidadesPorTag) throw new Error('Importación no disponible');
+    await onImportCantidadesPorTag({ tipo: args.tipo, tagName: args.tagName, rows: args.rows });
+  };
   
   // Obtener el tipo del contexto principal activo
   const activeContextTipo = useMemo(() => {
@@ -875,6 +903,27 @@ export function RepuestosTable({
                 >
                   <PlusCircle className="w-4 h-4" />
                   Nuevo
+                </button>
+
+                {/* Importar cantidades (Excel) */}
+                <button
+                  onClick={() => setShowImportQuantitiesModal(true)}
+                  disabled={(!hasAnyContext && !onImportCatalogoDesdeExcel) || (!onImportCantidadesPorTag && !onImportCatalogoDesdeExcel)}
+                  className={`flex items-center gap-1 px-2 py-1.5 text-xs font-medium rounded-lg transition-colors border ${
+                    (onImportCantidadesPorTag || onImportCatalogoDesdeExcel)
+                      ? 'text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 border-gray-300 dark:border-gray-600'
+                      : 'text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-700 opacity-60 cursor-not-allowed'
+                  }`}
+                  title={
+                    (!onImportCantidadesPorTag && !onImportCatalogoDesdeExcel)
+                      ? 'Importación no disponible'
+                      : hasAnyContext
+                        ? 'Importar desde Excel (puede ser catálogo o contexto)'
+                        : 'Importar solo al catálogo (sin contexto)'
+                  }
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  Importar
                 </button>
               </div>
             </div>
@@ -2115,6 +2164,15 @@ export function RepuestosTable({
           setActiveContexts(prev => ({ ...prev, [tipo]: nombre }));
           setShowCreateContextModal(false);
         }}
+      />
+
+      {/* Modal para importar cantidades por contexto/tag */}
+      <ImportQuantitiesModal
+        isOpen={showImportQuantitiesModal}
+        onClose={() => setShowImportQuantitiesModal(false)}
+        activeSolicitudTag={activeContexts.solicitud}
+        activeStockTag={activeContexts.stock}
+        onImport={handleImportCantidades}
       />
     </div>
   );
