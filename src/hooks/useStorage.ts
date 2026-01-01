@@ -83,10 +83,8 @@ export function useStorage(machineId: string | null) {
       const ext = file.name.split('.').pop() || 'pdf';
       const uniqueName = `${baseName}_${timestamp}.${ext}`;
 
-      // COMPATIBILIDAD: Para Baader 200, usar ruta antigua
-      const path = machineId === 'baader-200'
-        ? `manual/${uniqueName}`
-        : `machines/${machineId}/manuales/${uniqueName}`;
+      // Estructura unificada para todas las máquinas
+      const path = `machines/${machineId}/manuales/${uniqueName}`;
       
       console.log('📁 [useStorage] Upload path for machine', machineId, ':', path);
       const storageRef = ref(storage, path);
@@ -111,9 +109,9 @@ export function useStorage(machineId: string | null) {
       return null;
     }
 
-    // Determinar carpetas donde buscar según la máquina
-    const folders = machineId === 'baader-200' 
-      ? ['manual', 'manuales']  // Rutas antiguas para Baader 200
+    // Estructura unificada con fallback a rutas legacy para migración
+    const folders = machineId === 'baader-200'
+      ? [`machines/${machineId}/manuales`, 'manual', 'manuales']  // Nueva estructura + legacy como fallback
       : [`machines/${machineId}/manuales`, `machines/${machineId}/manual`];
 
     // Estrategia: usar listAll() para TODAS las máquinas (evita 404s HTTP)

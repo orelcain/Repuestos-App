@@ -1,8 +1,19 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.6.0';
+export const APP_VERSION = '4.6.1';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.6.1',
+    date: '2025-12-31',
+    changes: [
+      '📂 BREAKING: Estructura unificada - TODAS las máquinas usan machines/{id}/manuales/',
+      '🔄 MIGRATION: Baader 200 migrada a estructura nueva (legacy como fallback)',
+      '🏗️ SCALABLE: Arquitectura ordenada lista para escalar a muchas máquinas',
+      '✅ Nuevos uploads de Baader 200 van a machines/baader-200/manuales/',
+      '🔙 BACKWARD: Manual antiguo en manual/ sigue funcionando como fallback'
+    ]
+  },
   {
     version: '4.6.0',
     date: '2025-12-31',
