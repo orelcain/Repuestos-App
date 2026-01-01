@@ -161,10 +161,20 @@ export function useMachines() {
       // Usar setDoc con ID específico en lugar de addDoc
       const docRef = doc(db, COLLECTION_NAME, slug);
       
-      // Verificar si ya existe
+      // Verificar si ya existe (sin caché para evitar problemas después de eliminar)
       const existingDoc = await getDoc(docRef);
+      
+      // Si existe, intentar obtener de nuevo desde servidor para confirmar (sin caché)
       if (existingDoc.exists()) {
-        throw new Error(`Ya existe una máquina con el ID "${slug}". Usa una marca/modelo diferente.`);
+        console.warn('⚠️ [useMachines] Documento existe en caché, verificando desde servidor...');
+        // Esperar un momento para que Firebase sincronice
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Verificar nuevamente (esto debería traer datos frescos del servidor)
+        const freshDoc = await getDoc(docRef);
+        if (freshDoc.exists()) {
+          throw new Error(`Ya existe una máquina con el ID "${slug}". Usa una marca/modelo diferente.`);
+        }
       }
       
       await setDoc(docRef, newMachine);
