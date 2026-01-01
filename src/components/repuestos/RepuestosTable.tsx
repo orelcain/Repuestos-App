@@ -3,7 +3,6 @@ import { Repuesto, HistorialCambio, isTagAsignado, getTagNombre, TagAsignado } f
 import { useTableColumns } from '../../hooks/useTableColumns';
 import { useTags } from '../../hooks/useTags';
 import { AddToListModal } from './AddToListModal';
-import { CreateContextModal } from './CreateContextModal';
 import { ImportQuantitiesModal, type ImportCantidadRow } from './ImportQuantitiesModal';
 import { 
   Search, 
@@ -33,7 +32,6 @@ import {
   ArrowUp,
   ArrowDown,
   ShoppingCart,
-  PlusCircle,
   ListPlus,
   FileSpreadsheet,
   ChevronDown
@@ -170,7 +168,6 @@ export function RepuestosTable({
   
   // Estados para modales de contexto
   const [showAddToListModal, setShowAddToListModal] = useState(false);
-  const [showCreateContextModal, setShowCreateContextModal] = useState(false);
   const [showImportQuantitiesModal, setShowImportQuantitiesModal] = useState(false);
   
   // Estado para ordenamiento
@@ -902,16 +899,6 @@ export function RepuestosTable({
                   </button>
                 )}
                 
-                {/* Botón crear nuevo contexto */}
-                <button
-                  onClick={() => setShowCreateContextModal(true)}
-                  className="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-lg transition-colors border border-primary-200 dark:border-primary-700"
-                  title="Crear nuevo contexto/evento"
-                >
-                  <PlusCircle className="w-4 h-4" />
-                  Nuevo
-                </button>
-
                 {/* Importar cantidades (Excel) */}
                 <button
                   onClick={() => setShowImportQuantitiesModal(true)}
@@ -2160,18 +2147,6 @@ export function RepuestosTable({
           }}
         />
       )}
-
-      {/* Modal para crear nuevo contexto/evento */}
-      <CreateContextModal
-        isOpen={showCreateContextModal}
-        onClose={() => setShowCreateContextModal(false)}
-        machineId={machineId}
-        onContextCreated={(nombre: string, tipo: 'solicitud' | 'stock') => {
-          // Actualizar el contexto correspondiente según el tipo creado
-          setActiveContexts(prev => ({ ...prev, [tipo]: nombre }));
-          setShowCreateContextModal(false);
-        }}
-      />
 
       {/* Modal para importar cantidades por contexto/tag */}
       <ImportQuantitiesModal

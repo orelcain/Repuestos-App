@@ -1,8 +1,15 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.16';
+export const APP_VERSION = '4.9.17';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.17',
+    date: '2026-01-01',
+    changes: [
+      '🧹 UX: Se elimina botón “Nuevo” en Contextos Activos (crear tags queda solo en Gestor de Tags)'
+    ]
+  },
   {
     version: '4.9.16',
     date: '2026-01-01',
