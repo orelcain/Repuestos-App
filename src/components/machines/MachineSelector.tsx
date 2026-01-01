@@ -66,6 +66,12 @@ export function MachineSelector({ onEditMachine }: MachineSelectorProps) {
     setCurrentMachine(machineId);
     setIsOpen(false);
   };
+  
+  const handleToggleDropdown = () => {
+    console.log('🔽 [MachineSelector] Toggling dropdown, current state:', isOpen);
+    console.log('   activeMachines.length:', activeMachines.length);
+    setIsOpen(!isOpen);
+  };
 
   const handleEditMachine = (machine: Machine, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -97,7 +103,7 @@ export function MachineSelector({ onEditMachine }: MachineSelectorProps) {
       <div className="relative" ref={dropdownRef}>
         {/* Botón principal del selector */}
         <button
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={handleToggleDropdown}
           className="flex items-center gap-3 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors min-w-[200px]"
         >
           {/* Color indicator */}
