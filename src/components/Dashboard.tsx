@@ -232,26 +232,45 @@ export function Dashboard() {
     peekUndo
   } = useUndoRedo();
 
-  // Cargar URL del manual aislando por máquina (sin reutilizar Baader 200 en otras)
+  // Limpiar PDF y resetear índice al cambiar de máquina
+  useEffect(() => {
+    console.log('🗑️ [Dashboard] Machine changed, clearing PDF and resetting index');
+    setPdfUrl(null);
+    setSelectedManualIndex(0);
+    setCurrentMarker(undefined);
+    setTargetPage(undefined);
+  }, [currentMachine?.id]); // Solo el ID, no el objeto completo
+
+  // Cargar URL del manual cuando cambia la máquina o el índice seleccionado
   useEffect(() => {
     const loadManual = async () => {
-      // Limpiar siempre al cambiar de máquina para no mostrar el PDF previo
-      setPdfUrl(null);
-      setSelectedManualIndex(0); // Reset manual index
+      if (!currentMachine) {
+        setPdfUrl(null);
+        return;
+      }
 
-      if (!currentMachine) return;
+      console.log('📚 [Dashboard] Loading manual for', currentMachine.nombre, 'index:', selectedManualIndex);
 
       // 1) Prioridad: usar manuals[] de la máquina
       if (currentMachine.manuals && currentMachine.manuals.length > 0) {
-        setPdfUrl(currentMachine.manuals[selectedManualIndex] || currentMachine.manuals[0]);
+        const manualUrl = currentMachine.manuals[selectedManualIndex] || currentMachine.manuals[0];
+        console.log('✅ [Dashboard] Using manual from Firestore:', manualUrl);
+        setPdfUrl(manualUrl);
         return;
       }
 
       // 2) Fallback SOLO para Baader 200 (legacy). Otras máquinas deben tener su propio manual.
       if (currentMachine.id === 'baader-200') {
+        console.log('🔍 [Dashboard] Searching legacy manual for Baader 200...');
         const url = await getManualURL();
+        if (url) {
+          console.log('✅ [Dashboard] Found legacy manual:', url);
+        } else {
+          console.log('⚠️ [Dashboard] No legacy manual found for Baader 200');
+        }
         setPdfUrl(url);
       } else {
+        console.log('🚫 [Dashboard] No manual available for', currentMachine.nombre);
         setPdfUrl(null);
       }
     };
@@ -426,6 +445,20 @@ export function Dashboard() {
     // Si tiene vínculo a página específica, navegar y mostrar marcador
     if (repuesto.vinculosManual && repuesto.vinculosManual.length > 0) {
       const marker = repuesto.vinculosManual[0];
+      
+      // Si el marcador tiene machineId, verificar que estamos en la máquina correcta
+      if (marker.machineId && marker.machineId !== currentMachine?.id) {
+        console.warn('⚠️ [Dashboard] Marcador pertenece a otra máquina:', marker.machineId, 'actual:', currentMachine?.id);
+        error(`Este marcador pertenece a ${marker.machineId}. Cambia a esa máquina primero.`);
+        return;
+      }
+      
+      // Si el marcador tiene un manual específico, cargarlo
+      if (marker.manualUrl && marker.manualUrl !== pdfUrl) {
+        console.log('🔄 [Dashboard] Loading specific manual from marker:', marker.manualUrl);
+        setPdfUrl(marker.manualUrl);
+      }
+      
       setTargetPage(marker.pagina);
       setCurrentMarker(marker);
     } else {
@@ -457,6 +490,7 @@ export function Dashboard() {
 
   // Handler para marcar en el manual
   const handleMarkInManual = (repuesto: Repuesto, existingMarker?: VinculoManual) => {
+    console.log('📍 [Dashboard] Opening marker editor for repuesto:', repuesto.codigoSAP, 'in machine:', currentMachine?.nombre);
     setMarkerRepuesto(repuesto);
     setSelectedRepuesto(repuesto);
     setEditingMarker(existingMarker || null);
@@ -468,37 +502,44 @@ export function Dashboard() {
 
   // Guardar marcador (nuevo o editado)
   const handleSaveMarker = async (marker: Omit<VinculoManual, 'id'>) => {
-    if (!markerRepuesto) return;
+    if (!markerRepuesto || !currentMachine) return;
     
     const vinculosActuales = markerRepuesto.vinculosManual || [];
+    
+    // Agregar contexto de máquina y manual actual al marcador
+    const markerWithContext = {
+      ...marker,
+      machineId: currentMachine.id,
+      manualUrl: pdfUrl || undefined
+    };
     
     if (editingMarker) {
       // Editar marcador existente
       const updatedVinculos = vinculosActuales.map(v => 
-        v.id === editingMarker.id ? { ...marker, id: editingMarker.id } : v
+        v.id === editingMarker.id ? { ...markerWithContext, id: editingMarker.id } : v
       );
       await updateRepuestoWithBackup(markerRepuesto.id, {
         vinculosManual: updatedVinculos
       }, markerRepuesto);
       success('Marcador actualizado correctamente');
-      setCurrentMarker({ ...marker, id: editingMarker.id });
+      setCurrentMarker({ ...markerWithContext, id: editingMarker.id });
     } else {
       // Crear nuevo marcador
       const newMarker: VinculoManual = {
-        ...marker,
+        ...markerWithContext,
         id: Date.now().toString()
       };
       await updateRepuestoWithBackup(markerRepuesto.id, {
         vinculosManual: [...vinculosActuales, newMarker]
       }, markerRepuesto);
-      success('Marcador guardado - Ahora puedes ver este repuesto en el manual');
+      success(`Marcador guardado en ${currentMachine.nombre}`);
       setCurrentMarker(newMarker);
     }
     
     setRightPanelMode('pdf');
     setMarkerRepuesto(null);
     setEditingMarker(null);
-    setTargetPage(marker.pagina);
+    setTargetPage(markerWithContext.pagina);
   };
 
   // Eliminar marcador

@@ -65,6 +65,8 @@ export const TAGS_PREDEFINIDOS = [
 export interface VinculoManual {
   id: string;
   pagina: number;
+  machineId?: string;  // ID de la máquina a la que pertenece este marcador (para multi-máquina)
+  manualUrl?: string;  // URL específica del manual (cuando hay múltiples manuales)
   // Coordenadas normalizadas (0-1) relativas al tamaño original de la página
   coordenadas?: {
     x: number;      // Porcentaje desde la izquierda (0-1)

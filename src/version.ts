@@ -1,8 +1,19 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.6.1';
+export const APP_VERSION = '4.7.0';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.7.0',
+    date: '2025-12-31',
+    changes: [
+      '🐛 FIX CRÍTICO: PDF se limpia correctamente al cambiar de máquina',
+      '🔗 NEW: Marcadores asociados a máquina específica (machineId + manualUrl)',
+      '✅ FIX: Ver marcador valida que estés en la máquina correcta',
+      '📝 DEBUG: Logs detallados de carga de manuales y cambios de máquina',
+      '🚫 UX: Error claro cuando intentas ver marcador de otra máquina'
+    ]
+  },
   {
     version: '4.6.1',
     date: '2025-12-31',
