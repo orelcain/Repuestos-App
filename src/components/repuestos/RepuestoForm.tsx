@@ -11,9 +11,10 @@ interface RepuestoFormProps {
   repuesto?: Repuesto | null;
   allRepuestos?: Repuesto[];  // Para obtener todos los tags en uso
   machineId: string | null;
+  initialContexts?: { solicitud: string | null; stock: string | null };
 }
 
-export function RepuestoForm({ isOpen, onClose, onSave, repuesto, allRepuestos, machineId }: RepuestoFormProps) {
+export function RepuestoForm({ isOpen, onClose, onSave, repuesto, allRepuestos, machineId, initialContexts }: RepuestoFormProps) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<RepuestoFormData>({
     codigoSAP: '',
@@ -42,6 +43,24 @@ export function RepuestoForm({ isOpen, onClose, onSave, repuesto, allRepuestos, 
         tags: repuesto.tags || []
       });
     } else {
+      const initialTags: TagAsignado[] = [];
+      if (initialContexts?.solicitud) {
+        initialTags.push({
+          nombre: initialContexts.solicitud,
+          tipo: 'solicitud',
+          cantidad: 0,
+          fecha: new Date()
+        });
+      }
+      if (initialContexts?.stock) {
+        initialTags.push({
+          nombre: initialContexts.stock,
+          tipo: 'stock',
+          cantidad: 0,
+          fecha: new Date()
+        });
+      }
+
       setFormData({
         codigoSAP: '',
         textoBreve: '',
@@ -51,10 +70,10 @@ export function RepuestoForm({ isOpen, onClose, onSave, repuesto, allRepuestos, 
         cantidadSolicitada: 0,
         valorUnitario: 0,
         cantidadStockBodega: 0,
-        tags: []
+        tags: initialTags
       });
     }
-  }, [repuesto, isOpen]);
+  }, [repuesto, isOpen, initialContexts?.solicitud, initialContexts?.stock]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

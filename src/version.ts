@@ -1,8 +1,24 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.5';
+export const APP_VERSION = '4.9.7';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.7',
+    date: '2026-01-01',
+    changes: [
+      '➕ Crear repuesto: auto-asignación a contextos con cantidad inicial 0'
+    ]
+  },
+  {
+    version: '4.9.6',
+    date: '2026-01-01',
+    changes: [
+      '📦 Catálogo: por defecto se ve completo; al seleccionar contexto se filtra por evento',
+      '➕ Crear repuesto: se agrega al catálogo y se auto-asigna al/los contextos activos (solicitud/stock)',
+      '🧮 Total: se calcula desde tags (TagAsignado) para reportes/export'
+    ]
+  },
   {
     version: '4.9.5',
     date: '2026-01-01',

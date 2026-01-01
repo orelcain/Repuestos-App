@@ -15,6 +15,19 @@ import {
 import { db } from '../config/firebase';
 import { Repuesto, HistorialCambio, RepuestoFormData, getTagNombre, isTagAsignado } from '../types';
 
+const computeTotalFromTags = (tags: unknown, valorUnitario: number) => {
+  if (!Array.isArray(tags) || !Number.isFinite(valorUnitario)) return 0;
+  return tags.reduce((sum, tag) => {
+    if (isTagAsignado(tag)) return sum + (tag.cantidad || 0) * valorUnitario;
+    return sum;
+  }, 0);
+};
+
+const hasAnyStockFromTags = (tags: unknown) => {
+  if (!Array.isArray(tags)) return false;
+  return tags.some(tag => isTagAsignado(tag) && tag.tipo === 'stock' && (tag.cantidad || 0) > 0);
+};
+
 // Construir ruta de colección dinámica por máquina
 const getCollectionPath = (machineId: string) => {
   // ⚠️ COMPATIBILIDAD TEMPORAL: Para Baader 200, leer de la colección antigua
@@ -116,10 +129,15 @@ export function useRepuestos(machineId: string | null) {
       console.log('   📂 Guardando en collection:', collectionPath);
       console.log('   📦 Datos del repuesto:', { codigoSAP: data.codigoSAP, textoBreve: data.textoBreve });
       
+      const totalFromTags = computeTotalFromTags(data.tags, data.valorUnitario);
+      const totalLegacy = (data.cantidadSolicitada * data.valorUnitario) + (data.cantidadStockBodega * data.valorUnitario);
+      const total = totalFromTags > 0 ? totalFromTags : totalLegacy;
+      const hasStock = hasAnyStockFromTags(data.tags) || data.cantidadStockBodega > 0;
+
       const newRepuesto = {
         ...data,
-        total: (data.cantidadSolicitada * data.valorUnitario) + (data.cantidadStockBodega * data.valorUnitario),
-        fechaUltimaActualizacionInventario: data.cantidadStockBodega > 0 ? Timestamp.now() : null,
+        total,
+        fechaUltimaActualizacionInventario: hasStock ? Timestamp.now() : null,
         vinculosManual: [],
         imagenesManual: [],
         fotosReales: [],
@@ -155,18 +173,28 @@ export function useRepuestos(machineId: string | null) {
         updatedAt: Timestamp.now()
       };
 
-      // Si se modifica la cantidad o stock, actualizar total
-      if (data.cantidadSolicitada !== undefined || data.valorUnitario !== undefined || data.cantidadStockBodega !== undefined) {
+      // Si se modifica tags/cantidades/valor, actualizar total de forma compatible
+      if (
+        data.tags !== undefined ||
+        data.cantidadSolicitada !== undefined ||
+        data.cantidadStockBodega !== undefined ||
+        data.valorUnitario !== undefined
+      ) {
+        const valor = data.valorUnitario ?? originalData?.valorUnitario ?? 0;
+        const tags = data.tags ?? originalData?.tags;
+
+        const totalFromTags = computeTotalFromTags(tags, valor);
         const cantidadSolicitada = data.cantidadSolicitada ?? originalData?.cantidadSolicitada ?? 0;
         const cantidadStock = data.cantidadStockBodega ?? originalData?.cantidadStockBodega ?? 0;
-        const valor = data.valorUnitario ?? originalData?.valorUnitario ?? 0;
-        // Total General = (Valor Unit. × Cant. Solicitada) + (Valor Unit. × Stock Bodega)
-        (updateData as Record<string, unknown>).total = (cantidadSolicitada * valor) + (cantidadStock * valor);
-      }
+        const totalLegacy = (cantidadSolicitada * valor) + (cantidadStock * valor);
 
-      // Si se modifica cantidadStockBodega, actualizar fecha
-      if (data.cantidadStockBodega !== undefined) {
-        (updateData as Record<string, unknown>).fechaUltimaActualizacionInventario = Timestamp.now();
+        (updateData as Record<string, unknown>).total = totalFromTags > 0 ? totalFromTags : totalLegacy;
+
+        // Fecha inventario: si hay stock (por tags o legacy), actualizar
+        if (data.tags !== undefined || data.cantidadStockBodega !== undefined) {
+          const hasStock = hasAnyStockFromTags(tags) || cantidadStock > 0;
+          (updateData as Record<string, unknown>).fechaUltimaActualizacionInventario = hasStock ? Timestamp.now() : null;
+        }
       }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

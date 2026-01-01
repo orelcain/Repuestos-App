@@ -170,6 +170,12 @@ export function Dashboard() {
   // Contexto activo desde RepuestosTable (para exportaciones con el tag correcto)
   const [activeContextTag, setActiveContextTag] = useState<string | null>(null);
   const [activeContextTipo, setActiveContextTipo] = useState<'solicitud' | 'stock' | null>(null);
+
+  // Contextos duales activos (para pre-asignar al crear repuesto)
+  const [activeContexts, setActiveContexts] = useState<{ solicitud: string | null; stock: string | null }>({
+    solicitud: null,
+    stock: null
+  });
   
   // Modal de exportación PDF
   const [showPDFExportModal, setShowPDFExportModal] = useState(false);
@@ -642,6 +648,11 @@ export function Dashboard() {
   const handleContextChange = (tag: string | null, tipo: 'solicitud' | 'stock' | null) => {
     setActiveContextTag(tag);
     setActiveContextTipo(tipo);
+  };
+
+  // Callback para recibir cambios de contextos duales
+  const handleContextsChange = (contexts: { solicitud: string | null; stock: string | null }) => {
+    setActiveContexts(contexts);
   };
 
   // Exportaciones - usan repuestos filtrados Y contexto activo
@@ -1184,6 +1195,7 @@ export function Dashboard() {
                   onManageTags={() => setShowTagManager(true)}
                   onFilteredChange={setFilteredRepuestos}
                   onContextChange={handleContextChange}
+                  onContextsChange={handleContextsChange}
                   compactMode={rightPanelMode !== 'hidden'}
                 />
               </div>
@@ -1361,6 +1373,7 @@ export function Dashboard() {
         repuesto={editRepuesto}
         machineId={machineId}
         allRepuestos={repuestos}
+        initialContexts={formMode === 'create' ? activeContexts : undefined}
       />
 
       <HistorialModal
