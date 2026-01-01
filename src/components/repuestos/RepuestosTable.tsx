@@ -806,7 +806,7 @@ export function RepuestosTable({
           {/* Selector de Contextos Duales - Solicitud + Stock */}
           <div className="flex items-center gap-3 pr-4 border-r border-gray-300 dark:border-gray-600">
             <div className="text-center">
-              <div className="text-xs text-gray-500 dark:text-gray-400 uppercase mb-1">Contextos Activos</div>
+              <div className="text-xs text-gray-600 dark:text-gray-200 uppercase mb-1">Contextos Activos</div>
               <div className="flex items-center gap-2">
                 {/* Selector de Solicitud */}
                 <div className="relative">
@@ -816,7 +816,7 @@ export function RepuestosTable({
                     className={`px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors min-w-[150px] appearance-none cursor-pointer ${
                       activeContexts.solicitud 
                         ? 'bg-blue-100 dark:bg-blue-900/50 border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-300'
-                        : 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400'
+                        : 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-200'
                     }`}
                   >
                     <option value="">🛒 Solicitud...</option>
@@ -824,7 +824,7 @@ export function RepuestosTable({
                       <option key={tag.nombre} value={tag.nombre}>🛒 {tag.nombre}</option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-gray-400" />
+                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-gray-400 dark:text-gray-300" />
                 </div>
                 
                 {/* Selector de Stock */}
@@ -835,7 +835,7 @@ export function RepuestosTable({
                     className={`px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors min-w-[150px] appearance-none cursor-pointer ${
                       activeContexts.stock 
                         ? 'bg-green-100 dark:bg-green-900/50 border-green-300 dark:border-green-600 text-green-700 dark:text-green-300'
-                        : 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400'
+                        : 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-200'
                     }`}
                   >
                     <option value="">📦 Stock...</option>
@@ -843,7 +843,7 @@ export function RepuestosTable({
                       <option key={tag.nombre} value={tag.nombre}>📦 {tag.nombre}</option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-gray-400" />
+                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-gray-400 dark:text-gray-300" />
                 </div>
                 
                 {/* Botón limpiar contextos */}

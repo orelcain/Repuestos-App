@@ -100,7 +100,7 @@ export function MachineSelector({ onEditMachine }: MachineSelectorProps) {
           
           {/* Chevron */}
           <ChevronDown 
-            className={`w-4 h-4 text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} 
+            className={`w-4 h-4 text-gray-500 dark:text-gray-300 transition-transform ${isOpen ? 'rotate-180' : ''}`} 
           />
         </button>
 
@@ -137,7 +137,7 @@ export function MachineSelector({ onEditMachine }: MachineSelectorProps) {
                       <div className="font-medium text-gray-800 dark:text-gray-200 truncate">
                         {machine.nombre}
                       </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                      <div className="text-xs text-gray-600 dark:text-gray-300 truncate">
                         {machine.marca} {machine.modelo}
                       </div>
                     </div>
@@ -150,7 +150,7 @@ export function MachineSelector({ onEditMachine }: MachineSelectorProps) {
                     {/* Botón editar */}
                     <button
                       onClick={(e) => handleEditMachine(machine, e)}
-                      className="p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 opacity-0 group-hover:opacity-100 hover:opacity-100"
+                      className="p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-100 opacity-0 group-hover:opacity-100 hover:opacity-100"
                       title="Editar máquina"
                     >
                       <Settings className="w-4 h-4" />

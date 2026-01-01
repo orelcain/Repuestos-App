@@ -853,10 +853,10 @@ export function Dashboard() {
                               return (
                                 <div key={it.url} className="space-y-1">
                                   <div className="flex items-center justify-between gap-2">
-                                    <span className="text-xs text-gray-300 truncate max-w-[250px]">
+                                    <span className="text-xs text-gray-100 truncate max-w-[250px]">
                                       {decodedName}
                                     </span>
-                                    <span className="text-[11px] text-gray-400">
+                                    <span className="text-[11px] text-gray-200">
                                       {it.status === 'done' ? 'Listo' : it.status === 'fetching' ? `${pct}%` : it.status === 'error' ? 'Error' : 'En cola'}
                                     </span>
                                   </div>
@@ -871,10 +871,10 @@ export function Dashboard() {
                             })}
                           </div>
 
-                          <div className="pt-2 border-t border-gray-600">
+                          <div className="pt-2 border-t border-gray-700">
                             <div className="flex items-center justify-between gap-2">
-                              <span className="text-xs text-gray-300">Editor de marcadores</span>
-                              <span className="text-[11px] text-gray-400">
+                              <span className="text-xs text-gray-100">Editor de marcadores</span>
+                              <span className="text-[11px] text-gray-200">
                                 {editorReady ? 'Listo' : editorLoading ? 'Cargando' : 'Pendiente'}
                               </span>
                             </div>

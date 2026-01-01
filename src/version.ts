@@ -1,8 +1,15 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.9';
+export const APP_VERSION = '4.9.10';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.10',
+    date: '2026-01-01',
+    changes: [
+      '🎨 UX: Mejor contraste en tooltip de precarga, selector de máquinas y contextos'
+    ]
+  },
   {
     version: '4.9.9',
     date: '2026-01-01',
