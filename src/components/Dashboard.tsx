@@ -119,7 +119,7 @@ export function Dashboard() {
     renameTag,
     deleteTag
   } = useRepuestos(machineId);
-  const { uploadImage, getManualURL } = useStorage(machineId);
+  const { uploadImage } = useStorage(machineId);
   const { lastSelectedRepuestoId, setLastSelectedRepuesto } = useLocalStorage();
   const { toasts, removeToast, success, error } = useToast();
   const { toggleTheme, isDark } = useTheme();
@@ -251,7 +251,7 @@ export function Dashboard() {
 
       console.log('📚 [Dashboard] Loading manual for', currentMachine.nombre, 'index:', selectedManualIndex);
 
-      // 1) Prioridad: usar manuals[] de la máquina
+      // Usar manuals[] de la máquina (aislamiento total por máquina)
       if (currentMachine.manuals && currentMachine.manuals.length > 0) {
         const manualUrl = currentMachine.manuals[selectedManualIndex] || currentMachine.manuals[0];
         console.log('✅ [Dashboard] Using manual from Firestore:', manualUrl);
@@ -259,24 +259,12 @@ export function Dashboard() {
         return;
       }
 
-      // 2) Fallback SOLO para Baader 200 (legacy). Otras máquinas deben tener su propio manual.
-      if (currentMachine.id === 'baader-200') {
-        console.log('🔍 [Dashboard] Searching legacy manual for Baader 200...');
-        const url = await getManualURL();
-        if (url) {
-          console.log('✅ [Dashboard] Found legacy manual:', url);
-        } else {
-          console.log('⚠️ [Dashboard] No legacy manual found for Baader 200');
-        }
-        setPdfUrl(url);
-      } else {
-        console.log('🚫 [Dashboard] No manual available for', currentMachine.nombre);
-        setPdfUrl(null);
-      }
+      console.log('🚫 [Dashboard] No manual available for', currentMachine.nombre);
+      setPdfUrl(null);
     };
 
     loadManual();
-  }, [currentMachine, selectedManualIndex, getManualURL]);
+  }, [currentMachine, selectedManualIndex]);
 
   // Guardar PDF en cache global cuando el preloader termine
   useEffect(() => {

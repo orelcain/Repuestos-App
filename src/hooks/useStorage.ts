@@ -109,29 +109,23 @@ export function useStorage(machineId: string | null) {
       return null;
     }
 
-    // Estructura unificada con fallback a rutas legacy para migración
-    const folders = machineId === 'baader-200'
-      ? [`machines/${machineId}/manuales`, 'manual', 'manuales']  // Nueva estructura + legacy como fallback
-      : [`machines/${machineId}/manuales`, `machines/${machineId}/manual`];
+    // Estructura unificada (aislamiento total): machines/{machineId}/manuales
+    const folder = `machines/${machineId}/manuales`;
+    try {
+      const folderRef = ref(storage, folder);
+      const listResult = await listAll(folderRef);
 
-    // Estrategia: usar listAll() para TODAS las máquinas (evita 404s HTTP)
-    for (const folder of folders) {
-      try {
-        const folderRef = ref(storage, folder);
-        const listResult = await listAll(folderRef);
-        
-        // Buscar el primer archivo PDF
-        for (const item of listResult.items) {
-          if (item.name.toLowerCase().endsWith('.pdf')) {
-            const url = await getDownloadURL(item);
-            console.log(`✅ Manual encontrado: ${folder}/${item.name}`);
-            return url;
-          }
+      // Buscar el primer archivo PDF
+      for (const item of listResult.items) {
+        if (item.name.toLowerCase().endsWith('.pdf')) {
+          const url = await getDownloadURL(item);
+          console.log(`✅ Manual encontrado: ${folder}/${item.name}`);
+          return url;
         }
-      } catch {
-        // Silenciosamente continuar - carpeta no existe o sin permisos
-        continue;
       }
+    } catch {
+      // Silenciosamente retornar null (normal para máquinas nuevas sin manual)
+      return null;
     }
 
     // Silenciosamente retornar null (normal para máquinas nuevas sin manual)
