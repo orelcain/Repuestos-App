@@ -1,8 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.5.0';
+export const APP_VERSION = '4.5.1';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.5.1',
+    date: '2025-12-31',
+    changes: [
+      '🐛 CRITICAL FIX: Manuales ahora se aislan correctamente por máquina',
+      '🔧 FIX: Modal de edición se reinicia al cambiar de máquina (key=machineId)',
+      '📝 DEBUG: Logs detallados para rastrear upload de manuales y rutas Storage',
+      '✅ FIX: Import de tipo Machine en Dashboard'
+    ]
+  },
   {
     version: '4.5.0',
     date: '2025-12-31',

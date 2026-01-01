@@ -8,7 +8,7 @@ import { useTheme } from '../hooks/useTheme';
 import { useUndoRedo } from '../hooks/useUndoRedo';
 import { usePDFPreloader, setGlobalPDFCache } from '../hooks/usePDFPreloader';
 import { useMachineContext } from '../contexts/MachineContext';
-import { Repuesto, RepuestoFormData, ImagenRepuesto, VinculoManual } from '../types';
+import { Repuesto, RepuestoFormData, ImagenRepuesto, VinculoManual, Machine } from '../types';
 import { APP_VERSION } from '../version';
 
 // Script de importación - exponer globalmente para uso desde consola
@@ -1470,6 +1470,7 @@ export function Dashboard() {
       {/* Modal para editar máquina (agregar manuales) */}
       {editingMachineModal && (
         <MachineFormModal
+          key={editingMachineModal.id} // Force remount on machine change
           isOpen={!!editingMachineModal}
           onClose={() => setEditingMachineModal(null)}
           machine={editingMachineModal}

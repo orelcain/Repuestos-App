@@ -88,6 +88,7 @@ export function useStorage(machineId: string | null) {
         ? `manual/${uniqueName}`
         : `machines/${machineId}/manuales/${uniqueName}`;
       
+      console.log('📁 [useStorage] Upload path for machine', machineId, ':', path);
       const storageRef = ref(storage, path);
 
       await uploadBytes(storageRef, file);

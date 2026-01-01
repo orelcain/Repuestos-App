@@ -44,6 +44,7 @@ export function MachineFormModal({ isOpen, onClose, machine }: MachineFormModalP
   // Inicializar con datos de la máquina si es edición
   useEffect(() => {
     if (machine) {
+      console.log('🔧 [MachineFormModal] Editing machine:', machine.id, machine.nombre);
       setNombre(machine.nombre);
       setMarca(machine.marca);
       setModelo(machine.modelo);
@@ -133,18 +134,21 @@ export function MachineFormModal({ isOpen, onClose, machine }: MachineFormModalP
       return;
     }
 
+    console.log('📤 [MachineFormModal] Uploading manual for machine:', machine.id, machine.nombre);
     try {
       const nameWithoutExt = file.name.replace(/\.[^/.]+$/, '') || 'manual';
       const url = await uploadManualPDF(file, nameWithoutExt);
+      console.log('✅ [MachineFormModal] Manual uploaded, URL:', url);
       const nuevosManuales = [...manuales, url];
       setManuales(nuevosManuales);
       
       // Actualizar inmediatamente en Firestore
+      console.log('💾 [MachineFormModal] Updating Firestore for machine:', machine.id, 'with', nuevosManuales.length, 'manuals');
       await updateMachine(machine.id, {
         manuals: nuevosManuales,
       });
       
-      console.log('✅ Manual agregado y guardado en Firestore');
+      console.log('✅ Manual agregado y guardado en Firestore para', machine.id);
     } catch (err) {
       console.error('Error uploading manual:', err);
       setError(err instanceof Error ? err.message : 'Error al subir el manual');
