@@ -4,8 +4,8 @@ import {
   doc,
   getDocs, 
   getDoc,
+  getDocFromServer,
   setDoc,
-  addDoc, 
   updateDoc, 
   deleteDoc,
   query,
@@ -144,8 +144,6 @@ export function useMachines() {
         .replace(/-+/g, '-')              // Múltiples - por uno solo
         .replace(/^-|-$/g, '');           // Quitar - al inicio y final
       
-      console.log('🆔 [useMachines] Generando ID slug:', slug, 'para', machineData.marca, machineData.modelo);
-      
       // Calcular el siguiente orden
       const maxOrden = machines.length > 0 
         ? Math.max(...machines.map(m => m.orden)) 
@@ -153,6 +151,7 @@ export function useMachines() {
       
       const newMachine = {
         ...machineData,
+        activa: machineData.activa ?? true,
         orden: maxOrden + 1,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
@@ -161,25 +160,20 @@ export function useMachines() {
       // Usar setDoc con ID específico en lugar de addDoc
       const docRef = doc(db, COLLECTION_NAME, slug);
       
-      // Verificar si ya existe (sin caché para evitar problemas después de eliminar)
-      const existingDoc = await getDoc(docRef);
-      
-      // Si existe, intentar obtener de nuevo desde servidor para confirmar (sin caché)
+      // Verificar si ya existe (desde servidor, evitando caché)
+      let existingDoc;
+      try {
+        existingDoc = await getDocFromServer(docRef);
+      } catch {
+        // Fallback (por ejemplo si está offline): usar caché/local
+        existingDoc = await getDoc(docRef);
+      }
+
       if (existingDoc.exists()) {
-        console.warn('⚠️ [useMachines] Documento existe en caché, verificando desde servidor...');
-        // Esperar un momento para que Firebase sincronice
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Verificar nuevamente (esto debería traer datos frescos del servidor)
-        const freshDoc = await getDoc(docRef);
-        if (freshDoc.exists()) {
-          throw new Error(`Ya existe una máquina con el ID "${slug}". Usa una marca/modelo diferente.`);
-        }
+        throw new Error(`Ya existe una máquina con el ID "${slug}". Usa una marca/modelo diferente.`);
       }
       
       await setDoc(docRef, newMachine);
-      console.log('✅ [useMachines] Máquina creada con ID:', slug);
-      console.log('📋 [useMachines] Datos enviados a Firebase:', newMachine);
       
       // NO llamar fetchMachines - el listener onSnapshot actualizará automáticamente
       // await fetchMachines();
@@ -277,8 +271,6 @@ export function useMachines() {
     
     const unsubscribe = onSnapshot(q, 
       (snapshot) => {
-        console.log('🔄 [useMachines] Listener actualizado, total docs:', snapshot.docs.length);
-        
         const machinesData = snapshot.docs.map(doc => {
           const data = doc.data();
           const machine = {
@@ -294,8 +286,6 @@ export function useMachines() {
             createdAt: data.createdAt?.toDate() || new Date(),
             updatedAt: data.updatedAt?.toDate(),
           } as Machine;
-          
-          console.log(`  📦 [useMachines] ${machine.id}: activa=${data.activa} (interpretado como ${machine.activa})`);
           return machine;
         });
         

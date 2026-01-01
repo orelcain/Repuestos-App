@@ -26,24 +26,11 @@ export function MachineSelector({ onEditMachine }: MachineSelectorProps) {
   const [editingMachine, setEditingMachine] = useState<Machine | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // DEBUG: Log todas las máquinas
-  useEffect(() => {
-    console.log('🔍 [MachineSelector] Total machines:', machines.length);
-    machines.forEach(m => {
-      console.log(`  - ${m.id}: nombre="${m.nombre}" activa=${m.activa}`);
-    });
-  }, [machines]);
-
   // Filtrar solo máquinas activas
   const activeMachines = machines.filter(m => m.activa);
-  
-  // DEBUG: Log máquinas activas después del filtro
-  useEffect(() => {
-    console.log('✅ [MachineSelector] Active machines after filter:', activeMachines.length);
-    activeMachines.forEach(m => {
-      console.log(`  ✓ ${m.id}: ${m.nombre}`);
-    });
-  }, [activeMachines]);
+
+  // Si son pocas máquinas, no forzar scroll (evita que alguna quede “oculta”)
+  const shouldScroll = activeMachines.length > 8;
 
   // Cerrar dropdown al hacer click fuera
   useEffect(() => {
@@ -65,12 +52,6 @@ export function MachineSelector({ onEditMachine }: MachineSelectorProps) {
   const handleSelectMachine = (machineId: string) => {
     setCurrentMachine(machineId);
     setIsOpen(false);
-  };
-  
-  const handleToggleDropdown = () => {
-    console.log('🔽 [MachineSelector] Toggling dropdown, current state:', isOpen);
-    console.log('   activeMachines.length:', activeMachines.length);
-    setIsOpen(!isOpen);
   };
 
   const handleEditMachine = (machine: Machine, e: React.MouseEvent) => {
@@ -103,7 +84,7 @@ export function MachineSelector({ onEditMachine }: MachineSelectorProps) {
       <div className="relative" ref={dropdownRef}>
         {/* Botón principal del selector */}
         <button
-          onClick={handleToggleDropdown}
+          onClick={() => setIsOpen(!isOpen)}
           className="flex items-center gap-3 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors min-w-[200px]"
         >
           {/* Color indicator */}
@@ -127,7 +108,7 @@ export function MachineSelector({ onEditMachine }: MachineSelectorProps) {
         {isOpen && (
           <div className="absolute top-full left-0 mt-1 w-full min-w-[280px] bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
             {/* Lista de máquinas */}
-            <div className="max-h-[300px] overflow-y-auto">
+            <div className={shouldScroll ? 'max-h-[300px] overflow-y-auto' : undefined}>
               {activeMachines.length === 0 ? (
                 <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 text-center">
                   No hay máquinas disponibles
@@ -137,7 +118,7 @@ export function MachineSelector({ onEditMachine }: MachineSelectorProps) {
                   <div
                     key={machine.id}
                     className={`
-                      flex items-center gap-3 px-4 py-2 cursor-pointer transition-colors
+                      group flex items-center gap-3 px-4 py-2 cursor-pointer transition-colors
                       ${currentMachine?.id === machine.id 
                         ? 'bg-primary-50 dark:bg-primary-900/20' 
                         : 'hover:bg-gray-50 dark:hover:bg-gray-750'
