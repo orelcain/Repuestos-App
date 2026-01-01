@@ -1,8 +1,15 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.13';
+export const APP_VERSION = '4.9.14';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.14',
+    date: '2026-01-01',
+    changes: [
+      '🎨 UX: Botones en dark sin hover blanco (Manuales/acciones)'
+    ]
+  },
   {
     version: '4.9.13',
     date: '2026-01-01',
