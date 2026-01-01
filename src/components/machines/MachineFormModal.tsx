@@ -286,6 +286,8 @@ export function MachineFormModal({ isOpen, onClose, machine }: MachineFormModalP
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) handleUploadManual(file);
+                    // Permite volver a seleccionar el mismo archivo si el usuario reintenta
+                    e.currentTarget.value = '';
                   }}
                   className="hidden"
                   disabled={uploading || loading}

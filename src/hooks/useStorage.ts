@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { ref, uploadBytes, getDownloadURL, deleteObject, listAll } from 'firebase/storage';
+import { ref, uploadBytes, uploadBytesResumable, getDownloadURL, deleteObject, listAll } from 'firebase/storage';
 import { storage } from '../config/firebase';
 import { ImagenRepuesto } from '../types';
 
@@ -89,17 +89,40 @@ export function useStorage(machineId: string | null) {
       console.log('📁 [useStorage] Upload path for machine', machineId, ':', path);
       const storageRef = ref(storage, path);
 
-      await uploadBytes(storageRef, file);
-      setProgress(100);
+      // Upload con progreso real
+      const uploadTask = uploadBytesResumable(storageRef, file);
 
-      const url = await getDownloadURL(storageRef);
+      const url = await new Promise<string>((resolve, reject) => {
+        uploadTask.on(
+          'state_changed',
+          (snapshot) => {
+            const pct = snapshot.totalBytes > 0
+              ? Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100)
+              : 0;
+            setProgress(pct);
+          },
+          (error) => {
+            reject(error);
+          },
+          async () => {
+            try {
+              setProgress(100);
+              const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+              resolve(downloadUrl);
+            } catch (err) {
+              reject(err);
+            }
+          }
+        );
+      });
+
       return url;
     } catch (err) {
       console.error('Error al subir PDF:', err);
       throw err;
     } finally {
       setUploading(false);
-      setProgress(0);
+      // Mantener el progreso visible (p.ej. 100%) hasta el próximo upload
     }
   }, [machineId]);
 

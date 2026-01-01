@@ -1,8 +1,17 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.8.8';
+export const APP_VERSION = '4.8.9';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.8.9',
+    date: '2026-01-01',
+    changes: [
+      '⬆️ UX: Progreso real al subir manual PDF (0–100%)',
+      '✅ FIX: El porcentaje ya no vuelve a 0% al terminar',
+      '🔁 UX: Permite reintentar subiendo el mismo archivo'
+    ]
+  },
   {
     version: '4.8.1',
     date: '2026-01-01',
