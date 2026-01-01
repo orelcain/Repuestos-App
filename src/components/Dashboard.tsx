@@ -138,6 +138,7 @@ export function Dashboard() {
   const [rightPanelMode, setRightPanelMode] = useState<RightPanelMode>('hidden');
   const [galleryType, setGalleryType] = useState<GalleryType>('manual');
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [selectedManualIndex, setSelectedManualIndex] = useState(0); // Para seleccionar entre múltiples manuales
   const [targetPage, setTargetPage] = useState<number | undefined>();
   const [currentMarker, setCurrentMarker] = useState<VinculoManual | undefined>();
   const [markerRepuesto, setMarkerRepuesto] = useState<Repuesto | null>(null);
@@ -236,12 +237,13 @@ export function Dashboard() {
     const loadManual = async () => {
       // Limpiar siempre al cambiar de máquina para no mostrar el PDF previo
       setPdfUrl(null);
+      setSelectedManualIndex(0); // Reset manual index
 
       if (!currentMachine) return;
 
       // 1) Prioridad: usar manuals[] de la máquina
       if (currentMachine.manuals && currentMachine.manuals.length > 0) {
-        setPdfUrl(currentMachine.manuals[0]);
+        setPdfUrl(currentMachine.manuals[selectedManualIndex] || currentMachine.manuals[0]);
         return;
       }
 
@@ -255,7 +257,7 @@ export function Dashboard() {
     };
 
     loadManual();
-  }, [currentMachine, getManualURL]);
+  }, [currentMachine, selectedManualIndex, getManualURL]);
 
   // Guardar PDF en cache global cuando el preloader termine
   useEffect(() => {
@@ -760,7 +762,18 @@ export function Dashboard() {
               icon={<BookOpen className="w-4 h-4" />}
               className="relative"
             >
-              Manual
+              {currentMachine ? (
+                <>
+                  <span>Manuales {currentMachine.nombre}</span>
+                  {currentMachine.manuals && currentMachine.manuals.length > 0 && (
+                    <span className="ml-1.5 px-1.5 py-0.5 text-xs font-semibold bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 rounded-full">
+                      {currentMachine.manuals.length}
+                    </span>
+                  )}
+                </>
+              ) : (
+                'Manual'
+              )}
               {/* Indicador PDF precargado */}
               {pdfPreloader.isReady ? (
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full" title="Manual precargado - apertura instantánea" />
@@ -1117,6 +1130,28 @@ export function Dashboard() {
                 >
                   Fotos Reales ({selectedRepuesto.fotosReales.length})
                 </button>
+              </div>
+            )}
+
+            {/* Selector de manuales cuando hay múltiples */}
+            {rightPanelMode === 'pdf' && currentMachine && currentMachine.manuals && currentMachine.manuals.length > 1 && (
+              <div className="flex border-b border-gray-100 bg-gray-50 px-3 py-2">
+                <select
+                  value={selectedManualIndex}
+                  onChange={(e) => setSelectedManualIndex(Number(e.target.value))}
+                  className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  {currentMachine.manuals.map((manual, index) => {
+                    // Extraer nombre del archivo de la URL
+                    const fileName = manual.split('/').pop()?.split('?')[0] || `Manual ${index + 1}`;
+                    const decodedName = decodeURIComponent(fileName);
+                    return (
+                      <option key={index} value={index}>
+                        {decodedName}
+                      </option>
+                    );
+                  })}
+                </select>
               </div>
             )}
 

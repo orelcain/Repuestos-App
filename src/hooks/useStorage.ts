@@ -140,12 +140,47 @@ export function useStorage(machineId: string | null) {
     return null;
   }, [machineId]);
 
+  // Subir infografía/diagrama (imagen, PDF, modelo 3D)
+  const uploadInfografia = useCallback(async (file: File, fileName?: string): Promise<string> => {
+    if (!machineId) {
+      throw new Error('Machine ID is required');
+    }
+
+    setUploading(true);
+    setProgress(0);
+
+    try {
+      const timestamp = Date.now();
+      const baseName = fileName || file.name.replace(/\.[^/.]+$/, '') || 'infografia';
+      const ext = file.name.split('.').pop() || 'png';
+      const uniqueName = `${baseName}_${timestamp}.${ext}`;
+
+      const path = `machines/${machineId}/infografias/${uniqueName}`;
+      
+      console.log('📊 [useStorage] Upload infografia path for machine', machineId, ':', path);
+      const storageRef = ref(storage, path);
+
+      await uploadBytes(storageRef, file);
+      setProgress(100);
+
+      const url = await getDownloadURL(storageRef);
+      return url;
+    } catch (err) {
+      console.error('Error al subir infografía:', err);
+      throw err;
+    } finally {
+      setUploading(false);
+      setProgress(0);
+    }
+  }, [machineId]);
+
   return {
     uploading,
     progress,
     uploadImage,
     deleteImage,
     uploadManualPDF,
-    getManualURL
+    getManualURL,
+    uploadInfografia
   };
 }

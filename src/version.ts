@@ -1,8 +1,19 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.5.1';
+export const APP_VERSION = '4.6.0';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.6.0',
+    date: '2025-12-31',
+    changes: [
+      '✨ NEW: Header muestra "Manuales [Máquina]" con contador de manuales',
+      '📑 NEW: Selector dropdown cuando máquina tiene múltiples manuales',
+      '📂 STRUCTURE: Organización en Firebase: machines/{id}/manuales/ e infografias/',
+      '🖼️ PREP: Soporte base para infografías y modelos 3D por máquina',
+      '🎨 UX: Nombres de archivo visibles en selector de manuales'
+    ]
+  },
   {
     version: '4.5.1',
     date: '2025-12-31',

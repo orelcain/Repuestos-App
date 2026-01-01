@@ -161,6 +161,7 @@ export interface Machine {
   color: string;                 // Color para la tab (hex): "#3b82f6"
   orden: number;                 // Orden de las tabs (para drag & drop)
   manuals?: string[];            // URLs de los manuales PDF de esta máquina
+  infografias?: string[];        // URLs de infografías/diagramas (imágenes, modelos 3D)
   createdAt: Date;               // Fecha de creación
   updatedAt?: Date;              // Última modificación
 }
