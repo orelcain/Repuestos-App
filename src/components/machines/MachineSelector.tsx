@@ -36,6 +36,14 @@ export function MachineSelector({ onEditMachine }: MachineSelectorProps) {
 
   // Filtrar solo máquinas activas
   const activeMachines = machines.filter(m => m.activa);
+  
+  // DEBUG: Log máquinas activas después del filtro
+  useEffect(() => {
+    console.log('✅ [MachineSelector] Active machines after filter:', activeMachines.length);
+    activeMachines.forEach(m => {
+      console.log(`  ✓ ${m.id}: ${m.nombre}`);
+    });
+  }, [activeMachines]);
 
   // Cerrar dropdown al hacer click fuera
   useEffect(() => {
