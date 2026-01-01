@@ -135,6 +135,17 @@ export function useMachines() {
     machineData: Omit<Machine, 'id' | 'createdAt' | 'updatedAt'>
   ): Promise<string> => {
     try {
+      // Generar slug limpio: marca-modelo en minúsculas, sin espacios ni caracteres especiales
+      const slug = `${machineData.marca}-${machineData.modelo}`
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // Quitar acentos
+        .replace(/[^a-z0-9-]/g, '-')      // Reemplazar caracteres especiales por -
+        .replace(/-+/g, '-')              // Múltiples - por uno solo
+        .replace(/^-|-$/g, '');           // Quitar - al inicio y final
+      
+      console.log('🆔 [useMachines] Generando ID slug:', slug, 'para', machineData.marca, machineData.modelo);
+      
       // Calcular el siguiente orden
       const maxOrden = machines.length > 0 
         ? Math.max(...machines.map(m => m.orden)) 
@@ -147,15 +158,25 @@ export function useMachines() {
         updatedAt: Timestamp.now(),
       };
       
-      const docRef = await addDoc(collection(db, COLLECTION_NAME), newMachine);
+      // Usar setDoc con ID específico en lugar de addDoc
+      const docRef = doc(db, COLLECTION_NAME, slug);
+      
+      // Verificar si ya existe
+      const existingDoc = await getDoc(docRef);
+      if (existingDoc.exists()) {
+        throw new Error(`Ya existe una máquina con el ID "${slug}". Usa una marca/modelo diferente.`);
+      }
+      
+      await setDoc(docRef, newMachine);
+      console.log('✅ [useMachines] Máquina creada con ID:', slug);
       
       // Actualizar estado local
       await fetchMachines();
       
-      return docRef.id;
+      return slug;
     } catch (err) {
       console.error('Error creating machine:', err);
-      throw new Error('Error al crear la máquina');
+      throw err instanceof Error ? err : new Error('Error al crear la máquina');
     }
   };
 

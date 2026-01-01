@@ -1,8 +1,19 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.7.0';
+export const APP_VERSION = '4.8.0';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.8.0',
+    date: '2026-01-01',
+    changes: [
+      '🏷️ BREAKING: IDs de máquinas ahora usan slugs limpios (baader-142, marel-300)',
+      '📂 STRUCTURE: Firebase Storage ahora organizado: machines/baader-142/manuales/',
+      '✅ FIX: Ya no más IDs aleatorios - estructura legible y escalable',
+      '🛠️ TOOL: Script de migración para actualizar máquinas existentes',
+      '🔒 VALIDATION: Previene duplicados por marca/modelo'
+    ]
+  },
   {
     version: '4.7.0',
     date: '2025-12-31',
