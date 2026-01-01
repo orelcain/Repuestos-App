@@ -25,7 +25,7 @@ const COLORES_PREDEFINIDOS = [
 ];
 
 export function MachineFormModal({ isOpen, onClose, machine }: MachineFormModalProps) {
-  const { createMachine, updateMachine } = useMachines();
+  const { createMachine, updateMachine, deleteMachine } = useMachines();
   const { setCurrentMachine } = useMachineContext();
   const { uploadManualPDF, uploading, progress } = useStorage(machine?.id || null);
   
@@ -346,29 +346,56 @@ export function MachineFormModal({ isOpen, onClose, machine }: MachineFormModalP
         )}
 
         {/* Botones */}
-        <div className="flex justify-end gap-2 pt-4">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={onClose}
-            disabled={loading}
-          >
-            Cancelar
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={loading}
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Guardando...
-              </>
-            ) : (
-              machine ? 'Actualizar' : 'Crear Máquina'
-            )}
-          </Button>
+        <div className="flex justify-between items-center gap-2 pt-4">
+          {/* Botón eliminar (solo en edición) */}
+          {machine && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={async () => {
+                if (confirm(`¿Eliminar máquina "${machine.nombre}"?\n\nEsto NO eliminará los repuestos, solo la máquina.`)) {
+                  setLoading(true);
+                  try {
+                    await deleteMachine(machine.id);
+                    onClose();
+                  } catch (err) {
+                    setError('Error al eliminar la máquina');
+                  } finally {
+                    setLoading(false);
+                  }
+                }
+              }}
+              disabled={loading}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+            >
+              Eliminar Máquina
+            </Button>
+          )}
+          
+          <div className="flex gap-2 ml-auto">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={onClose}
+              disabled={loading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                machine ? 'Actualizar' : 'Crear Máquina'
+              )}
+            </Button>
+          </div>
         </div>
       </form>
     </Modal>

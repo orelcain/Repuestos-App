@@ -1,8 +1,17 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.8.0';
+export const APP_VERSION = '4.8.1';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.8.1',
+    date: '2026-01-01',
+    changes: [
+      '✨ NEW: Botón para eliminar máquinas desde modal de edición',
+      '🗑️ UX: Confirmación clara - eliminar máquina NO elimina repuestos',
+      '🔧 TOOL: Ahora puedes recrear máquinas con IDs limpios fácilmente'
+    ]
+  },
   {
     version: '4.8.0',
     date: '2026-01-01',
