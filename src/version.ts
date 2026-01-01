@@ -1,8 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.2';
+export const APP_VERSION = '4.9.3';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.3',
+    date: '2026-01-01',
+    changes: [
+      '⚡ PERF: Precarga continua: termina máquina actual y sigue con las demás',
+      '🧠 Estabilidad: cola persistente sin reiniciarse al cambiar de pestaña'
+    ]
+  },
   {
     version: '4.9.2',
     date: '2026-01-01',

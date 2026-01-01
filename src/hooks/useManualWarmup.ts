@@ -1,13 +1,13 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import type { Machine } from '../types';
 
 function isMobileLikeDevice() {
   if (typeof window === 'undefined') return false;
-  return (
-    window.matchMedia('(max-width: 1024px)').matches ||
-    'ontouchstart' in window ||
-    navigator.maxTouchPoints > 0
-  );
+  const isSmall = window.matchMedia('(max-width: 1024px)').matches;
+  const ua = navigator.userAgent || '';
+  const isMobileUA = /Android|iPhone|iPad|iPod/i.test(ua);
+  // Evitar tratar PCs táctiles como móvil solo por tener touch.
+  return isSmall || isMobileUA;
 }
 
 function canPrefetchAggressively() {
@@ -43,18 +43,56 @@ async function prefetchUrl(url: string): Promise<void> {
   }
 }
 
-async function runPool(urls: string[], concurrency: number, shouldContinue: () => boolean) {
-  let idx = 0;
+type QueueItem = { url: string };
 
-  const workers = new Array(Math.max(1, concurrency)).fill(null).map(async () => {
-    while (shouldContinue()) {
-      const currentIndex = idx++;
-      if (currentIndex >= urls.length) return;
-      await prefetchUrl(urls[currentIndex]);
+const globalQueue = {
+  queue: [] as QueueItem[],
+  queued: new Set<string>(),
+  done: new Set<string>(),
+  running: false,
+  currentRunToken: 0,
+};
+
+function scheduleIdle(fn: () => void) {
+  const win = window as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => void };
+  if (typeof win.requestIdleCallback === 'function') {
+    win.requestIdleCallback(fn, { timeout: 2000 });
+  } else {
+    setTimeout(fn, 800);
+  }
+}
+
+function enqueueUrls(urls: string[], priority: 'front' | 'back') {
+  for (const url of urls) {
+    if (!url) continue;
+    if (globalQueue.done.has(url)) continue;
+    if (globalQueue.queued.has(url)) continue;
+    globalQueue.queued.add(url);
+    const item = { url };
+    if (priority === 'front') globalQueue.queue.unshift(item);
+    else globalQueue.queue.push(item);
+  }
+}
+
+async function runQueue(concurrency: number) {
+  if (globalQueue.running) return;
+  globalQueue.running = true;
+  const token = ++globalQueue.currentRunToken;
+
+  const worker = async () => {
+    while (token === globalQueue.currentRunToken) {
+      const item = globalQueue.queue.shift();
+      if (!item) return;
+      await prefetchUrl(item.url);
+      globalQueue.done.add(item.url);
     }
-  });
+  };
 
-  await Promise.all(workers);
+  try {
+    await Promise.all(new Array(Math.max(1, concurrency)).fill(null).map(() => worker()));
+  } finally {
+    globalQueue.running = false;
+  }
 }
 
 /**
@@ -65,55 +103,54 @@ async function runPool(urls: string[], concurrency: number, shouldContinue: () =
  * Nota: esto NO parsea PDF.js; solo calienta caché de red.
  */
 export function useManualWarmup(currentMachine: Machine | null, machines: Machine[]) {
-  const prefetchedRef = useRef<Set<string>>(new Set());
-  const runIdRef = useRef(0);
+  const hasMountedRef = useRef(false);
+
+  const machineManualUrls = useMemo(() => {
+    const byMachine = new Map<string, string[]>();
+    for (const m of machines) {
+      const urls = (m.manuals || []).filter(Boolean);
+      byMachine.set(m.id, urls);
+    }
+    return byMachine;
+  }, [machines]);
 
   useEffect(() => {
     if (!currentMachine) return;
 
-    const runId = ++runIdRef.current;
-    const shouldContinue = () => runIdRef.current === runId;
-
-    const currentUrls = (currentMachine.manuals || []).filter(Boolean);
-    const otherUrls = machines
-      .filter((m) => m.id !== currentMachine.id)
-      .flatMap((m) => m.manuals || [])
-      .filter(Boolean);
-
     const mobile = isMobileLikeDevice();
     const aggressive = canPrefetchAggressively();
-
-    const urlsOrdered = mobile && !aggressive
-      ? currentUrls
-      : [...currentUrls, ...otherUrls];
-
-    const urls = urlsOrdered.filter((u) => {
-      if (!u) return false;
-      if (prefetchedRef.current.has(u)) return false;
-      prefetchedRef.current.add(u);
-      return true;
-    });
-
-    if (urls.length === 0) return;
-
     const concurrency = mobile ? 1 : 2;
 
-    const schedule = (fn: () => void) => {
-      const win = window as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => void };
-      if (typeof win.requestIdleCallback === 'function') {
-        win.requestIdleCallback(fn, { timeout: 2000 });
-      } else {
-        setTimeout(fn, 800);
-      }
-    };
+    const currentUrls = machineManualUrls.get(currentMachine.id) || [];
+    enqueueUrls(currentUrls, 'front');
 
-    schedule(() => {
-      void runPool(urls, concurrency, shouldContinue);
+    // En PC o conexión OK, también encolar el resto inmediatamente.
+    // En móvil/datos limitados: solo la máquina actual.
+    if (!mobile || aggressive) {
+      const otherUrls: string[] = [];
+      for (const [machineId, urls] of machineManualUrls.entries()) {
+        if (machineId === currentMachine.id) continue;
+        otherUrls.push(...urls);
+      }
+      enqueueUrls(otherUrls, 'back');
+    }
+
+    // Arrancar una sola vez (y luego se mantiene drenando la cola)
+    const shouldStartNow = !hasMountedRef.current;
+    hasMountedRef.current = true;
+
+    scheduleIdle(() => {
+      // En el primer arranque, dale prioridad fuerte a la máquina actual.
+      // En cambios posteriores, la cola ya se actualiza por enqueueUrls.
+      void runQueue(concurrency);
     });
 
+    // Si cambia la máquina, no cancelamos: solo reajustamos prioridad via enqueue.
+    // La cola se seguirá drenando.
     return () => {
-      // invalidar corrida
-      runIdRef.current = runId;
+      if (shouldStartNow) {
+        // no-op
+      }
     };
-  }, [currentMachine?.id, currentMachine?.manuals, machines]);
+  }, [currentMachine?.id, machineManualUrls]);
 }
