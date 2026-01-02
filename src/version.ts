@@ -1,8 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.25';
+export const APP_VERSION = '4.9.26';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.26',
+    date: '2026-01-02',
+    changes: [
+      '🗜️ Imágenes: La calidad seleccionada ahora se respeta (evita doble optimización)',
+      '📏 Imágenes: Toast muestra tamaño original → final y formato/calidad aplicada'
+    ]
+  },
   {
     version: '4.9.25',
     date: '2026-01-02',

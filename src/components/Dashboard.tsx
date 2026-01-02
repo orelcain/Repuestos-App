@@ -59,6 +59,7 @@ import { MachineSelector } from './machines/MachineSelector';
 import { MachineFormModal } from './machines/MachineFormModal';
 
 import { exportToExcel, exportToPDF } from '../utils/exportUtils';
+import { formatFileSize } from '../utils/imageUtils';
 
 import { 
   LogOut, 
@@ -566,8 +567,21 @@ export function Dashboard() {
   };
 
   // Handlers de imágenes
-  const handleUploadImage = async (file: File, repuestoId: string, tipo: 'manual' | 'real') => {
-    const imagen = await uploadImage(file, repuestoId, tipo);
+  const handleUploadImage = async (
+    file: File,
+    repuestoId: string,
+    tipo: 'manual' | 'real',
+    meta?: {
+      originalSize?: number;
+      optimizedSize?: number;
+      chosen?: { format: 'webp' | 'jpeg' | 'original'; quality?: number; maxWidth?: number; maxHeight?: number };
+      skipOptimize?: boolean;
+    }
+  ) => {
+    const imagen = await uploadImage(file, repuestoId, tipo, {
+      quality: meta?.chosen?.quality,
+      skipOptimize: meta?.skipOptimize
+    });
     
     const repuesto = repuestos.find(r => r.id === repuestoId);
     if (repuesto) {
@@ -578,7 +592,16 @@ export function Dashboard() {
         [tipo === 'manual' ? 'imagenesManual' : 'fotosReales']: updatedImages
       }, repuesto);
       
-      success('Imagen agregada correctamente');
+      if (meta?.originalSize && meta?.optimizedSize) {
+        const formatLabel = meta.chosen?.format && meta.chosen.format !== 'original'
+          ? `${meta.chosen.format.toUpperCase()}${meta.chosen.quality ? ` ${Math.round(meta.chosen.quality * 100)}%` : ''}`
+          : null;
+        success(
+          `Imagen agregada: ${formatFileSize(meta.originalSize)} → ${formatFileSize(meta.optimizedSize)}${formatLabel ? ` (${formatLabel})` : ''}`
+        );
+      } else {
+        success('Imagen agregada correctamente');
+      }
     }
     
     return imagen;

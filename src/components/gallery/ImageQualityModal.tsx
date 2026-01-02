@@ -12,7 +12,7 @@ interface ImageQualityModalProps {
   isOpen: boolean;
   onClose: () => void;
   file: File | null;
-  onConfirm: (optimizedFile: File) => void;
+  onConfirm: (result: OptimizeImageResult) => void;
 }
 
 export function ImageQualityModal({
@@ -71,7 +71,7 @@ export function ImageQualityModal({
     setProcessing(true);
     try {
       const result = await optimizeImage(file, selectedQuality.value);
-      onConfirm(result.file);
+      onConfirm(result);
       onClose();
     } catch (err) {
       console.error('Error optimizando imagen:', err);

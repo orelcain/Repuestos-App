@@ -12,7 +12,11 @@ export function useStorage(machineId: string | null) {
   const uploadImage = useCallback(async (
     file: File,
     repuestoId: string,
-    tipo: 'manual' | 'real'
+    tipo: 'manual' | 'real',
+    options?: {
+      quality?: number;
+      skipOptimize?: boolean;
+    }
   ): Promise<ImagenRepuesto> => {
     if (!machineId) {
       throw new Error('Machine ID is required');
@@ -24,11 +28,15 @@ export function useStorage(machineId: string | null) {
     try {
       // Optimización en cliente: reduce dimensiones/peso antes de subir.
       // Nota: no optimizamos GIF/SVG para no romper animaciones/vectores.
-      const shouldOptimize = file.type.startsWith('image/') && !['image/gif', 'image/svg+xml'].includes(file.type);
+      const shouldOptimize =
+        !options?.skipOptimize &&
+        file.type.startsWith('image/') &&
+        !['image/gif', 'image/svg+xml'].includes(file.type);
       let fileToUpload = file;
       if (shouldOptimize) {
         try {
-          fileToUpload = (await optimizeImage(file, 0.85)).file;
+          const quality = options?.quality ?? 0.85;
+          fileToUpload = (await optimizeImage(file, quality)).file;
         } catch (err) {
           console.warn('[useStorage] No se pudo optimizar imagen; subiendo original', err);
           fileToUpload = file;

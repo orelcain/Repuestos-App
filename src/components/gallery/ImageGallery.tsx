@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { ImagenRepuesto, Repuesto } from '../../types';
 import { Modal, Button } from '../ui';
 import { ImageQualityModal } from './ImageQualityModal';
+import type { OptimizeImageResult } from '../../utils/imageUtils';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -19,7 +20,17 @@ import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 interface ImageGalleryProps {
   repuesto: Repuesto | null;
   tipo: 'manual' | 'real';
-  onUpload: (file: File, repuestoId: string, tipo: 'manual' | 'real') => Promise<ImagenRepuesto>;
+  onUpload: (
+    file: File,
+    repuestoId: string,
+    tipo: 'manual' | 'real',
+    meta?: {
+      originalSize?: number;
+      optimizedSize?: number;
+      chosen?: OptimizeImageResult['chosen'];
+      skipOptimize?: boolean;
+    }
+  ) => Promise<ImagenRepuesto>;
   onDelete: (repuesto: Repuesto, imagen: ImagenRepuesto) => Promise<void>;
   onSetPrimary: (repuesto: Repuesto, imagen: ImagenRepuesto) => Promise<void>;
   onUpdateOrder: (repuesto: Repuesto, imagenes: ImagenRepuesto[]) => Promise<void>;
@@ -61,12 +72,19 @@ export function ImageGallery({
     }
   };
 
-  const handleOptimizedUpload = async (optimizedFile: File) => {
+  const handleOptimizedUpload = async (result: OptimizeImageResult) => {
     if (!repuesto) return;
 
     setUploading(true);
     try {
-      await onUpload(optimizedFile, repuesto.id, tipo);
+      const originalFile = pendingFiles[currentFileIndex];
+      await onUpload(result.file, repuesto.id, tipo, {
+        originalSize: originalFile?.size,
+        optimizedSize: result.file.size,
+        chosen: result.chosen,
+        // Ya viene optimizada desde el modal: evitar doble optimización.
+        skipOptimize: true
+      });
       
       // Si hay más archivos pendientes, mostrar el siguiente
       if (currentFileIndex < pendingFiles.length - 1) {
