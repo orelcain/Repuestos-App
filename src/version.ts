@@ -1,8 +1,15 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.50';
+export const APP_VERSION = '4.9.51';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.51',
+    date: '2026-01-02',
+    changes: [
+      '🎛️ Mejor contraste: controles de zoom con fondo oscuro para leerse sobre cualquier foto',
+    ],
+  },
   {
     version: '4.9.50',
     date: '2026-01-02',

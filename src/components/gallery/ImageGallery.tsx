@@ -230,8 +230,8 @@ export function ImageGallery({
               >
                 {({ zoomIn, zoomOut, resetTransform }) => (
                   <>
-                    <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 bg-white/80 backdrop-blur px-3 py-2 rounded-full shadow">
-                      <button onClick={() => zoomOut()} className="p-1 rounded hover:bg-black/5" title="Alejar">
+                    <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 bg-black/60 text-white backdrop-blur px-3 py-2 rounded-full shadow border border-white/15">
+                      <button onClick={() => zoomOut()} className="p-1 rounded hover:bg-white/10" title="Alejar">
                         <Minus className="w-4 h-4" />
                       </button>
                       <button
@@ -240,15 +240,15 @@ export function ImageGallery({
                           setInlineScale(1);
                           setInlineIsPanning(false);
                         }}
-                        className="p-1 rounded hover:bg-black/5"
+                        className="p-1 rounded hover:bg-white/10"
                         title="Reset"
                       >
                         <RefreshCw className="w-4 h-4" />
                       </button>
-                      <button onClick={() => zoomIn()} className="p-1 rounded hover:bg-black/5" title="Acercar">
+                      <button onClick={() => zoomIn()} className="p-1 rounded hover:bg-white/10" title="Acercar">
                         <Plus className="w-4 h-4" />
                       </button>
-                      <span className="ml-1 text-xs tabular-nums text-gray-700 select-none">
+                      <span className="ml-1 text-xs tabular-nums text-white/90 select-none">
                         {Math.round(inlineScale * 100)}%
                       </span>
                     </div>
@@ -443,17 +443,17 @@ export function ImageGallery({
             >
               {({ zoomIn, zoomOut, resetTransform }) => (
                 <>
-                  <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 bg-white/80 backdrop-blur px-3 py-2 rounded-full shadow">
-                    <button onClick={() => zoomOut()} className="p-1 rounded hover:bg-black/5" title="Alejar">
+                  <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 bg-black/60 text-white backdrop-blur px-3 py-2 rounded-full shadow border border-white/15">
+                    <button onClick={() => zoomOut()} className="p-1 rounded hover:bg-white/10" title="Alejar">
                       <Minus className="w-4 h-4" />
                     </button>
-                    <button onClick={() => resetTransform()} className="p-1 rounded hover:bg-black/5" title="Reset">
+                    <button onClick={() => resetTransform()} className="p-1 rounded hover:bg-white/10" title="Reset">
                       <RefreshCw className="w-4 h-4" />
                     </button>
-                    <button onClick={() => zoomIn()} className="p-1 rounded hover:bg-black/5" title="Acercar">
+                    <button onClick={() => zoomIn()} className="p-1 rounded hover:bg-white/10" title="Acercar">
                       <Plus className="w-4 h-4" />
                     </button>
-                    <span className="ml-1 text-xs tabular-nums text-gray-700 select-none">
+                    <span className="ml-1 text-xs tabular-nums text-white/90 select-none">
                       {Math.round(zoomScale * 100)}%
                     </span>
                   </div>
@@ -482,7 +482,7 @@ export function ImageGallery({
             </TransformWrapper>
           )}
           
-          <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-gray-600 bg-white/85 backdrop-blur px-3 py-1 rounded shadow">
+          <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-white bg-black/60 backdrop-blur px-3 py-1 rounded shadow border border-white/15">
             Scroll o pellizca para zoom · arrastra (con zoom) para mover · doble click: zoom / reset
           </p>
         </div>
