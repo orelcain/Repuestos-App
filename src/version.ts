@@ -1,8 +1,15 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.46';
+export const APP_VERSION = '4.9.47';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.47',
+    date: '2026-01-02',
+    changes: [
+      '🖐️ Cursor mano en zoom: la “manito” aparece correctamente al arrastrar con mouse cuando hay zoom',
+    ],
+  },
   {
     version: '4.9.46',
     date: '2026-01-02',

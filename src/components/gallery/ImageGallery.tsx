@@ -49,6 +49,7 @@ export function ImageGallery({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [zoomImage, setZoomImage] = useState<ImagenRepuesto | null>(null);
   const [zoomScale, setZoomScale] = useState(1);
+  const [isPanning, setIsPanning] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -205,6 +206,7 @@ export function ImageGallery({
                 onClick={() => {
                   setZoomImage(sortedImages[currentIndex]);
                   setZoomScale(1);
+                  setIsPanning(false);
                 }}
               />
 
@@ -236,6 +238,7 @@ export function ImageGallery({
                 onClick={() => {
                   setZoomImage(sortedImages[currentIndex]);
                   setZoomScale(1);
+                  setIsPanning(false);
                 }}
                 className="absolute top-2 right-2 p-2 bg-white/80 rounded-full shadow hover:bg-white transition-colors"
               >
@@ -322,6 +325,7 @@ export function ImageGallery({
         onClose={() => {
           setZoomImage(null);
           setZoomScale(1);
+          setIsPanning(false);
         }}
         size="full"
       >
@@ -330,6 +334,7 @@ export function ImageGallery({
             onClick={() => {
               setZoomImage(null);
               setZoomScale(1);
+              setIsPanning(false);
             }}
             className="absolute top-2 right-2 z-10 p-2 bg-white rounded-full shadow hover:bg-gray-100"
           >
@@ -345,11 +350,12 @@ export function ImageGallery({
               centerZoomedOut
               disablePadding
               wheel={{ step: 0.2, wheelDisabled: false }}
-              doubleClick={{ mode: zoomScale < 4 ? 'zoomIn' : 'reset', step: 0.8 }}
+              doubleClick={{ mode: 'toggle', step: 0.8 }}
               pinch={{ step: 0.4 }}
-              panning={{ velocity: true, disabled: zoomScale <= 1 }}
-              onZoomStop={({ state }) => setZoomScale(state.scale)}
-              onPanningStop={({ state }) => setZoomScale(state.scale)}
+              panning={{ disabled: zoomScale <= 1, velocityDisabled: false, allowLeftClickPan: true }}
+              onTransformed={(_ref, state) => setZoomScale(state.scale)}
+              onPanningStart={() => setIsPanning(true)}
+              onPanningStop={() => setIsPanning(false)}
             >
               {({ zoomIn, zoomOut, resetTransform }) => (
                 <>
@@ -368,16 +374,21 @@ export function ImageGallery({
                     </span>
                   </div>
                   <TransformComponent
+                    wrapperClass={
+                      'w-full h-full ' +
+                      (zoomScale > 1
+                        ? isPanning
+                          ? 'cursor-grabbing'
+                          : 'cursor-grab'
+                        : 'cursor-default')
+                    }
                     wrapperStyle={{ width: '100%', height: '100%' }}
                     contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   >
                     <img
                       src={zoomImage.url}
                       alt={zoomImage.descripcion}
-                      className={
-                        "max-w-full max-h-full object-contain select-none " +
-                        (zoomScale > 1 ? 'cursor-grab active:cursor-grabbing' : 'cursor-default')
-                      }
+                      className="max-w-full max-h-full object-contain select-none"
                       draggable={false}
                     />
                   </TransformComponent>
