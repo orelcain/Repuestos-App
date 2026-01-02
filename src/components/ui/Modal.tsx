@@ -62,6 +62,7 @@ export function Modal({ isOpen, onClose, children, title, size = 'md' }: ModalPr
   };
 
   const contentClasses = size === 'full' ? 'flex-1 overflow-hidden p-0' : 'flex-1 overflow-auto p-6';
+  const heightClasses = size === 'full' ? 'h-[90vh] md:h-[85vh]' : 'max-h-[90vh] md:max-h-[85vh]';
 
   return (
     <div 
@@ -72,8 +73,8 @@ export function Modal({ isOpen, onClose, children, title, size = 'md' }: ModalPr
       <div 
         className={`
           modal-content bg-white rounded-lg shadow-xl w-full ${sizeClasses[size]}
-          max-h-[90vh] overflow-hidden flex flex-col animate-slideIn
-          md:rounded-lg md:max-h-[85vh]
+          ${heightClasses} overflow-hidden flex flex-col animate-slideIn
+          md:rounded-lg
         `}
         onClick={e => e.stopPropagation()}
         onMouseDown={e => e.stopPropagation()}

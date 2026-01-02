@@ -1,8 +1,15 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.48';
+export const APP_VERSION = '4.9.49';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.49',
+    date: '2026-01-02',
+    changes: [
+      '🪟 Fix visor: modal full con altura fija para evitar imagen recortada',
+    ],
+  },
   {
     version: '4.9.48',
     date: '2026-01-02',
