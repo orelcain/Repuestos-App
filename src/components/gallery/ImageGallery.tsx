@@ -12,7 +12,10 @@ import {
   X,
   Upload,
   Camera,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Plus,
+  Minus,
+  RefreshCw
 } from 'lucide-react';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { formatFileSize } from '../../utils/imageUtils';
@@ -45,6 +48,7 @@ export function ImageGallery({
 }: ImageGalleryProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [zoomImage, setZoomImage] = useState<ImagenRepuesto | null>(null);
+  const [zoomScale, setZoomScale] = useState(1);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -198,7 +202,10 @@ export function ImageGallery({
                 src={sortedImages[currentIndex]?.url}
                 alt={sortedImages[currentIndex]?.descripcion || 'Imagen del repuesto'}
                 className="max-w-full max-h-full object-contain cursor-zoom-in"
-                onClick={() => setZoomImage(sortedImages[currentIndex])}
+                onClick={() => {
+                  setZoomImage(sortedImages[currentIndex]);
+                  setZoomScale(1);
+                }}
               />
 
               {/* Navigation Arrows */}
@@ -226,7 +233,10 @@ export function ImageGallery({
 
               {/* Zoom Button */}
               <button
-                onClick={() => setZoomImage(sortedImages[currentIndex])}
+                onClick={() => {
+                  setZoomImage(sortedImages[currentIndex]);
+                  setZoomScale(1);
+                }}
                 className="absolute top-2 right-2 p-2 bg-white/80 rounded-full shadow hover:bg-white transition-colors"
               >
                 <ZoomIn className="w-4 h-4" />
@@ -307,32 +317,77 @@ export function ImageGallery({
       </div>
 
       {/* Zoom Modal */}
-      <Modal isOpen={!!zoomImage} onClose={() => setZoomImage(null)} size="full">
+      <Modal
+        isOpen={!!zoomImage}
+        onClose={() => {
+          setZoomImage(null);
+          setZoomScale(1);
+        }}
+        size="full"
+      >
         <div className="relative w-full h-[70vh]">
           <button
-            onClick={() => setZoomImage(null)}
+            onClick={() => {
+              setZoomImage(null);
+              setZoomScale(1);
+            }}
             className="absolute top-2 right-2 z-10 p-2 bg-white rounded-full shadow hover:bg-gray-100"
           >
             <X className="w-5 h-5" />
           </button>
           
           {zoomImage && (
-            <TransformWrapper>
-              <TransformComponent
-                wrapperStyle={{ width: '100%', height: '100%' }}
-                contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              >
-                <img
-                  src={zoomImage.url}
-                  alt={zoomImage.descripcion}
-                  className="max-w-full max-h-full object-contain"
-                />
-              </TransformComponent>
+            <TransformWrapper
+              initialScale={1}
+              minScale={1}
+              maxScale={6}
+              centerOnInit
+              centerZoomedOut
+              disablePadding
+              wheel={{ step: 0.2, wheelDisabled: false }}
+              doubleClick={{ mode: zoomScale < 4 ? 'zoomIn' : 'reset', step: 0.8 }}
+              pinch={{ step: 0.4 }}
+              panning={{ velocity: true, disabled: zoomScale <= 1 }}
+              onZoomStop={({ state }) => setZoomScale(state.scale)}
+              onPanningStop={({ state }) => setZoomScale(state.scale)}
+            >
+              {({ zoomIn, zoomOut, resetTransform }) => (
+                <>
+                  <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 bg-white/80 backdrop-blur px-3 py-2 rounded-full shadow">
+                    <button onClick={() => zoomOut()} className="p-1 rounded hover:bg-black/5" title="Alejar">
+                      <Minus className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => resetTransform()} className="p-1 rounded hover:bg-black/5" title="Reset">
+                      <RefreshCw className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => zoomIn()} className="p-1 rounded hover:bg-black/5" title="Acercar">
+                      <Plus className="w-4 h-4" />
+                    </button>
+                    <span className="ml-1 text-xs tabular-nums text-gray-700 select-none">
+                      {Math.round(zoomScale * 100)}%
+                    </span>
+                  </div>
+                  <TransformComponent
+                    wrapperStyle={{ width: '100%', height: '100%' }}
+                    contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <img
+                      src={zoomImage.url}
+                      alt={zoomImage.descripcion}
+                      className={
+                        "max-w-full max-h-full object-contain select-none " +
+                        (zoomScale > 1 ? 'cursor-grab active:cursor-grabbing' : 'cursor-default')
+                      }
+                      draggable={false}
+                    />
+                  </TransformComponent>
+                </>
+              )}
             </TransformWrapper>
           )}
           
-          <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-sm text-gray-500 bg-white/80 px-3 py-1 rounded">
-            Usa el scroll para hacer zoom
+          <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-gray-600 bg-white/85 backdrop-blur px-3 py-1 rounded shadow">
+            Scroll o pellizca para zoom · arrastra para mover · doble click: zoom / reset
           </p>
         </div>
       </Modal>

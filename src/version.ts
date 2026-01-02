@@ -1,8 +1,22 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.44';
+export const APP_VERSION = '4.9.46';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.46',
+    date: '2026-01-02',
+    changes: [
+      '🖱️📱 Visor más fluido: doble click alterna zoom/reset, % de zoom visible y arrastre desactivado al 100% (mouse y táctil)',
+    ],
+  },
+  {
+    version: '4.9.45',
+    date: '2026-01-02',
+    changes: [
+      '🖼 Controles de zoom: botones acercar/alejar/reset, gestos scroll/doble click/pellizco y arrastre más suave en visor',
+    ],
+  },
   {
     version: '4.9.44',
     date: '2026-01-02',
