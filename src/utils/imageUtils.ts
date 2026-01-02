@@ -23,6 +23,33 @@ type CanvasConvertOptions = {
   fileNameSuffix: string;
 };
 
+async function sniffImageFormat(blob: Blob): Promise<'webp' | 'jpeg' | 'png' | 'unknown'> {
+  try {
+    const buf = await blob.slice(0, 16).arrayBuffer();
+    const bytes = new Uint8Array(buf);
+
+    // JPEG: FF D8 FF
+    if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'jpeg';
+
+    // PNG: 89 50 4E 47 0D 0A 1A 0A
+    if (
+      bytes.length >= 8 &&
+      bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 &&
+      bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a
+    ) return 'png';
+
+    // WebP: RIFF....WEBP
+    const ascii = (i: number) => String.fromCharCode(bytes[i] ?? 0);
+    const riff = ascii(0) + ascii(1) + ascii(2) + ascii(3);
+    const webp = ascii(8) + ascii(9) + ascii(10) + ascii(11);
+    if (riff === 'RIFF' && webp === 'WEBP') return 'webp';
+  } catch {
+    // ignore
+  }
+
+  return 'unknown';
+}
+
 async function convertWithCanvas(file: File, options: CanvasConvertOptions): Promise<File> {
   const { mimeType, quality, maxWidth, maxHeight, fileNameSuffix } = options;
   // Preferir createImageBitmap (más eficiente/estable en móvil) y OffscreenCanvas cuando exista.
@@ -110,6 +137,14 @@ async function convertWithCanvas(file: File, options: CanvasConvertOptions): Pro
       throw new Error(`Formato no soportado en este navegador: solicitado ${mimeType}, obtenido ${blob.type}`);
     }
 
+    if (!blob.type) {
+      const sniffed = await sniffImageFormat(blob);
+      const expected = mimeType === 'image/webp' ? 'webp' : 'jpeg';
+      if (sniffed !== expected) {
+        throw new Error(`Conversión inválida: solicitado ${expected}, detectado ${sniffed}`);
+      }
+    }
+
     const originalName = file.name.replace(/\.[^.]+$/, '');
     return new File([blob], `${originalName}.${fileNameSuffix}`, {
       type: mimeType,
@@ -182,7 +217,9 @@ export async function optimizeImage(
     [1600, 1600],
     [1280, 1280],
     [1024, 1024],
-    [800, 800]
+    [800, 800],
+    [640, 640],
+    [512, 512]
   ];
 
   let bestWebp: { file: File; chosen: OptimizeImageResult['chosen'] } | null = null;

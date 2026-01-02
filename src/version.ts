@@ -1,8 +1,15 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.30';
+export const APP_VERSION = '4.9.31';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.31',
+    date: '2026-01-02',
+    changes: [
+      '🧬 Imágenes: Detecta formato real por bytes (evita conversiones inválidas) y baja más dimensiones (640/512)'
+    ]
+  },
   {
     version: '4.9.30',
     date: '2026-01-02',
