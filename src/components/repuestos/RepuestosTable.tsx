@@ -298,7 +298,7 @@ export function RepuestosTable({
   // Función helper para obtener clases de color según el grupo de columna
   const getColumnHeaderClass = (columnKey: string) => {
     const column = getColumn(columnKey);
-    const baseClass = "px-4 py-4 font-semibold text-xs uppercase tracking-wide transition-colors cursor-move select-none border-r border-gray-200 dark:border-gray-600 last:border-r-0";
+    const baseClass = "px-3 py-2 font-semibold text-[11px] uppercase tracking-wide transition-colors cursor-move select-none border-r border-gray-200 dark:border-gray-600 last:border-r-0";
     
     if (!column) return baseClass + " text-gray-600 dark:text-gray-300";
     
@@ -1465,9 +1465,9 @@ export function RepuestosTable({
                 >
                   {/* Código SAP con botón copiar */}
                   {isColumnVisible('codigoSAP') && (
-                  <td className="px-3 py-3 whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-mono text-sm bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded font-bold text-gray-800 dark:text-gray-200">
+                  <td className="px-3 py-2 whitespace-nowrap">
+                    <div className="flex items-center gap-1">
+                      <span className="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded font-bold text-gray-800 dark:text-gray-200">
                         {repuesto.codigoSAP}
                       </span>
                       <button
@@ -1475,13 +1475,13 @@ export function RepuestosTable({
                           e.stopPropagation();
                           handleCopy(repuesto.codigoSAP, `sap-${repuesto.id}`);
                         }}
-                        className="p-1.5 rounded-lg hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
+                        className="p-1 rounded-lg hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
                         title="Copiar código SAP"
                       >
                         {copiedId === `sap-${repuesto.id}` ? (
-                          <Check className="w-4 h-4 text-green-500" />
+                          <Check className="w-3.5 h-3.5 text-green-500" />
                         ) : (
-                          <Copy className="w-4 h-4" />
+                          <Copy className="w-3.5 h-3.5" />
                         )}
                       </button>
                     </div>
@@ -1490,9 +1490,9 @@ export function RepuestosTable({
 
                   {/* Código Baader con botón copiar */}
                   {isColumnVisible('codigoBaader') && (
-                  <td className="px-3 py-3 whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-mono text-sm text-primary-700 dark:text-primary-400 font-bold">
+                  <td className="px-3 py-2 whitespace-nowrap">
+                    <div className="flex items-center gap-1">
+                      <span className="font-mono text-xs text-primary-700 dark:text-primary-400 font-bold">
                         {repuesto.codigoBaader}
                       </span>
                       <button
@@ -1500,13 +1500,13 @@ export function RepuestosTable({
                           e.stopPropagation();
                           handleCopy(repuesto.codigoBaader, `baader-${repuesto.id}`);
                         }}
-                        className="p-1.5 rounded-lg hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
+                        className="p-1 rounded-lg hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
                         title="Copiar código Baader"
                       >
                         {copiedId === `baader-${repuesto.id}` ? (
-                          <Check className="w-4 h-4 text-green-500" />
+                          <Check className="w-3.5 h-3.5 text-green-500" />
                         ) : (
-                          <Copy className="w-4 h-4" />
+                          <Copy className="w-3.5 h-3.5" />
                         )}
                       </button>
                     </div>
@@ -1515,9 +1515,9 @@ export function RepuestosTable({
 
                   {/* Descripción SAP (textoBreve) */}
                   {isColumnVisible('textoBreve') && (
-                  <td className="px-3 py-3 min-w-[200px] max-w-[300px]">
+                  <td className="px-3 py-2 min-w-[200px] max-w-[300px]">
                     <div className="flex items-center gap-1">
-                      <span className="text-sm text-gray-800 dark:text-gray-200 line-clamp-2" title={repuesto.textoBreve}>
+                      <span className="text-xs text-gray-800 dark:text-gray-200 line-clamp-2" title={repuesto.textoBreve}>
                         {repuesto.textoBreve}
                       </span>
                       <button
@@ -1540,8 +1540,8 @@ export function RepuestosTable({
 
                   {/* Descripción Extendida */}
                   {isColumnVisible('descripcion') && (
-                  <td className="px-3 py-3 min-w-[250px] max-w-[400px]">
-                    <div className="space-y-1">
+                  <td className="px-3 py-2 min-w-[250px] max-w-[400px]">
+                    <div className="space-y-0.5">
                       <div className="flex items-center gap-1">
                         {repuesto.descripcion ? (
                           <>
@@ -1585,10 +1585,10 @@ export function RepuestosTable({
 
                   {/* Nombre según Manual */}
                   {isColumnVisible('nombreManual') && (
-                  <td className="px-4 py-4">
+                  <td className="px-3 py-2">
                     {repuesto.nombreManual ? (
                       <div className="flex items-center gap-1">
-                        <span className="text-sm text-gray-700 truncate max-w-[150px]" title={repuesto.nombreManual}>
+                        <span className="text-xs text-gray-700 truncate max-w-[150px]" title={repuesto.nombreManual}>
                           {repuesto.nombreManual}
                         </span>
                         <button
@@ -1614,7 +1614,7 @@ export function RepuestosTable({
 
                   {/* Tags Solicitud */}
                   {isColumnVisible('tagsSolicitud') && (
-                  <td className="px-4 py-4">
+                  <td className="px-3 py-2">
                     {repuesto.tags && repuesto.tags.filter(t => isTagAsignado(t) && t.tipo === 'solicitud').length > 0 ? (
                       <div className="flex flex-wrap gap-1">
                         {repuesto.tags.filter(t => isTagAsignado(t) && t.tipo === 'solicitud').map((tag, idx) => {
@@ -1622,7 +1622,7 @@ export function RepuestosTable({
                           return (
                             <span 
                               key={`${tagInfo.nombre}-${idx}`} 
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200"
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200"
                               title={`${tagInfo.nombre} (solicitud: ${tagInfo.cantidad})`}
                             >
                               <ShoppingCart className="w-3 h-3" />
@@ -1640,7 +1640,7 @@ export function RepuestosTable({
 
                   {/* Tags Stock */}
                   {isColumnVisible('tagsStock') && (
-                  <td className="px-4 py-4">
+                  <td className="px-3 py-2">
                     {repuesto.tags && repuesto.tags.filter(t => isTagAsignado(t) && t.tipo === 'stock').length > 0 ? (
                       <div className="flex flex-wrap gap-1">
                         {repuesto.tags.filter(t => isTagAsignado(t) && t.tipo === 'stock').map((tag, idx) => {
@@ -1648,7 +1648,7 @@ export function RepuestosTable({
                           return (
                             <span 
                               key={`${tagInfo.nombre}-${idx}`} 
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-green-50 text-green-700 border border-green-200"
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-medium bg-green-50 text-green-700 border border-green-200"
                               title={`${tagInfo.nombre} (stock: ${tagInfo.cantidad})`}
                             >
                               <Package className="w-3 h-3" />
@@ -1666,14 +1666,14 @@ export function RepuestosTable({
 
                   {/* Cantidad Solicitada - según contexto activo */}
                   {isColumnVisible('cantidadSolicitada') && (
-                  <td className="px-2 py-3 text-center">
+                  <td className="px-2 py-2 text-center">
                     {activeContexts.solicitud ? (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleViewFieldHistory(repuesto, 'cantidadSolicitada');
                         }}
-                        className="text-xl font-bold px-4 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-700 dark:text-blue-400 transition-colors min-w-[60px]"
+                        className="text-base font-bold px-2.5 py-1.5 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-700 dark:text-blue-400 transition-colors min-w-[52px]"
                         title={`Cantidad en "${activeContexts.solicitud}" - Ver historial`}
                       >
                         {getCantidadPorContexto(repuesto, 'solicitud')}
@@ -1686,9 +1686,9 @@ export function RepuestosTable({
 
                   {/* Total Solicitado USD */}
                   {isColumnVisible('totalSolicitadoUSD') && (
-                  <td className="px-2 py-3 text-center">
+                  <td className="px-2 py-2 text-center">
                     {activeContexts.solicitud ? (
-                      <span className="text-base font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
+                      <span className="text-sm font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
                         ${(repuesto.valorUnitario * getCantidadPorContexto(repuesto, 'solicitud')).toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     ) : (
@@ -1699,7 +1699,7 @@ export function RepuestosTable({
 
                   {/* Stock Bodega - según contexto activo */}
                   {isColumnVisible('cantidadStockBodega') && (
-                  <td className="px-2 py-3 text-center">
+                  <td className="px-2 py-2 text-center">
                     {activeContexts.stock ? (() => {
                       const stockEnContexto = getCantidadPorContexto(repuesto, 'stock');
                       return (
@@ -1709,7 +1709,7 @@ export function RepuestosTable({
                             handleViewFieldHistory(repuesto, 'cantidadStockBodega');
                           }}
                           className={`
-                            px-4 py-2 rounded-lg text-xl font-bold transition-colors min-w-[60px]
+                            px-2.5 py-1.5 rounded-md text-base font-bold transition-colors min-w-[52px]
                             ${stockEnContexto > 0 
                               ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/60' 
                               : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
@@ -1728,9 +1728,9 @@ export function RepuestosTable({
 
                   {/* Total Stock USD */}
                   {isColumnVisible('totalStockUSD') && (
-                  <td className="px-2 py-3 text-center">
+                  <td className="px-2 py-2 text-center">
                     {activeContexts.stock ? (
-                      <span className="text-base font-bold text-green-600 dark:text-green-400 whitespace-nowrap">
+                      <span className="text-sm font-bold text-green-600 dark:text-green-400 whitespace-nowrap">
                         ${(repuesto.valorUnitario * getCantidadPorContexto(repuesto, 'stock')).toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     ) : (
@@ -1741,8 +1741,8 @@ export function RepuestosTable({
 
                   {/* Valor unitario */}
                   {isColumnVisible('valorUnitario') && (
-                  <td className="px-2 py-3 text-center">
-                    <span className="text-lg font-bold text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                  <td className="px-2 py-2 text-center">
+                    <span className="text-base font-bold text-gray-700 dark:text-gray-300 whitespace-nowrap">
                       ${repuesto.valorUnitario?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
                     </span>
                   </td>
@@ -1750,9 +1750,9 @@ export function RepuestosTable({
 
                   {/* Total USD */}
                   {isColumnVisible('totalUSD') && (
-                  <td className="px-2 py-3 text-center">
+                  <td className="px-2 py-2 text-center">
                     {hasAnyContext ? (
-                      <span className="text-lg font-black text-gray-900 dark:text-white whitespace-nowrap bg-yellow-50 dark:bg-yellow-900/30 px-3 py-1 rounded-lg">
+                      <span className="text-base font-black text-gray-900 dark:text-white whitespace-nowrap bg-yellow-50 dark:bg-yellow-900/30 px-2 py-0.5 rounded-md">
                         ${((repuesto.valorUnitario * getCantidadPorContexto(repuesto, 'solicitud')) + (repuesto.valorUnitario * getCantidadPorContexto(repuesto, 'stock'))).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     ) : (
@@ -1763,7 +1763,7 @@ export function RepuestosTable({
 
                   {/* Acciones */}
                   {isColumnVisible('acciones') && (
-                  <td className="px-4 py-4">
+                  <td className="px-2 py-2">
                     <div className="flex items-center justify-center gap-1">
                       {/* Ver en manual */}
                       <button
@@ -1771,14 +1771,14 @@ export function RepuestosTable({
                           e.stopPropagation();
                           onViewManual(repuesto);
                         }}
-                        className={`p-2 rounded-lg transition-colors ${
+                        className={`p-1.5 rounded-lg transition-colors ${
                           hasManualMarker
                             ? 'hover:bg-primary-100 text-primary-600'
                             : 'hover:bg-gray-100 text-gray-400'
                         }`}
                         title={hasManualMarker ? 'Ver en manual' : 'Ir al manual'}
                       >
-                        <FileText className="w-5 h-5" />
+                        <FileText className="w-4 h-4" />
                       </button>
 
                       {/* Ver fotos reales */}
@@ -1787,14 +1787,14 @@ export function RepuestosTable({
                           e.stopPropagation();
                           onViewPhotos(repuesto);
                         }}
-                        className={`p-2 rounded-lg transition-colors ${
+                        className={`p-1.5 rounded-lg transition-colors ${
                           repuesto.fotosReales?.length > 0
                             ? 'hover:bg-gray-100 text-gray-600'
                             : 'hover:bg-gray-100 text-gray-300'
                         }`}
                         title="Fotos reales"
                       >
-                        <Camera className="w-5 h-5" />
+                        <Camera className="w-4 h-4" />
                       </button>
 
                       {/* Ver historial */}
@@ -1803,10 +1803,10 @@ export function RepuestosTable({
                           e.stopPropagation();
                           onViewHistory(repuesto);
                         }}
-                        className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+                        className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
                         title="Ver historial completo"
                       >
-                        <History className="w-5 h-5" />
+                        <History className="w-4 h-4" />
                       </button>
 
                       {/* Editar */}
@@ -1815,10 +1815,10 @@ export function RepuestosTable({
                           e.stopPropagation();
                           onEdit(repuesto);
                         }}
-                        className="p-2 rounded-lg hover:bg-blue-50 text-gray-500 hover:text-blue-600 transition-colors"
+                        className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-500 hover:text-blue-600 transition-colors"
                         title="Editar"
                       >
-                        <Edit2 className="w-5 h-5" />
+                        <Edit2 className="w-4 h-4" />
                       </button>
 
                       {/* Eliminar */}
@@ -1827,10 +1827,10 @@ export function RepuestosTable({
                           e.stopPropagation();
                           onDelete(repuesto);
                         }}
-                        className="p-2 rounded-lg hover:bg-red-50 text-gray-500 hover:text-red-600 transition-colors"
+                        className="p-1.5 rounded-lg hover:bg-red-50 text-gray-500 hover:text-red-600 transition-colors"
                         title="Eliminar"
                       >
-                        <Trash2 className="w-5 h-5" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </td>
@@ -1844,7 +1844,7 @@ export function RepuestosTable({
               <tr className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/30 dark:to-blue-900/30 border-t-2 border-purple-300 dark:border-purple-700 font-bold">
                 {/* Código SAP */}
                 {isColumnVisible('codigoSAP') && (
-                  <td className="px-4 py-4 text-left">
+                  <td className="px-3 py-2 text-left">
                     <span className="text-purple-700 dark:text-purple-300 font-bold">TOTALES</span>
                     {!hasAnyContext && (
                       <span className="block text-xs font-normal text-amber-600 dark:text-amber-400">Selecciona contexto</span>
@@ -1853,28 +1853,28 @@ export function RepuestosTable({
                 )}
                 
                 {/* Código Baader */}
-                {isColumnVisible('codigoBaader') && <td className="px-4 py-4"></td>}
+                {isColumnVisible('codigoBaader') && <td className="px-3 py-2"></td>}
                 
                 {/* Texto Breve */}
-                {isColumnVisible('textoBreve') && <td className="px-4 py-4"></td>}
+                {isColumnVisible('textoBreve') && <td className="px-3 py-2"></td>}
                 
                 {/* Descripción */}
-                {isColumnVisible('descripcion') && <td className="px-4 py-4"></td>}
+                {isColumnVisible('descripcion') && <td className="px-3 py-2"></td>}
                 
                 {/* Nombre Manual */}
-                {isColumnVisible('nombreManual') && <td className="px-4 py-4"></td>}
+                {isColumnVisible('nombreManual') && <td className="px-3 py-2"></td>}
                 
                 {/* Tags Solicitud */}
-                {isColumnVisible('tagsSolicitud') && <td className="px-4 py-4"></td>}
+                {isColumnVisible('tagsSolicitud') && <td className="px-3 py-2"></td>}
                 
                 {/* Tags Stock */}
-                {isColumnVisible('tagsStock') && <td className="px-4 py-4"></td>}
+                {isColumnVisible('tagsStock') && <td className="px-3 py-2"></td>}
                 
                 {/* Cantidad Solicitada */}
                 {isColumnVisible('cantidadSolicitada') && (
-                  <td className="px-4 py-4 text-center">
+                  <td className="px-3 py-2 text-center">
                     {activeContexts.solicitud ? (
-                      <span className="inline-block px-4 py-2 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 rounded-lg font-bold">
+                      <span className="inline-block px-3 py-1.5 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 rounded-md font-bold text-sm">
                         {totales.totalSolicitado}
                       </span>
                     ) : (
@@ -1885,9 +1885,9 @@ export function RepuestosTable({
                 
                 {/* Total Solicitado USD */}
                 {isColumnVisible('totalSolicitadoUSD') && (
-                  <td className="px-4 py-4 text-right">
+                  <td className="px-3 py-2 text-right">
                     {activeContexts.solicitud ? (
-                      <span className="text-blue-700 dark:text-blue-300 font-bold" title="Σ (Valor Unitario × Cantidad Solicitada)">
+                      <span className="text-blue-700 dark:text-blue-300 font-bold text-sm" title="Σ (Valor Unitario × Cantidad Solicitada)">
                         ${totales.totalSolicitadoUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     ) : (
@@ -1898,9 +1898,9 @@ export function RepuestosTable({
                 
                 {/* Cantidad Stock Bodega */}
                 {isColumnVisible('cantidadStockBodega') && (
-                  <td className="px-4 py-4 text-center">
+                  <td className="px-3 py-2 text-center">
                     {activeContexts.stock ? (
-                      <span className="inline-block px-4 py-2 bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 rounded-lg font-bold">
+                      <span className="inline-block px-3 py-1.5 bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 rounded-md font-bold text-sm">
                         {totales.totalBodega}
                       </span>
                     ) : (
@@ -1911,9 +1911,9 @@ export function RepuestosTable({
                 
                 {/* Total Stock USD */}
                 {isColumnVisible('totalStockUSD') && (
-                  <td className="px-4 py-4 text-right">
+                  <td className="px-3 py-2 text-right">
                     {activeContexts.stock ? (
-                      <span className="text-green-700 dark:text-green-300 font-bold" title="Σ (Valor Unitario × Stock en Bodega)">
+                      <span className="text-green-700 dark:text-green-300 font-bold text-sm" title="Σ (Valor Unitario × Stock en Bodega)">
                         ${totales.totalStockUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     ) : (
@@ -1923,13 +1923,13 @@ export function RepuestosTable({
                 )}
                 
                 {/* Valor Unitario */}
-                {isColumnVisible('valorUnitario') && <td className="px-4 py-4"></td>}
+                {isColumnVisible('valorUnitario') && <td className="px-3 py-2"></td>}
                 
                 {/* Total General USD */}
                 {isColumnVisible('totalUSD') && (
-                  <td className="px-4 py-4 text-right">
+                  <td className="px-3 py-2 text-right">
                     {hasAnyContext ? (
-                      <span className="text-purple-700 dark:text-purple-300 font-bold text-lg" title="Total Solicitado + Total Stock">
+                      <span className="text-purple-700 dark:text-purple-300 font-bold text-base" title="Total Solicitado + Total Stock">
                         ${totales.totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     ) : (
@@ -1939,7 +1939,7 @@ export function RepuestosTable({
                 )}
                 
                 {/* Acciones */}
-                {isColumnVisible('acciones') && <td className="px-4 py-4"></td>}
+                {isColumnVisible('acciones') && <td className="px-2 py-2"></td>}
               </tr>
             )}
           </tbody>
