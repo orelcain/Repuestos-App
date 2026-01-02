@@ -1,8 +1,15 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.56';
+export const APP_VERSION = '4.9.57';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.57',
+    date: '2026-01-02',
+    changes: [
+      '📥 Import Excel: vuelve el mapeo manual de columnas aunque ya haya filas detectadas (botón “Ajustar columnas”)',
+    ],
+  },
   {
     version: '4.9.56',
     date: '2026-01-02',

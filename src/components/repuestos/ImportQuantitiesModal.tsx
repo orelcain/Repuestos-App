@@ -112,6 +112,7 @@ export function ImportQuantitiesModal({
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mappingOpen, setMappingOpen] = useState(false);
 
   const availableTargets = useMemo(() => {
     const targets: Array<{ tipo: 'solicitud' | 'stock'; tagName: string }> = [];
@@ -139,6 +140,7 @@ export function ImportQuantitiesModal({
     setRawRowsPreview([]);
     setColumnMap({ codigoSAP: '', codigoBaader: '', textoBreve: '', descripcion: '', cantidad: '', valorUnitario: '' });
     setError(null);
+    setMappingOpen(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -343,7 +345,7 @@ export function ImportQuantitiesModal({
 
   const canImport = preview.length > 0 && !!selectedTarget;
 
-  const showMapping = !!file && !loading && preview.length === 0 && rawHeaders.length > 0;
+  const showMapping = !!file && !loading && rawHeaders.length > 0;
   const needsCantidad = selectedTarget ? !('mode' in selectedTarget && selectedTarget.mode === 'catalog') : targetTipo !== 'catalog';
 
   return (
@@ -439,9 +441,20 @@ export function ImportQuantitiesModal({
                 <CheckCircle className="w-5 h-5" />
                 <span className="font-medium">{preview.length} filas encontradas</span>
               </div>
-              <Button variant="ghost" size="sm" onClick={reset}>
-                Cambiar archivo
-              </Button>
+              <div className="flex items-center gap-2">
+                {showMapping && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setMappingOpen((v) => !v)}
+                  >
+                    {mappingOpen ? 'Ocultar mapeo' : 'Ajustar columnas'}
+                  </Button>
+                )}
+                <Button variant="ghost" size="sm" onClick={reset}>
+                  Cambiar archivo
+                </Button>
+              </div>
             </div>
 
             <div className="max-h-64 overflow-auto border border-gray-200 dark:border-gray-700 rounded-lg">
@@ -485,18 +498,30 @@ export function ImportQuantitiesModal({
           </>
         )}
 
-        {/* Archivo cargado pero sin filas: ofrecer mapeo manual */}
+        {/* Archivo cargado pero sin filas: aviso (y mapeo abajo) */}
         {file && !loading && preview.length === 0 && !error && (
-          <div className="space-y-4">
-            <div className="flex items-start gap-2 p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800">
-              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-              <p>
-                No se encontraron filas válidas con los encabezados esperados. Si el Excel tiene los datos pero el encabezado
-                está escrito distinto, puedes mapear las columnas abajo.
-              </p>
-            </div>
+          <div className="flex items-start gap-2 p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800">
+            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            <p>
+              No se encontraron filas válidas con los encabezados esperados. Si el Excel tiene los datos pero el encabezado
+              está escrito distinto, usa “Ajustar columnas”.
+            </p>
+          </div>
+        )}
 
-            {showMapping && (
+        {/* Mapeo manual: disponible siempre que haya un archivo cargado */}
+        {showMapping && (
+          <div className="space-y-3">
+            {/* Botón para abrir/cerrar si aún no hay preview */}
+            {preview.length === 0 && (
+              <div className="flex justify-end">
+                <Button variant="ghost" size="sm" onClick={() => setMappingOpen((v) => !v)}>
+                  {mappingOpen ? 'Ocultar mapeo' : 'Ajustar columnas'}
+                </Button>
+              </div>
+            )}
+
+            {mappingOpen && (
               <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 space-y-4">
                 <div className="text-sm font-semibold text-gray-800 dark:text-gray-100">Mapeo de columnas</div>
 
@@ -526,7 +551,7 @@ export function ImportQuantitiesModal({
                     >
                       <option value="">— Selecciona columna —</option>
                       {rawHeaders.map((h) => (
-                        <option key={`baader-${h}`} value={h}>
+                        <option key={`parte-${h}`} value={h}>
                           {h}
                         </option>
                       ))}
@@ -607,6 +632,7 @@ export function ImportQuantitiesModal({
                     onClick={() => {
                       setError(null);
                       buildPreviewFromMapping(rawRowsAll.length ? rawRowsAll : rawRowsPreview, columnMap);
+                      setMappingOpen(false);
                     }}
                     icon={<CheckCircle className="w-4 h-4" />}
                   >
