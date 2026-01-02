@@ -134,20 +134,27 @@ export async function optimizeImage(
   const q1 = Math.max(0.3, Math.min(0.95, preferredQuality));
   const q2 = Math.max(0.3, Math.min(0.95, q1 - 0.1));
   const q3 = Math.max(0.3, Math.min(0.95, q1 - 0.2));
-  const qualitySteps = Array.from(new Set([q1, q2, q3, 0.5, 0.3])).filter((q) => q >= 0.3 && q <= 0.95);
+  const qualitySteps = Array.from(new Set([q1, q2, q3, 0.6, 0.5, 0.4, 0.3, 0.25])).filter((q) => q >= 0.25 && q <= 0.95);
 
   const maxDims: Array<[number, number]> = [
     [1920, 1920],
     [1600, 1600],
-    [1280, 1280]
+    [1280, 1280],
+    [1024, 1024],
+    [800, 800]
   ];
 
   // 1) Intentar WebP primero (suele ser lo mejor)
   for (const [maxWidth, maxHeight] of maxDims) {
     for (const quality of qualitySteps) {
-      const candidate = await convertToWebP(file, quality, maxWidth, maxHeight);
-      if (candidate.size < originalSize) {
-        return { file: candidate, chosen: { format: 'webp', quality, maxWidth, maxHeight } };
+      try {
+        const candidate = await convertToWebP(file, quality, maxWidth, maxHeight);
+        if (candidate.size < originalSize) {
+          return { file: candidate, chosen: { format: 'webp', quality, maxWidth, maxHeight } };
+        }
+      } catch {
+        // Algunos navegadores pueden fallar al generar WebP vía canvas.
+        // En ese caso seguimos probando otros candidatos sin romper el flujo.
       }
     }
   }
@@ -155,9 +162,13 @@ export async function optimizeImage(
   // 2) Fallback a JPEG si WebP no reduce
   for (const [maxWidth, maxHeight] of maxDims) {
     for (const quality of qualitySteps) {
-      const candidate = await convertToJpeg(file, quality, maxWidth, maxHeight);
-      if (candidate.size < originalSize) {
-        return { file: candidate, chosen: { format: 'jpeg', quality, maxWidth, maxHeight } };
+      try {
+        const candidate = await convertToJpeg(file, quality, maxWidth, maxHeight);
+        if (candidate.size < originalSize) {
+          return { file: candidate, chosen: { format: 'jpeg', quality, maxWidth, maxHeight } };
+        }
+      } catch {
+        // Si falla la conversión a JPEG, seguimos.
       }
     }
   }

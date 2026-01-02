@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { ref, uploadBytes, uploadBytesResumable, getDownloadURL, deleteObject, listAll } from 'firebase/storage';
 import { storage } from '../config/firebase';
 import { ImagenRepuesto } from '../types';
+import { optimizeImage } from '../utils/imageUtils';
 
 export function useStorage(machineId: string | null) {
   const [uploading, setUploading] = useState(false);
@@ -21,8 +22,21 @@ export function useStorage(machineId: string | null) {
     setProgress(0);
 
     try {
+      // Optimización en cliente: reduce dimensiones/peso antes de subir.
+      // Nota: no optimizamos GIF/SVG para no romper animaciones/vectores.
+      const shouldOptimize = file.type.startsWith('image/') && !['image/gif', 'image/svg+xml'].includes(file.type);
+      let fileToUpload = file;
+      if (shouldOptimize) {
+        try {
+          fileToUpload = (await optimizeImage(file, 0.85)).file;
+        } catch (err) {
+          console.warn('[useStorage] No se pudo optimizar imagen; subiendo original', err);
+          fileToUpload = file;
+        }
+      }
+
       const timestamp = Date.now();
-      const fileName = `${timestamp}_${file.name}`;
+      const fileName = `${timestamp}_${fileToUpload.name}`;
       
       // COMPATIBILIDAD: Para Baader 200, usar rutas antiguas
       const path = machineId === 'baader-200'
@@ -31,7 +45,7 @@ export function useStorage(machineId: string | null) {
       
       const storageRef = ref(storage, path);
 
-      await uploadBytes(storageRef, file);
+      await uploadBytes(storageRef, fileToUpload);
       setProgress(100);
 
       const url = await getDownloadURL(storageRef);
