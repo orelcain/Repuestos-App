@@ -16,6 +16,7 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
+import { formatFileSize } from '../../utils/imageUtils';
 
 interface ImageGalleryProps {
   repuesto: Repuesto | null;
@@ -222,7 +223,7 @@ export function ImageGallery({
             </div>
             
             <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-3">
-              Las imágenes se optimizarán automáticamente a WebP
+              Las imágenes se optimizarán automáticamente (WebP/JPEG)
             </p>
           </div>
         ) : (
@@ -294,6 +295,17 @@ export function ImageGallery({
                       alt=""
                       className="w-full h-full object-cover"
                     />
+
+                    {(img.sizeFinal || img.sizeOriginal) && (
+                      <div className="absolute bottom-0 inset-x-0 bg-black/55 px-1 py-0.5">
+                        <p className="text-[9px] leading-tight text-white truncate">
+                          {img.sizeOriginal
+                            ? `${formatFileSize(img.sizeOriginal)} → ${formatFileSize(img.sizeFinal || 0)}`
+                            : `${formatFileSize(img.sizeFinal || 0)}`}
+                          {img.formatFinal && img.formatFinal !== 'original' ? ` · ${img.formatFinal.toUpperCase()}` : ''}
+                        </p>
+                      </div>
+                    )}
                     {img.esPrincipal && (
                       <Star className="absolute top-1 right-1 w-3 h-3 text-yellow-400 fill-current" />
                     )}

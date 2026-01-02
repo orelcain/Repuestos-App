@@ -1,8 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.26';
+export const APP_VERSION = '4.9.27';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.27',
+    date: '2026-01-02',
+    changes: [
+      '🧪 WebP: Detecta navegadores que devuelven PNG al pedir WebP y hace fallback a JPEG',
+      '🏷️ Galería: Miniaturas muestran peso original → final y formato (WEBP/JPEG)'
+    ]
+  },
   {
     version: '4.9.26',
     date: '2026-01-02',

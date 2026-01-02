@@ -580,7 +580,11 @@ export function Dashboard() {
   ) => {
     const imagen = await uploadImage(file, repuestoId, tipo, {
       quality: meta?.chosen?.quality,
-      skipOptimize: meta?.skipOptimize
+      skipOptimize: meta?.skipOptimize,
+      meta: {
+        sizeOriginal: meta?.originalSize,
+        chosen: meta?.chosen
+      }
     });
     
     const repuesto = repuestos.find(r => r.id === repuestoId);

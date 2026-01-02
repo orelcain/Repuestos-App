@@ -60,6 +60,13 @@ async function convertWithCanvas(file: File, options: CanvasConvertOptions): Pro
             return;
           }
 
+          // Algunos navegadores ignoran el mimeType solicitado (ej: piden WebP y devuelven PNG).
+          // Si esto pasa, preferimos fallar para que el caller haga fallback (p.ej. a JPEG).
+          if (blob.type && blob.type !== mimeType) {
+            reject(new Error(`Formato no soportado en este navegador: solicitado ${mimeType}, obtenido ${blob.type}`));
+            return;
+          }
+
           const originalName = file.name.replace(/\.[^.]+$/, '');
           const convertedFile = new File([blob], `${originalName}.${fileNameSuffix}`, {
             type: mimeType,

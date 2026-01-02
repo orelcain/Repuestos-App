@@ -16,6 +16,15 @@ export function useStorage(machineId: string | null) {
     options?: {
       quality?: number;
       skipOptimize?: boolean;
+      meta?: {
+        sizeOriginal?: number;
+        chosen?: {
+          format: 'webp' | 'jpeg' | 'original';
+          quality?: number;
+          maxWidth?: number;
+          maxHeight?: number;
+        };
+      };
     }
   ): Promise<ImagenRepuesto> => {
     if (!machineId) {
@@ -58,6 +67,15 @@ export function useStorage(machineId: string | null) {
 
       const url = await getDownloadURL(storageRef);
 
+      const formatFinal: ImagenRepuesto['formatFinal'] =
+        options?.meta?.chosen?.format
+          ? options.meta.chosen.format
+          : fileToUpload.type === 'image/webp'
+            ? 'webp'
+            : fileToUpload.type === 'image/jpeg'
+              ? 'jpeg'
+              : 'original';
+
       const imagen: ImagenRepuesto = {
         id: `${timestamp}`,
         url,
@@ -65,7 +83,11 @@ export function useStorage(machineId: string | null) {
         orden: 0,
         esPrincipal: false,
         tipo,
-        createdAt: new Date()
+        createdAt: new Date(),
+        sizeOriginal: options?.meta?.sizeOriginal,
+        sizeFinal: fileToUpload.size,
+        formatFinal,
+        qualityFinal: options?.meta?.chosen?.quality
       };
 
       return imagen;

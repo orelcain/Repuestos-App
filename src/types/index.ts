@@ -92,6 +92,12 @@ export interface ImagenRepuesto {
   esPrincipal: boolean;
   tipo: 'manual' | 'real';
   createdAt: Date;
+
+  // Metadata opcional para depurar/visualizar compresión
+  sizeOriginal?: number; // bytes
+  sizeFinal?: number; // bytes (archivo subido)
+  formatFinal?: 'webp' | 'jpeg' | 'original';
+  qualityFinal?: number;
 }
 
 // Historial de cambios
