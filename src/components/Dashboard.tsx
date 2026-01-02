@@ -74,6 +74,7 @@ import {
   BarChart3,
   Package,
   Loader2,
+  Database,
   Undo2,
   Redo2,
   History,

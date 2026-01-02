@@ -1,8 +1,15 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.39';
+export const APP_VERSION = '4.9.40';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.40',
+    date: '2026-01-02',
+    changes: [
+      '🐛 Fix: import de icono Database para evitar ReferenceError en Dashboard',
+    ],
+  },
   {
     version: '4.9.39',
     date: '2026-01-02',
