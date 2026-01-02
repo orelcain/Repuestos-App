@@ -66,11 +66,15 @@ export function ImageGallery({
         const { optimizeImage } = await import('../../utils/imageUtils');
         const result = await optimizeImage(file, 0.95);
         
+        // Log para debug (siempre visible en consola)
+        console.log('[ImageGallery] Optimización:', result.log.join(' | '));
+        
         await onUpload(result.file, repuesto.id, tipo, {
           originalSize: file.size,
           optimizedSize: result.file.size,
           chosen: result.chosen,
-          skipOptimize: true // Ya optimizada
+          skipOptimize: true, // Ya optimizada
+          log: result.log // Pasar log para el toast
         });
       }
     } finally {

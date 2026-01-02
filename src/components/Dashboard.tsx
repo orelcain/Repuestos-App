@@ -576,8 +576,14 @@ export function Dashboard() {
       optimizedSize?: number;
       chosen?: { format: 'webp' | 'jpeg' | 'original'; quality?: number; maxWidth?: number; maxHeight?: number };
       skipOptimize?: boolean;
+      log?: string[];
     }
   ) => {
+    // Log para debug
+    if (meta?.log) {
+      console.log('[Dashboard] Upload meta:', { originalSize: meta.originalSize, optimizedSize: meta.optimizedSize, chosen: meta.chosen });
+    }
+    
     const imagen = await uploadImage(file, repuestoId, tipo, {
       quality: meta?.chosen?.quality,
       skipOptimize: meta?.skipOptimize,
@@ -585,6 +591,14 @@ export function Dashboard() {
         sizeOriginal: meta?.originalSize,
         chosen: meta?.chosen
       }
+    });
+    
+    // Log del resultado real
+    console.log('[Dashboard] Imagen subida:', { 
+      fileSize: file.size, 
+      imagenSizeOriginal: imagen.sizeOriginal, 
+      imagenSizeFinal: imagen.sizeFinal,
+      imagenFormatFinal: imagen.formatFinal
     });
     
     const repuesto = repuestos.find(r => r.id === repuestoId);
@@ -596,13 +610,18 @@ export function Dashboard() {
         [tipo === 'manual' ? 'imagenesManual' : 'fotosReales']: updatedImages
       }, repuesto);
       
-      if (imagen.sizeOriginal && imagen.sizeFinal) {
-        const formatLabel = imagen.formatFinal && imagen.formatFinal !== 'original'
-          ? `${imagen.formatFinal.toUpperCase()}${imagen.qualityFinal ? ` ${Math.round(imagen.qualityFinal * 100)}%` : ''}`
-          : null;
-        success(`Imagen agregada: ${formatFileSize(imagen.sizeOriginal)} → ${formatFileSize(imagen.sizeFinal)}${formatLabel ? ` (${formatLabel})` : ''}`);
+      // Mostrar resultado real de lo subido
+      const originalBytes = imagen.sizeOriginal || meta?.originalSize || 0;
+      const finalBytes = imagen.sizeFinal || file.size;
+      const format = imagen.formatFinal || meta?.chosen?.format || 'original';
+      
+      if (originalBytes && finalBytes && format !== 'original') {
+        const reduction = Math.round((1 - finalBytes / originalBytes) * 100);
+        success(`✓ ${formatFileSize(originalBytes)} → ${formatFileSize(finalBytes)} (${format.toUpperCase()}, -${reduction}%)`);
+      } else if (format === 'original') {
+        success(`⚠ Subida sin optimizar: ${formatFileSize(finalBytes)}`);
       } else {
-        success('Imagen agregada correctamente');
+        success('Imagen agregada');
       }
     }
     

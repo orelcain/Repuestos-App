@@ -1,8 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.34';
+export const APP_VERSION = '4.9.35';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.35',
+    date: '2026-01-02',
+    changes: [
+      '🔍 Refactor optimización: log detallado en consola y toast mejorado',
+      'ℹ️ Muestra % de reducción o advertencia si no optimiza',
+    ],
+  },
   {
     version: '4.9.34',
     date: '2026-01-02',

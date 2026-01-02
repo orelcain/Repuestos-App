@@ -204,6 +204,7 @@ export type OptimizeImageResult = {
     maxWidth?: number;
     maxHeight?: number;
   };
+  log: string[]; // Log de lo que pasó para debug
 };
 
 // Optimización automática: WebP 95% (alta calidad + compresión moderna).
@@ -212,59 +213,49 @@ export async function optimizeImage(
   file: File,
   preferredQuality: number = 0.95
 ): Promise<OptimizeImageResult> {
-  const debug = typeof window !== 'undefined' && window.localStorage?.getItem('debugImageOptimize') === '1';
+  const log: string[] = [];
   const originalSize = file.size;
   const quality = Math.max(0.3, Math.min(0.95, preferredQuality));
   const maxWidth = 1920;
   const maxHeight = 1920;
 
-  if (debug) {
-    console.log('[optimizeImage] original', { name: file.name, type: file.type, size: originalSize });
-    console.log('[optimizeImage] intentando WebP', { quality, maxWidth, maxHeight });
-  }
+  log.push(`Original: ${formatFileSize(originalSize)} (${file.type || 'tipo desconocido'})`);
 
   // 1) Intentar WebP primero (mejor compresión con alta calidad)
   try {
     const webpFile = await convertToWebP(file, quality, maxWidth, maxHeight);
-    if (debug) {
-      console.log('[optimizeImage] WebP generado', { type: webpFile.type, size: webpFile.size });
-    }
+    log.push(`WebP generado: ${formatFileSize(webpFile.size)} (${webpFile.type})`);
     
     if (webpFile.size < originalSize) {
-      return { file: webpFile, chosen: { format: 'webp', quality, maxWidth, maxHeight } };
+      const reduction = Math.round((1 - webpFile.size / originalSize) * 100);
+      log.push(`✓ WebP reduce ${reduction}%`);
+      return { file: webpFile, chosen: { format: 'webp', quality, maxWidth, maxHeight }, log };
     }
     
-    if (debug) {
-      console.log('[optimizeImage] WebP no reduce tamaño; intentando JPEG');
-    }
+    log.push(`WebP no reduce (${formatFileSize(webpFile.size)} >= ${formatFileSize(originalSize)})`);
   } catch (err) {
-    if (debug) {
-      console.warn('[optimizeImage] WebP falló; intentando JPEG', err);
-    }
+    log.push(`WebP falló: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   // 2) Fallback a JPEG si WebP no está disponible o no reduce
   try {
     const jpegFile = await convertToJpeg(file, quality, maxWidth, maxHeight);
-    if (debug) {
-      console.log('[optimizeImage] JPEG generado', { type: jpegFile.type, size: jpegFile.size });
-    }
+    log.push(`JPEG generado: ${formatFileSize(jpegFile.size)} (${jpegFile.type})`);
     
     if (jpegFile.size < originalSize) {
-      return { file: jpegFile, chosen: { format: 'jpeg', quality, maxWidth, maxHeight } };
+      const reduction = Math.round((1 - jpegFile.size / originalSize) * 100);
+      log.push(`✓ JPEG reduce ${reduction}%`);
+      return { file: jpegFile, chosen: { format: 'jpeg', quality, maxWidth, maxHeight }, log };
     }
     
-    if (debug) {
-      console.log('[optimizeImage] JPEG no reduce tamaño; devolviendo original');
-    }
+    log.push(`JPEG no reduce (${formatFileSize(jpegFile.size)} >= ${formatFileSize(originalSize)})`);
   } catch (err) {
-    if (debug) {
-      console.warn('[optimizeImage] JPEG falló; devolviendo original', err);
-    }
+    log.push(`JPEG falló: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   // 3) Si ambos fallan o no reducen, devolver original
-  return { file, chosen: { format: 'original' } };
+  log.push(`⚠ Devolviendo original sin optimizar`);
+  return { file, chosen: { format: 'original' }, log };
 }
 
 // Obtener tamaño estimado después de compresión
