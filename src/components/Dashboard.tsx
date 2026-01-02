@@ -96,6 +96,14 @@ type RightPanelMode = 'gallery' | 'pdf' | 'marker-editor' | 'hidden';
 type GalleryType = 'manual' | 'real';
 type MainView = 'repuestos' | 'stats';
 
+// Eliminar propiedades undefined para no romper Firestore
+const sanitizeImagen = (img: ImagenRepuesto): ImagenRepuesto => {
+  const cleaned = Object.fromEntries(
+    Object.entries(img).filter(([, v]) => v !== undefined)
+  ) as ImagenRepuesto;
+  return cleaned;
+};
+
 export function Dashboard() {
   const { user, signOut } = useAuth();
   const { currentMachine, machines } = useMachineContext();
@@ -603,7 +611,8 @@ export function Dashboard() {
     const repuesto = repuestos.find(r => r.id === repuestoId);
     if (repuesto) {
       const imagenes = tipo === 'manual' ? repuesto.imagenesManual : repuesto.fotosReales;
-      const updatedImages = [...imagenes, { ...imagen, orden: imagenes.length }];
+      const newImagen = sanitizeImagen({ ...imagen, orden: imagenes.length });
+      const updatedImages = [...imagenes, newImagen];
       
       const updated = await updateRepuestoWithBackup(repuestoId, {
         [tipo === 'manual' ? 'imagenesManual' : 'fotosReales']: updatedImages

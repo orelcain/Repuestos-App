@@ -1,8 +1,15 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.42';
+export const APP_VERSION = '4.9.43';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.43',
+    date: '2026-01-02',
+    changes: [
+      '🐛 Fix: sanitiza imagen antes de guardar para evitar undefined en Firestore',
+    ],
+  },
   {
     version: '4.9.42',
     date: '2026-01-02',
