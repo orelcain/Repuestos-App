@@ -1,8 +1,15 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.43';
+export const APP_VERSION = '4.9.44';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.44',
+    date: '2026-01-02',
+    changes: [
+      '⚡ Optimista: tras subir o eliminar, la galería se actualiza en el acto (sin recargar)',
+    ],
+  },
   {
     version: '4.9.43',
     date: '2026-01-02',

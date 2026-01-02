@@ -613,13 +613,16 @@ export function Dashboard() {
       const imagenes = tipo === 'manual' ? repuesto.imagenesManual : repuesto.fotosReales;
       const newImagen = sanitizeImagen({ ...imagen, orden: imagenes.length });
       const updatedImages = [...imagenes, newImagen];
-      
-      const updated = await updateRepuestoWithBackup(repuestoId, {
+
+      // Optimista: actualizar selección local de inmediato
+      setSelectedRepuesto({
+        ...repuesto,
+        [tipo === 'manual' ? 'imagenesManual' : 'fotosReales']: updatedImages
+      });
+
+      await updateRepuestoWithBackup(repuestoId, {
         [tipo === 'manual' ? 'imagenesManual' : 'fotosReales']: updatedImages
       }, repuesto);
-      // Resinc selección para que la galería refleje el cambio sin recargar
-      const refreshed = repuestos.find(r => r.id === repuesto.id) || updated;
-      if (refreshed) setSelectedRepuesto(refreshed);
       
       // Mostrar resultado real de lo subido
       const originalBytes = imagen.sizeOriginal || meta?.originalSize || 0;
@@ -645,12 +648,15 @@ export function Dashboard() {
     const imagenes = tipo === 'manual' ? repuesto.imagenesManual : repuesto.fotosReales;
     const updatedImages = imagenes.filter(img => img.id !== imagen.id);
     
-    const updated = await updateRepuestoWithBackup(repuesto.id, {
+    // Optimista: actualizar selección local de inmediato
+    setSelectedRepuesto({
+      ...repuesto,
+      [tipo === 'manual' ? 'imagenesManual' : 'fotosReales']: updatedImages
+    });
+
+    await updateRepuestoWithBackup(repuesto.id, {
       [tipo === 'manual' ? 'imagenesManual' : 'fotosReales']: updatedImages
     }, repuesto);
-
-    const refreshed = repuestos.find(r => r.id === repuesto.id) || updated;
-    if (refreshed) setSelectedRepuesto(refreshed);
 
     success('Imagen eliminada');
   };
