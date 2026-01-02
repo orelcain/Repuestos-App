@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { ImagenRepuesto, Repuesto } from '../../types';
 import { Modal, Button } from '../ui';
 import type { OptimizeImageResult } from '../../utils/imageUtils';
@@ -55,6 +55,7 @@ export function ImageGallery({
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const swipeStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
 
   const imagenes = tipo === 'manual' ? repuesto?.imagenesManual : repuesto?.fotosReales;
   const sortedImages = [...(imagenes || [])].sort((a, b) => a.orden - b.orden);
@@ -100,6 +101,28 @@ export function ImageGallery({
   const goToNext = () => {
     setCurrentIndex(prev => (prev < sortedImages.length - 1 ? prev + 1 : 0));
   };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (sortedImages.length <= 1) return;
+
+      const active = document.activeElement as HTMLElement | null;
+      const tag = active?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || (active && active.isContentEditable)) return;
+
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        goToPrev();
+      }
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        goToNext();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [sortedImages.length]);
 
   if (!repuesto) {
     return null;
@@ -263,7 +286,34 @@ export function ImageGallery({
                           : 'cursor-default')
                       }
                       wrapperStyle={{ width: '100%', height: '100%' }}
-                      wrapperProps={{ style: { touchAction: 'none' } }}
+                      wrapperProps={{
+                        style: { touchAction: 'none' },
+                        onTouchStart: (e) => {
+                          if (inlineScale > 1.01) return;
+                          const t = e.touches[0];
+                          swipeStartRef.current = { x: t.clientX, y: t.clientY, time: Date.now() };
+                        },
+                        onTouchEnd: (e) => {
+                          if (inlineScale > 1.01) return;
+                          if (!swipeStartRef.current) return;
+                          if (sortedImages.length <= 1) return;
+
+                          const start = swipeStartRef.current;
+                          swipeStartRef.current = null;
+                          const t = e.changedTouches[0];
+                          const dx = t.clientX - start.x;
+                          const dy = t.clientY - start.y;
+                          const dt = Date.now() - start.time;
+
+                          // Swipe horizontal (solo si no es scroll vertical)
+                          if (dt > 700) return;
+                          if (Math.abs(dx) < 60) return;
+                          if (Math.abs(dy) > 60) return;
+
+                          if (dx < 0) goToNext();
+                          else goToPrev();
+                        },
+                      }}
                       contentStyle={{
                         width: '100%',
                         height: '100%',
@@ -288,13 +338,15 @@ export function ImageGallery({
                 <>
                   <button
                     onClick={goToPrev}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-white/80 rounded-full shadow hover:bg-white transition-colors"
+                    className="absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-black/60 text-white rounded-full shadow hover:bg-black/75 transition-colors border border-white/15"
+                    aria-label="Anterior"
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </button>
                   <button
                     onClick={goToNext}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-white/80 rounded-full shadow hover:bg-white transition-colors"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-black/60 text-white rounded-full shadow hover:bg-black/75 transition-colors border border-white/15"
+                    aria-label="Siguiente"
                   >
                     <ChevronRight className="w-5 h-5" />
                   </button>
@@ -306,17 +358,7 @@ export function ImageGallery({
                 {currentIndex + 1} / {sortedImages.length}
               </div>
 
-              {/* Zoom Button */}
-              <button
-                onClick={() => {
-                  setZoomImage(sortedImages[currentIndex]);
-                  setZoomScale(1);
-                  setIsPanning(false);
-                }}
-                className="absolute top-2 right-2 p-2 bg-white/80 rounded-full shadow hover:bg-white transition-colors"
-              >
-                <ZoomIn className="w-4 h-4" />
-              </button>
+              {/* (Se quitó el botón de lupa; el zoom es inline) */}
 
               {/* Primary Star */}
               {sortedImages[currentIndex]?.esPrincipal && (

@@ -1,8 +1,15 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.51';
+export const APP_VERSION = '4.9.52';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.52',
+    date: '2026-01-02',
+    changes: [
+      '⌨️📱 Navegación imágenes: flechas teclado ←/→ y swipe izq/der en PWA (sin zoom). Flechas con mejor contraste. Botón lupa eliminado',
+    ],
+  },
   {
     version: '4.9.51',
     date: '2026-01-02',
