@@ -78,6 +78,7 @@ import {
   Undo2,
   Redo2,
   History,
+  Sun,
   GitCompare
 } from 'lucide-react';
 
