@@ -11,6 +11,7 @@ import { useManualWarmup } from '../hooks/useManualWarmup';
 import { useMachineContext } from '../contexts/MachineContext';
 import { Repuesto, RepuestoFormData, ImagenRepuesto, VinculoManual, Machine } from '../types';
 import { APP_VERSION } from '../version';
+import { Sun, Moon } from 'lucide-react';
 
 // Script de importación - exponer globalmente para uso desde consola
 import { importarRepuestosInformeV2 } from '../scripts/importInformeV2';
@@ -625,7 +626,6 @@ export function Dashboard() {
       }, repuesto);
       
       // Mostrar resultado real de lo subido
-      const originalBytes = imagen.sizeOriginal || meta?.originalSize || 0;
       const finalBytes = imagen.sizeFinal || file.size;
       const format = imagen.formatFinal || meta?.chosen?.format || 'original';
       const qualityPct = imagen.qualityFinal ? Math.round(imagen.qualityFinal * 100) : meta?.chosen?.quality ? Math.round(meta.chosen.quality * 100) : null;
