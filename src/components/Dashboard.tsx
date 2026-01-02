@@ -617,9 +617,8 @@ export function Dashboard() {
       const qualityPct = imagen.qualityFinal ? Math.round(imagen.qualityFinal * 100) : meta?.chosen?.quality ? Math.round(meta.chosen.quality * 100) : null;
       const formatLabel = format !== 'original' ? `${format.toUpperCase()}${qualityPct ? ` ${qualityPct}%` : ''}` : 'ORIGINAL';
       
-      if (originalBytes && finalBytes && format !== 'original') {
-        const reduction = Math.max(0, Math.round((1 - finalBytes / originalBytes) * 100));
-        success(`✓ ${formatFileSize(originalBytes)} → ${formatFileSize(finalBytes)} (${formatLabel}, -${reduction}%)`);
+      if (finalBytes && format !== 'original') {
+        success(`✓ ${formatFileSize(finalBytes)} (${formatLabel})`);
       } else if (format === 'original') {
         success(`⚠ Subida sin optimizar: ${formatFileSize(finalBytes)}`);
       } else {
