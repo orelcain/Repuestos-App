@@ -298,18 +298,18 @@ export function RepuestosTable({
   // Función helper para obtener clases de color según el grupo de columna
   const getColumnHeaderClass = (columnKey: string) => {
     const column = getColumn(columnKey);
-    const baseClass = "px-3 py-2 font-semibold text-[11px] uppercase tracking-wide transition-colors cursor-move select-none border-r border-gray-200 dark:border-gray-600 last:border-r-0";
+    const baseClass = "px-3 py-2.5 font-bold text-sm uppercase tracking-wide transition-colors cursor-move select-none border-r border-gray-200/60 dark:border-gray-600/60 last:border-r-0 border-b-2";
     
-    if (!column) return baseClass + " text-gray-600 dark:text-gray-300";
+    if (!column) return baseClass + " bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 border-b-gray-300 dark:border-b-gray-700";
     
     // Colores de fondo según el grupo
     let colorClass = "";
     if (column.group === 'solicitada') {
-      colorClass = "bg-blue-100 dark:bg-blue-900/50 text-blue-900 dark:text-blue-100 hover:bg-blue-200 dark:hover:bg-blue-800/60 border-blue-200 dark:border-blue-700";
+      colorClass = "bg-blue-700 dark:bg-blue-800 text-white hover:bg-blue-800 dark:hover:bg-blue-700 border-blue-600 dark:border-blue-700 border-b-blue-900/40 dark:border-b-blue-300/20";
     } else if (column.group === 'stock') {
-      colorClass = "bg-green-100 dark:bg-green-900/50 text-green-900 dark:text-green-100 hover:bg-green-200 dark:hover:bg-green-800/60 border-green-200 dark:border-green-700";
+      colorClass = "bg-green-700 dark:bg-green-800 text-white hover:bg-green-800 dark:hover:bg-green-700 border-green-600 dark:border-green-700 border-b-green-900/40 dark:border-b-green-300/20";
     } else {
-      colorClass = "bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-600";
+      colorClass = "bg-gray-800 dark:bg-gray-900 text-white hover:bg-gray-900 dark:hover:bg-gray-800 border-gray-700 dark:border-gray-700 border-b-gray-900/40 dark:border-b-gray-300/20";
     }
     
     // Efecto durante drag
@@ -1467,7 +1467,7 @@ export function RepuestosTable({
                   {isColumnVisible('codigoSAP') && (
                   <td className="px-3 py-2 whitespace-nowrap">
                     <div className="flex items-center gap-1">
-                      <span className="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded font-bold text-gray-800 dark:text-gray-200">
+                      <span className="font-mono text-sm bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded font-bold text-gray-800 dark:text-gray-200">
                         {repuesto.codigoSAP}
                       </span>
                       <button
@@ -1479,9 +1479,9 @@ export function RepuestosTable({
                         title="Copiar código SAP"
                       >
                         {copiedId === `sap-${repuesto.id}` ? (
-                          <Check className="w-3.5 h-3.5 text-green-500" />
+                          <Check className="w-4 h-4 text-green-500" />
                         ) : (
-                          <Copy className="w-3.5 h-3.5" />
+                          <Copy className="w-4 h-4" />
                         )}
                       </button>
                     </div>
@@ -1492,7 +1492,7 @@ export function RepuestosTable({
                   {isColumnVisible('codigoBaader') && (
                   <td className="px-3 py-2 whitespace-nowrap">
                     <div className="flex items-center gap-1">
-                      <span className="font-mono text-xs text-primary-700 dark:text-primary-400 font-bold">
+                      <span className="font-mono text-sm text-primary-700 dark:text-primary-400 font-bold">
                         {repuesto.codigoBaader}
                       </span>
                       <button
@@ -1504,9 +1504,9 @@ export function RepuestosTable({
                         title="Copiar código Baader"
                       >
                         {copiedId === `baader-${repuesto.id}` ? (
-                          <Check className="w-3.5 h-3.5 text-green-500" />
+                          <Check className="w-4 h-4 text-green-500" />
                         ) : (
-                          <Copy className="w-3.5 h-3.5" />
+                          <Copy className="w-4 h-4" />
                         )}
                       </button>
                     </div>
@@ -1517,7 +1517,7 @@ export function RepuestosTable({
                   {isColumnVisible('textoBreve') && (
                   <td className="px-3 py-2 min-w-[200px] max-w-[300px]">
                     <div className="flex items-center gap-1">
-                      <span className="text-xs text-gray-800 dark:text-gray-200 line-clamp-2" title={repuesto.textoBreve}>
+                      <span className="text-sm text-gray-800 dark:text-gray-200 line-clamp-2" title={repuesto.textoBreve}>
                         {repuesto.textoBreve}
                       </span>
                       <button
@@ -1588,7 +1588,7 @@ export function RepuestosTable({
                   <td className="px-3 py-2">
                     {repuesto.nombreManual ? (
                       <div className="flex items-center gap-1">
-                        <span className="text-xs text-gray-700 truncate max-w-[150px]" title={repuesto.nombreManual}>
+                        <span className="text-sm text-gray-700 truncate max-w-[150px]" title={repuesto.nombreManual}>
                           {repuesto.nombreManual}
                         </span>
                         <button
@@ -1622,7 +1622,7 @@ export function RepuestosTable({
                           return (
                             <span 
                               key={`${tagInfo.nombre}-${idx}`} 
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200"
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-800 border border-blue-200"
                               title={`${tagInfo.nombre} (solicitud: ${tagInfo.cantidad})`}
                             >
                               <ShoppingCart className="w-3 h-3" />
@@ -1648,7 +1648,7 @@ export function RepuestosTable({
                           return (
                             <span 
                               key={`${tagInfo.nombre}-${idx}`} 
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-medium bg-green-50 text-green-700 border border-green-200"
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold bg-green-50 text-green-800 border border-green-200"
                               title={`${tagInfo.nombre} (stock: ${tagInfo.cantidad})`}
                             >
                               <Package className="w-3 h-3" />
@@ -1673,7 +1673,7 @@ export function RepuestosTable({
                           e.stopPropagation();
                           handleViewFieldHistory(repuesto, 'cantidadSolicitada');
                         }}
-                        className="text-base font-bold px-2.5 py-1.5 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-700 dark:text-blue-400 transition-colors min-w-[52px]"
+                        className="text-lg font-bold px-3 py-1.5 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-700 dark:text-blue-400 transition-colors min-w-[60px]"
                         title={`Cantidad en "${activeContexts.solicitud}" - Ver historial`}
                       >
                         {getCantidadPorContexto(repuesto, 'solicitud')}
@@ -1688,7 +1688,7 @@ export function RepuestosTable({
                   {isColumnVisible('totalSolicitadoUSD') && (
                   <td className="px-2 py-2 text-center">
                     {activeContexts.solicitud ? (
-                      <span className="text-sm font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
+                      <span className="text-base font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
                         ${(repuesto.valorUnitario * getCantidadPorContexto(repuesto, 'solicitud')).toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     ) : (
@@ -1709,7 +1709,7 @@ export function RepuestosTable({
                             handleViewFieldHistory(repuesto, 'cantidadStockBodega');
                           }}
                           className={`
-                            px-2.5 py-1.5 rounded-md text-base font-bold transition-colors min-w-[52px]
+                            px-3 py-1.5 rounded-md text-lg font-bold transition-colors min-w-[60px]
                             ${stockEnContexto > 0 
                               ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/60' 
                               : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
@@ -1730,7 +1730,7 @@ export function RepuestosTable({
                   {isColumnVisible('totalStockUSD') && (
                   <td className="px-2 py-2 text-center">
                     {activeContexts.stock ? (
-                      <span className="text-sm font-bold text-green-600 dark:text-green-400 whitespace-nowrap">
+                      <span className="text-base font-bold text-green-600 dark:text-green-400 whitespace-nowrap">
                         ${(repuesto.valorUnitario * getCantidadPorContexto(repuesto, 'stock')).toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     ) : (
@@ -1742,7 +1742,7 @@ export function RepuestosTable({
                   {/* Valor unitario */}
                   {isColumnVisible('valorUnitario') && (
                   <td className="px-2 py-2 text-center">
-                    <span className="text-base font-bold text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                    <span className="text-lg font-bold text-gray-700 dark:text-gray-200 whitespace-nowrap">
                       ${repuesto.valorUnitario?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
                     </span>
                   </td>
@@ -1752,7 +1752,7 @@ export function RepuestosTable({
                   {isColumnVisible('totalUSD') && (
                   <td className="px-2 py-2 text-center">
                     {hasAnyContext ? (
-                      <span className="text-base font-black text-gray-900 dark:text-white whitespace-nowrap bg-yellow-50 dark:bg-yellow-900/30 px-2 py-0.5 rounded-md">
+                      <span className="text-lg font-black text-gray-900 dark:text-white whitespace-nowrap bg-yellow-50 dark:bg-yellow-900/30 px-2.5 py-0.5 rounded-md">
                         ${((repuesto.valorUnitario * getCantidadPorContexto(repuesto, 'solicitud')) + (repuesto.valorUnitario * getCantidadPorContexto(repuesto, 'stock'))).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     ) : (

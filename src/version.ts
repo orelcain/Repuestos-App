@@ -1,8 +1,15 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.55';
+export const APP_VERSION = '4.9.56';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.56',
+    date: '2026-01-02',
+    changes: [
+      '🔠 Tabla más legible: headers con más contraste y textos/números más grandes (desktop)',
+    ],
+  },
   {
     version: '4.9.55',
     date: '2026-01-02',
