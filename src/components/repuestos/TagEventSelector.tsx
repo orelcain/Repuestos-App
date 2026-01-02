@@ -125,13 +125,13 @@ export function TagEventSelector({ tags, onTagsChange, valorUnitario, allRepuest
           tagsAsignados.map((tag) => (
             <div
               key={tag.nombre}
-              className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-2 sm:p-3 rounded-lg border ${
+              className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg border ${
                 tag.tipo === 'solicitud'
                   ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800'
                   : 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800'
               }`}
             >
-              <div className="flex items-start sm:items-center gap-3 min-w-0">
+              <div className="flex items-start sm:items-center gap-2 sm:gap-3 min-w-0">
                 {/* Icono según tipo */}
                 {tag.tipo === 'solicitud' ? (
                   <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 flex-shrink-0" />
@@ -152,7 +152,7 @@ export function TagEventSelector({ tags, onTagsChange, valorUnitario, allRepuest
                     </span>
                   </div>
                   {tag.fecha && (
-                    <span className="text-[10px] sm:text-xs text-gray-400 flex items-center gap-1">
+                    <span className="hidden sm:flex text-[10px] sm:text-xs text-gray-400 items-center gap-1">
                       <Calendar className="w-3 h-3 flex-shrink-0" />
                       {(() => {
                         try {
@@ -178,7 +178,7 @@ export function TagEventSelector({ tags, onTagsChange, valorUnitario, allRepuest
                     min="0"
                     value={tag.cantidad}
                     onChange={(e) => handleUpdateCantidad(tag.nombre, parseInt(e.target.value) || 0)}
-                    className="w-16 sm:w-20 px-2 py-1 text-center text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-1 focus:ring-primary-500"
+                    className="w-14 sm:w-20 px-2 py-1 text-center text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-1 focus:ring-primary-500"
                   />
                 </div>
                 <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
@@ -187,7 +187,7 @@ export function TagEventSelector({ tags, onTagsChange, valorUnitario, allRepuest
                 <button
                   type="button"
                   onClick={() => handleRemoveTag(tag.nombre)}
-                  className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-red-500 transition-colors"
+                  className="w-9 h-9 sm:w-auto sm:h-auto sm:p-1 flex items-center justify-center hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-red-500 transition-colors"
                   title="Quitar tag"
                 >
                   <X className="w-4 h-4" />
