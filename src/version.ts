@@ -1,8 +1,15 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.41';
+export const APP_VERSION = '4.9.42';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.42',
+    date: '2026-01-02',
+    changes: [
+      '🖼 Galería unificada: sin pestañas manual/real; botones cámara/galería siempre visibles',
+    ],
+  },
   {
     version: '4.9.41',
     date: '2026-01-02',

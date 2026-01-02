@@ -104,9 +104,7 @@ export function ImageGallery({
       <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="font-semibold text-gray-800 dark:text-gray-200">
-              {tipo === 'manual' ? 'Imágenes del Manual' : 'Fotos Reales'}
-            </h3>
+            <h3 className="font-semibold text-gray-800 dark:text-gray-200">Imágenes</h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
               {repuesto.codigoBaader} - {repuesto.textoBreve.substring(0, 30)}...
             </p>
@@ -127,18 +125,15 @@ export function ImageGallery({
                 <span className="hidden sm:inline">Galería</span>
               </Button>
               
-              {/* Botón Cámara - solo para fotos reales y en móvil */}
-              {tipo === 'real' && (
-                <Button
-                  size="sm"
-                  onClick={() => cameraInputRef.current?.click()}
-                  loading={uploading}
-                  icon={<Camera className="w-4 h-4" />}
-                  title="Tomar foto con cámara"
-                >
-                  <span className="hidden sm:inline">Cámara</span>
-                </Button>
-              )}
+              <Button
+                size="sm"
+                onClick={() => cameraInputRef.current?.click()}
+                loading={uploading}
+                icon={<Camera className="w-4 h-4" />}
+                title="Tomar foto con cámara"
+              >
+                <span className="hidden sm:inline">Cámara</span>
+              </Button>
             </div>
           </div>
           
@@ -182,15 +177,13 @@ export function ImageGallery({
                 <ImageIcon className="w-5 h-5" />
                 <span>Galería</span>
               </button>
-              {tipo === 'real' && (
-                <button
-                  onClick={() => cameraInputRef.current?.click()}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-primary-100 dark:bg-primary-900/50 hover:bg-primary-200 dark:hover:bg-primary-900/70 rounded-xl text-primary-700 dark:text-primary-300 font-medium transition-colors"
-                >
-                  <Camera className="w-5 h-5" />
-                  <span>Cámara</span>
-                </button>
-              )}
+              <button
+                onClick={() => cameraInputRef.current?.click()}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-primary-100 dark:bg-primary-900/50 hover:bg-primary-200 dark:hover:bg-primary-900/70 rounded-xl text-primary-700 dark:text-primary-300 font-medium transition-colors"
+              >
+                <Camera className="w-5 h-5" />
+                <span>Cámara</span>
+              </button>
             </div>
             
             <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-3">

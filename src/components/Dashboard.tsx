@@ -140,7 +140,7 @@ export function Dashboard() {
   
   // Estado del panel derecho
   const [rightPanelMode, setRightPanelMode] = useState<RightPanelMode>('hidden');
-  const [galleryType, setGalleryType] = useState<GalleryType>('manual');
+  const [galleryType, setGalleryType] = useState<GalleryType>('real');
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [selectedManualIndex, setSelectedManualIndex] = useState(0); // Para seleccionar entre múltiples manuales
   const [targetPage, setTargetPage] = useState<number | undefined>();
@@ -1330,31 +1330,7 @@ export function Dashboard() {
               </button>
             </div>
 
-            {/* Tabs secundarios para tipo de galería */}
-            {rightPanelMode === 'gallery' && selectedRepuesto && (
-              <div className="flex border-b border-gray-100 bg-gray-50">
-                <button
-                  onClick={() => setGalleryType('manual')}
-                  className={`flex-1 px-4 py-2 text-xs font-medium transition-colors ${
-                    galleryType === 'manual'
-                      ? 'text-primary-600 bg-white'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Del Manual ({selectedRepuesto.imagenesManual.length})
-                </button>
-                <button
-                  onClick={() => setGalleryType('real')}
-                  className={`flex-1 px-4 py-2 text-xs font-medium transition-colors ${
-                    galleryType === 'real'
-                      ? 'text-primary-600 bg-white'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Fotos Reales ({selectedRepuesto.fotosReales.length})
-                </button>
-              </div>
-            )}
+            {/* Galería única: sin pestañas manual/real */}
 
             {/* Selector de manuales cuando hay múltiples */}
             {rightPanelMode === 'pdf' && currentMachine && currentMachine.manuals && currentMachine.manuals.length > 1 && (
