@@ -54,24 +54,24 @@ async function convertWithCanvas(file: File, options: CanvasConvertOptions): Pro
   const { mimeType, quality, maxWidth, maxHeight, fileNameSuffix } = options;
   // Preferir createImageBitmap (más eficiente/estable en móvil) y OffscreenCanvas cuando exista.
   // Mantener fallback a Image+ObjectURL para navegadores sin createImageBitmap.
-  const loadBitmap = async () => {
+  type Drawable = ImageBitmap | HTMLImageElement;
+
+  const loadDrawable = async (): Promise<Drawable> => {
     if (typeof createImageBitmap === 'function') {
-      return createImageBitmap(file);
+      try {
+        return await createImageBitmap(file);
+      } catch {
+        // Fallback a HTMLImageElement si createImageBitmap(file) falla (común en algunos iOS/formatos).
+      }
     }
 
-    return new Promise<ImageBitmap>((resolve, reject) => {
+    return new Promise<HTMLImageElement>((resolve, reject) => {
       const img = new Image();
       const objectUrl = URL.createObjectURL(file);
 
-      img.onload = async () => {
-        try {
-          const bitmap = await createImageBitmap(img);
-          resolve(bitmap);
-        } catch (e) {
-          reject(e);
-        } finally {
-          URL.revokeObjectURL(objectUrl);
-        }
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(img);
       };
 
       img.onerror = () => {
@@ -83,10 +83,15 @@ async function convertWithCanvas(file: File, options: CanvasConvertOptions): Pro
     });
   };
 
-  const bitmap = await loadBitmap();
+  const drawable = await loadDrawable();
+  const isBitmap = typeof ImageBitmap !== 'undefined' && drawable instanceof ImageBitmap;
+
   try {
-    let width = bitmap.width;
-    let height = bitmap.height;
+    const sourceW = isBitmap ? (drawable as ImageBitmap).width : (drawable as HTMLImageElement).naturalWidth || (drawable as HTMLImageElement).width;
+    const sourceH = isBitmap ? (drawable as ImageBitmap).height : (drawable as HTMLImageElement).naturalHeight || (drawable as HTMLImageElement).height;
+
+    let width = sourceW;
+    let height = sourceH;
 
     if (width > maxWidth) {
       height = (height * maxWidth) / width;
@@ -111,7 +116,7 @@ async function convertWithCanvas(file: File, options: CanvasConvertOptions): Pro
       throw new Error('No se pudo crear contexto de canvas');
     }
 
-    ctx.drawImage(bitmap, 0, 0, targetW, targetH);
+    ctx.drawImage(drawable as CanvasImageSource, 0, 0, targetW, targetH);
 
     const blob: Blob = await (async () => {
       // OffscreenCanvas puede soportar convertToBlob
@@ -152,10 +157,10 @@ async function convertWithCanvas(file: File, options: CanvasConvertOptions): Pro
     });
   } finally {
     // Evitar leaks en navegadores que soportan close()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const anyBitmap: any = bitmap;
-    if (typeof anyBitmap.close === 'function') {
-      anyBitmap.close();
+    if (isBitmap) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const anyBitmap: any = drawable;
+      if (typeof anyBitmap.close === 'function') anyBitmap.close();
     }
   }
 }
@@ -206,6 +211,7 @@ export async function optimizeImage(
   file: File,
   preferredQuality: number = 0.85
 ): Promise<OptimizeImageResult> {
+  const debug = typeof window !== 'undefined' && window.localStorage?.getItem('debugImageOptimize') === '1';
   const originalSize = file.size;
   const q1 = Math.max(0.3, Math.min(0.95, preferredQuality));
   const q2 = Math.max(0.3, Math.min(0.95, q1 - 0.1));
@@ -239,6 +245,11 @@ export async function optimizeImage(
     }
   }
 
+  if (debug) {
+    console.log('[optimizeImage] original', { name: file.name, type: file.type, size: originalSize });
+    console.log('[optimizeImage] bestWebp', bestWebp ? { type: bestWebp.file.type, size: bestWebp.file.size, chosen: bestWebp.chosen } : null);
+  }
+
   if (bestWebp && bestWebp.file.size < originalSize) {
     return { file: bestWebp.file, chosen: bestWebp.chosen };
   }
@@ -255,6 +266,10 @@ export async function optimizeImage(
         // Si falla la conversión a JPEG, seguimos.
       }
     }
+  }
+
+  if (debug) {
+    console.log('[optimizeImage] bestJpeg', bestJpeg ? { type: bestJpeg.file.type, size: bestJpeg.file.size, chosen: bestJpeg.chosen } : null);
   }
 
   if (bestJpeg && bestJpeg.file.size < originalSize) {

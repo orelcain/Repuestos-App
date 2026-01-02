@@ -1,8 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.31';
+export const APP_VERSION = '4.9.32';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.32',
+    date: '2026-01-02',
+    changes: [
+      '🧰 Imágenes: Fallback cuando createImageBitmap(file) falla (mejor compatibilidad multi-dispositivo)',
+      '🪵 Imágenes: Debug opcional por consola (localStorage.debugImageOptimize=1)'
+    ]
+  },
   {
     version: '4.9.31',
     date: '2026-01-02',
