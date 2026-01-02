@@ -1,8 +1,15 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.49';
+export const APP_VERSION = '4.9.50';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.50',
+    date: '2026-01-02',
+    changes: [
+      '🔎 Galería tipo manual: zoom +/- y arrastre con “manito” directamente en la imagen (sin abrir modal)',
+    ],
+  },
   {
     version: '4.9.49',
     date: '2026-01-02',

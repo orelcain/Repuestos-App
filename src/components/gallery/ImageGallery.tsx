@@ -50,6 +50,8 @@ export function ImageGallery({
   const [zoomImage, setZoomImage] = useState<ImagenRepuesto | null>(null);
   const [zoomScale, setZoomScale] = useState(1);
   const [isPanning, setIsPanning] = useState(false);
+  const [inlineScale, setInlineScale] = useState(1);
+  const [inlineIsPanning, setInlineIsPanning] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -197,18 +199,89 @@ export function ImageGallery({
           </div>
         ) : (
           <>
-            {/* Main Image */}
+            {/* Main Image (zoom + pan inline, tipo visor manual) */}
             <div className="relative flex-1 bg-gray-100 dark:bg-gray-900 flex items-center justify-center min-h-[200px]">
-              <img
-                src={sortedImages[currentIndex]?.url}
-                alt={sortedImages[currentIndex]?.descripcion || 'Imagen del repuesto'}
-                className="max-w-full max-h-full object-contain cursor-zoom-in"
-                onClick={() => {
-                  setZoomImage(sortedImages[currentIndex]);
-                  setZoomScale(1);
-                  setIsPanning(false);
+              <TransformWrapper
+                key={sortedImages[currentIndex]?.id}
+                initialScale={1}
+                minScale={1}
+                maxScale={6}
+                centerOnInit
+                centerZoomedOut
+                disablePadding
+                wheel={{ step: 0.2, wheelDisabled: false }}
+                doubleClick={{ mode: 'toggle', step: 0.8 }}
+                pinch={{ step: 0.4 }}
+                panning={{ disabled: false, velocityDisabled: false, allowLeftClickPan: true }}
+                onTransformed={(_ref, state) => setInlineScale(state.scale)}
+                onPanningStart={(ref, event) => {
+                  if (ref.state.scale <= 1.01) {
+                    ref.resetTransform();
+                    ref.centerView();
+                    setInlineIsPanning(false);
+                    if (event instanceof MouseEvent) {
+                      ref.instance.clearPanning(event);
+                    }
+                    return;
+                  }
+                  setInlineIsPanning(true);
                 }}
-              />
+                onPanningStop={() => setInlineIsPanning(false)}
+              >
+                {({ zoomIn, zoomOut, resetTransform }) => (
+                  <>
+                    <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 bg-white/80 backdrop-blur px-3 py-2 rounded-full shadow">
+                      <button onClick={() => zoomOut()} className="p-1 rounded hover:bg-black/5" title="Alejar">
+                        <Minus className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          resetTransform();
+                          setInlineScale(1);
+                          setInlineIsPanning(false);
+                        }}
+                        className="p-1 rounded hover:bg-black/5"
+                        title="Reset"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => zoomIn()} className="p-1 rounded hover:bg-black/5" title="Acercar">
+                        <Plus className="w-4 h-4" />
+                      </button>
+                      <span className="ml-1 text-xs tabular-nums text-gray-700 select-none">
+                        {Math.round(inlineScale * 100)}%
+                      </span>
+                    </div>
+
+                    <TransformComponent
+                      wrapperClass={
+                        'w-full h-full ' +
+                        (inlineScale > 1
+                          ? inlineIsPanning
+                            ? 'cursor-grabbing'
+                            : 'cursor-grab'
+                          : 'cursor-default')
+                      }
+                      wrapperStyle={{ width: '100%', height: '100%' }}
+                      wrapperProps={{ style: { touchAction: 'none' } }}
+                      contentStyle={{
+                        width: '100%',
+                        height: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <img
+                        src={sortedImages[currentIndex]?.url}
+                        alt={sortedImages[currentIndex]?.descripcion || 'Imagen del repuesto'}
+                        className="max-w-full max-h-full object-contain select-none"
+                        draggable={false}
+                      />
+                    </TransformComponent>
+                  </>
+                )}
+              </TransformWrapper>
 
               {/* Navigation Arrows */}
               {sortedImages.length > 1 && (
