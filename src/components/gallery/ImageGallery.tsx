@@ -268,17 +268,27 @@ export function ImageGallery({
                     />
 
                     {(img.sizeFinal || img.sizeOriginal) && (
-                      <div className="absolute bottom-0 inset-x-0 bg-black/70 px-1 py-0.5">
-                        <p className="text-[9px] leading-tight text-white truncate">
-                          {img.sizeOriginal && img.sizeFinal
-                            ? `${formatFileSize(img.sizeOriginal)} → ${formatFileSize(img.sizeFinal)}`
-                            : img.sizeFinal
-                              ? `Optimizada: ${formatFileSize(img.sizeFinal)}`
-                              : img.sizeOriginal
-                                ? `Original: ${formatFileSize(img.sizeOriginal)}`
-                                : ''}
-                          {img.formatFinal && img.formatFinal !== 'original' ? ` · ${img.formatFinal.toUpperCase()}` : ''}
-                        </p>
+                      <div className="absolute bottom-0 inset-x-0 bg-black/70 px-1 py-1 space-y-0.5">
+                        {img.sizeOriginal && img.sizeFinal ? (
+                          <>
+                            <p className="text-[9px] leading-tight text-gray-200">
+                              Original: {formatFileSize(img.sizeOriginal)}
+                            </p>
+                            <p className="text-[9px] leading-tight text-white font-semibold truncate">
+                              Final: {formatFileSize(img.sizeFinal)}
+                              {img.formatFinal && img.formatFinal !== 'original' ? ` · ${img.formatFinal.toUpperCase()}` : ''}
+                            </p>
+                          </>
+                        ) : img.sizeFinal ? (
+                          <p className="text-[9px] leading-tight text-white truncate">
+                            Optimizada: {formatFileSize(img.sizeFinal)}
+                            {img.formatFinal && img.formatFinal !== 'original' ? ` · ${img.formatFinal.toUpperCase()}` : ''}
+                          </p>
+                        ) : (
+                          <p className="text-[9px] leading-tight text-white truncate">
+                            Original: {formatFileSize(img.sizeOriginal || 0)}
+                          </p>
+                        )}
                       </div>
                     )}
                     {img.esPrincipal && (
