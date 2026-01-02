@@ -329,7 +329,7 @@ export function ImageGallery({
         }}
         size="full"
       >
-        <div className="relative w-full h-[70vh]">
+        <div className="relative w-full h-full min-h-[70vh]">
           <button
             onClick={() => {
               setZoomImage(null);
@@ -352,9 +352,20 @@ export function ImageGallery({
               wheel={{ step: 0.2, wheelDisabled: false }}
               doubleClick={{ mode: 'toggle', step: 0.8 }}
               pinch={{ step: 0.4 }}
-              panning={{ disabled: zoomScale <= 1, velocityDisabled: false, allowLeftClickPan: true }}
+              panning={{ disabled: false, velocityDisabled: false, allowLeftClickPan: true }}
               onTransformed={(_ref, state) => setZoomScale(state.scale)}
-              onPanningStart={() => setIsPanning(true)}
+              onPanningStart={(ref, event) => {
+                if (ref.state.scale <= 1.01) {
+                  ref.resetTransform();
+                  ref.centerView();
+                  setIsPanning(false);
+                  if (event instanceof MouseEvent) {
+                    ref.instance.clearPanning(event);
+                  }
+                  return;
+                }
+                setIsPanning(true);
+              }}
               onPanningStop={() => setIsPanning(false)}
             >
               {({ zoomIn, zoomOut, resetTransform }) => (
@@ -383,6 +394,7 @@ export function ImageGallery({
                         : 'cursor-default')
                     }
                     wrapperStyle={{ width: '100%', height: '100%' }}
+                    wrapperProps={{ style: { touchAction: 'none' } }}
                     contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   >
                     <img
@@ -398,7 +410,7 @@ export function ImageGallery({
           )}
           
           <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-gray-600 bg-white/85 backdrop-blur px-3 py-1 rounded shadow">
-            Scroll o pellizca para zoom · arrastra para mover · doble click: zoom / reset
+            Scroll o pellizca para zoom · arrastra (con zoom) para mover · doble click: zoom / reset
           </p>
         </div>
       </Modal>

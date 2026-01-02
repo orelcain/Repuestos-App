@@ -1,8 +1,15 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.47';
+export const APP_VERSION = '4.9.48';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.48',
+    date: '2026-01-02',
+    changes: [
+      '🖼️ Drag real con zoom: arrastre fluido para navegar al detalle (mouse/táctil) y modal full sin scroll interno',
+    ],
+  },
   {
     version: '4.9.47',
     date: '2026-01-02',

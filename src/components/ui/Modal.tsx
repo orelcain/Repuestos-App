@@ -61,6 +61,8 @@ export function Modal({ isOpen, onClose, children, title, size = 'md' }: ModalPr
     full: 'max-w-full mx-4 md:mx-8'
   };
 
+  const contentClasses = size === 'full' ? 'flex-1 overflow-hidden p-0' : 'flex-1 overflow-auto p-6';
+
   return (
     <div 
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 animate-fadeIn"
@@ -90,7 +92,7 @@ export function Modal({ isOpen, onClose, children, title, size = 'md' }: ModalPr
         )}
 
         {/* Content */}
-        <div className="flex-1 overflow-auto p-6">
+        <div className={contentClasses}>
           {children}
         </div>
       </div>
