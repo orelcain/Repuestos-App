@@ -74,9 +74,6 @@ import {
   BarChart3,
   Package,
   Loader2,
-  Database,
-  Moon,
-  Sun,
   Undo2,
   Redo2,
   History,
@@ -606,9 +603,12 @@ export function Dashboard() {
       const imagenes = tipo === 'manual' ? repuesto.imagenesManual : repuesto.fotosReales;
       const updatedImages = [...imagenes, { ...imagen, orden: imagenes.length }];
       
-      await updateRepuestoWithBackup(repuestoId, {
+      const updated = await updateRepuestoWithBackup(repuestoId, {
         [tipo === 'manual' ? 'imagenesManual' : 'fotosReales']: updatedImages
       }, repuesto);
+      // Resinc selección para que la galería refleje el cambio sin recargar
+      const refreshed = repuestos.find(r => r.id === repuesto.id) || updated;
+      if (refreshed) setSelectedRepuesto(refreshed);
       
       // Mostrar resultado real de lo subido
       const originalBytes = imagen.sizeOriginal || meta?.originalSize || 0;
@@ -634,10 +634,13 @@ export function Dashboard() {
     const imagenes = tipo === 'manual' ? repuesto.imagenesManual : repuesto.fotosReales;
     const updatedImages = imagenes.filter(img => img.id !== imagen.id);
     
-    await updateRepuestoWithBackup(repuesto.id, {
+    const updated = await updateRepuestoWithBackup(repuesto.id, {
       [tipo === 'manual' ? 'imagenesManual' : 'fotosReales']: updatedImages
     }, repuesto);
-    
+
+    const refreshed = repuestos.find(r => r.id === repuesto.id) || updated;
+    if (refreshed) setSelectedRepuesto(refreshed);
+
     success('Imagen eliminada');
   };
 

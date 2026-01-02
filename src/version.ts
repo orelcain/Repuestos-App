@@ -1,8 +1,15 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.38';
+export const APP_VERSION = '4.9.39';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.39',
+    date: '2026-01-02',
+    changes: [
+      '🔄 Resync: tras subir o eliminar imagen, refresca selección sin recargar',
+    ],
+  },
   {
     version: '4.9.38',
     date: '2026-01-02',
