@@ -1,8 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.23';
+export const APP_VERSION = '4.9.24';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.24',
+    date: '2026-01-01',
+    changes: [
+      '📥 Import Excel: “Código Baader” se presenta como N° Parte (código proveedor)',
+      '📝 Import Excel: Mapeo de descripción extendida / nombre común para poblar campo descripción'
+    ]
+  },
   {
     version: '4.9.23',
     date: '2026-01-01',

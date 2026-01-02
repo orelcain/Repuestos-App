@@ -7,6 +7,7 @@ export interface ImportCantidadRow {
   codigoSAP: string;
   codigoBaader: string;
   textoBreve: string;
+  descripcion?: string;
   valorUnitario: number;
   cantidad: number;
 }
@@ -81,6 +82,7 @@ type ColumnMap = {
   codigoSAP: string;
   codigoBaader: string;
   textoBreve: string;
+  descripcion: string;
   cantidad: string;
   valorUnitario: string;
 };
@@ -103,6 +105,7 @@ export function ImportQuantitiesModal({
     codigoSAP: '',
     codigoBaader: '',
     textoBreve: '',
+    descripcion: '',
     cantidad: '',
     valorUnitario: ''
   });
@@ -134,7 +137,7 @@ export function ImportQuantitiesModal({
     setRawHeaders([]);
     setRawRowsAll([]);
     setRawRowsPreview([]);
-    setColumnMap({ codigoSAP: '', codigoBaader: '', textoBreve: '', cantidad: '', valorUnitario: '' });
+    setColumnMap({ codigoSAP: '', codigoBaader: '', textoBreve: '', descripcion: '', cantidad: '', valorUnitario: '' });
     setError(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -145,18 +148,20 @@ export function ImportQuantitiesModal({
       const codigoSAPRaw = toText(mapping.codigoSAP ? rowData[mapping.codigoSAP] : '');
       const codigoBaaderRaw = toText(mapping.codigoBaader ? rowData[mapping.codigoBaader] : '');
       const textoBreve = toText(mapping.textoBreve ? rowData[mapping.textoBreve] : '');
+      const descripcion = toText(mapping.descripcion ? rowData[mapping.descripcion] : '');
       const cantidad = toNumber(mapping.cantidad ? rowData[mapping.cantidad] : 0);
       const valorUnitario = toNumber(mapping.valorUnitario ? rowData[mapping.valorUnitario] : 0);
 
       const codigoSAP = codigoSAPRaw.trim() || 'pendiente';
       const codigoBaader = codigoBaaderRaw.trim() || 'pendiente';
 
-      if (codigoSAP === 'pendiente' && codigoBaader === 'pendiente' && !textoBreve.trim()) continue;
+      if (codigoSAP === 'pendiente' && codigoBaader === 'pendiente' && !textoBreve.trim() && !descripcion.trim()) continue;
 
       parsed.push({
         codigoSAP,
         codigoBaader,
         textoBreve: textoBreve.trim(),
+        descripcion: descripcion.trim(),
         valorUnitario,
         cantidad
       });
@@ -207,10 +212,28 @@ export function ImportQuantitiesModal({
             rowData['CODIGO BAADER'] ??
             rowData['Código proveedor'] ??
             rowData['N° Parte'] ??
-            rowData['No. Parte']
+            rowData['No. Parte'] ??
+            rowData['Numero Parte'] ??
+            rowData['Número Parte']
         );
 
-        const textoBreve = toText(rowData['Texto Breve'] ?? rowData['TEXTO BREVE'] ?? rowData['Descripción'] ?? rowData['Descripcion']);
+        const textoBreve = toText(
+          rowData['Texto Breve'] ??
+            rowData['TEXTO BREVE'] ??
+            rowData['Descripción'] ??
+            rowData['Descripcion'] ??
+            rowData['DESCRIPCION SAP']
+        );
+
+        const descripcionExtendida = toText(
+          rowData['Descripción extendida'] ??
+            rowData['Descripcion extendida'] ??
+            rowData['Nombre común'] ??
+            rowData['Nombre comun'] ??
+            rowData['NOMBRE COMUN'] ??
+            rowData['COMPONENTE O NOMBRE COMUN DESCRIPTIVO'] ??
+            rowData['Componente o nombre comun descriptivo']
+        );
 
         const cantidad = toNumber(
           rowData['Cantidad'] ??
@@ -227,12 +250,13 @@ export function ImportQuantitiesModal({
         const codigoSAP = codigoSAPRaw.trim() || 'pendiente';
         const codigoBaader = codigoBaaderRaw.trim() || 'pendiente';
 
-        if (codigoSAP === 'pendiente' && codigoBaader === 'pendiente' && !textoBreve.trim()) return;
+        if (codigoSAP === 'pendiente' && codigoBaader === 'pendiente' && !textoBreve.trim() && !descripcionExtendida.trim()) return;
 
         parsed.push({
           codigoSAP,
           codigoBaader,
-          textoBreve: textoBreve.trim(),
+          textoBreve: textoBreve.trim() || descripcionExtendida.trim(),
+          descripcion: descripcionExtendida.trim(),
           valorUnitario,
           cantidad
         });
@@ -247,8 +271,9 @@ export function ImportQuantitiesModal({
       // Sugerencias de mapeo (útiles si el parseo automático no encuentra filas)
       setColumnMap({
         codigoSAP: guessHeader(normalizedHeaders, ['Código SAP', 'CODIGO SAP', 'SAP', 'Material']),
-        codigoBaader: guessHeader(normalizedHeaders, ['Código Baader', 'CODIGO BAADER', 'Baader', 'N° Parte', 'No. Parte', 'Parte', 'Part#']),
-        textoBreve: guessHeader(normalizedHeaders, ['Texto Breve', 'TEXTO BREVE', 'Descripción', 'Descripcion', 'Texto', 'Desc']),
+        codigoBaader: guessHeader(normalizedHeaders, ['N° Parte', 'No. Parte', 'Número Parte', 'Numero Parte', 'Código proveedor', 'Codigo proveedor', 'Part#', 'Parte', 'Código Baader', 'CODIGO BAADER']),
+        textoBreve: guessHeader(normalizedHeaders, ['Texto Breve', 'TEXTO BREVE', 'DESCRIPCION SAP', 'Descripción', 'Descripcion', 'Texto']),
+        descripcion: guessHeader(normalizedHeaders, ['COMPONENTE O NOMBRE COMUN DESCRIPTIVO', 'Nombre común', 'Nombre comun', 'Descripción extendida', 'Descripcion extendida', 'Nombre']),
         cantidad: guessHeader(normalizedHeaders, ['Cantidad', 'Cant.', 'Cant', 'QTY', 'Qty', 'Cantidad Solicitada', 'Stock']),
         valorUnitario: guessHeader(normalizedHeaders, ['Valor Unitario', 'Valor Unit.', 'Precio', 'USD', 'Unit Price', 'Unitario'])
       });
@@ -424,7 +449,7 @@ export function ImportQuantitiesModal({
                 <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
                   <tr>
                     <th className="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-200">SAP</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-200">Baader</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-200">N° Parte</th>
                     <th className="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-200">Descripción</th>
                     <th className="px-3 py-2 text-right font-medium text-gray-600 dark:text-gray-200">Cant.</th>
                     <th className="px-3 py-2 text-right font-medium text-gray-600 dark:text-gray-200">USD</th>
@@ -435,7 +460,7 @@ export function ImportQuantitiesModal({
                     <tr key={idx} className="border-t border-gray-100 dark:border-gray-700">
                       <td className="px-3 py-2 font-mono text-xs">{row.codigoSAP}</td>
                       <td className="px-3 py-2 font-mono text-xs text-primary-600 dark:text-primary-300">{row.codigoBaader}</td>
-                      <td className="px-3 py-2 truncate max-w-[240px] text-gray-700 dark:text-gray-200">{row.textoBreve}</td>
+                      <td className="px-3 py-2 truncate max-w-[240px] text-gray-700 dark:text-gray-200">{row.textoBreve || row.descripcion || ''}</td>
                       <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-200">{row.cantidad}</td>
                       <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-200">${row.valorUnitario.toFixed(2)}</td>
                     </tr>
@@ -453,7 +478,7 @@ export function ImportQuantitiesModal({
               <p className="font-medium text-blue-800 mb-2">Reglas</p>
               <ul className="text-blue-700 space-y-1">
                 <li>• La cantidad del evento se <b>reemplaza</b> (no se suma).</li>
-                <li>• Si falta SAP o Baader, se guarda como <b>pendiente</b>.</li>
+                <li>• Si falta SAP o N° Parte, se guarda como <b>pendiente</b>.</li>
                 <li>• Si el repuesto no existe en el catálogo, se crea para completar el catálogo.</li>
               </ul>
             </div>
@@ -493,7 +518,7 @@ export function ImportQuantitiesModal({
                   </label>
 
                   <label className="text-sm text-gray-700 dark:text-gray-200">
-                    Código Baader
+                    N° Parte (código proveedor)
                     <select
                       value={columnMap.codigoBaader}
                       onChange={(e) => setColumnMap((prev) => ({ ...prev, codigoBaader: e.target.value }))}
@@ -509,7 +534,7 @@ export function ImportQuantitiesModal({
                   </label>
 
                   <label className="text-sm text-gray-700 dark:text-gray-200">
-                    Texto Breve / Descripción
+                    Texto Breve (SAP)
                     <select
                       value={columnMap.textoBreve}
                       onChange={(e) => setColumnMap((prev) => ({ ...prev, textoBreve: e.target.value }))}
@@ -518,6 +543,22 @@ export function ImportQuantitiesModal({
                       <option value="">— Selecciona columna —</option>
                       {rawHeaders.map((h) => (
                         <option key={`texto-${h}`} value={h}>
+                          {h}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="text-sm text-gray-700 dark:text-gray-200">
+                    Descripción extendida / Nombre común
+                    <select
+                      value={columnMap.descripcion}
+                      onChange={(e) => setColumnMap((prev) => ({ ...prev, descripcion: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm"
+                    >
+                      <option value="">— (sin columna) —</option>
+                      {rawHeaders.map((h) => (
+                        <option key={`desc-${h}`} value={h}>
                           {h}
                         </option>
                       ))}
@@ -560,7 +601,7 @@ export function ImportQuantitiesModal({
 
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-xs text-gray-500 dark:text-gray-400">
-                    Tip: con que haya SAP o Baader (o Texto) por fila, se importará.
+                    Tip: con que haya SAP o N° Parte (o Texto) por fila, se importará.
                   </div>
                   <Button
                     onClick={() => {

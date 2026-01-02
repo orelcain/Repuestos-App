@@ -217,10 +217,11 @@ export function RepuestosTable({
   ) => {
     if (args.mode === 'catalog') {
       if (!onImportCatalogoDesdeExcel) throw new Error('Importación no disponible');
-      const rows = args.rows.map(({ codigoSAP, codigoBaader, textoBreve, valorUnitario }) => ({
+      const rows = args.rows.map(({ codigoSAP, codigoBaader, textoBreve, descripcion, valorUnitario }) => ({
         codigoSAP,
         codigoBaader,
         textoBreve,
+        descripcion,
         valorUnitario
       }));
       await onImportCatalogoDesdeExcel({ rows });

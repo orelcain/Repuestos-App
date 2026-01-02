@@ -19,6 +19,7 @@ export interface ImportCantidadRow {
   codigoSAP: string;
   codigoBaader: string;
   textoBreve?: string;
+  descripcion?: string;
   valorUnitario?: number;
   cantidad: number;
 }
@@ -378,8 +379,9 @@ export function useRepuestos(machineId: string | null) {
       const cantidad = Math.max(0, toFiniteNumber(row.cantidad, 0));
       const valorUnitario = Math.max(0, toFiniteNumber(row.valorUnitario, 0));
       const textoBreve = (row.textoBreve || '').trim();
+      const descripcion = (row.descripcion || '').trim();
 
-      return { existing, codigoSAP, codigoBaader, cantidad, valorUnitario, textoBreve };
+      return { existing, codigoSAP, codigoBaader, cantidad, valorUnitario, textoBreve, descripcion };
     });
 
     // Limitar batch (500). Usamos 400 para margen.
@@ -398,6 +400,9 @@ export function useRepuestos(machineId: string | null) {
           const nextCodigoSAP = r.codigoSAP === placeholder && op.codigoSAP !== placeholder ? op.codigoSAP : r.codigoSAP;
           const nextCodigoBaader = r.codigoBaader === placeholder && op.codigoBaader !== placeholder ? op.codigoBaader : r.codigoBaader;
           const nextTextoBreve = (!r.textoBreve || r.textoBreve.trim().length === 0) && op.textoBreve ? op.textoBreve : r.textoBreve;
+          const nextDescripcion = (!r.descripcion || r.descripcion.trim().length === 0)
+            ? (op.descripcion || op.textoBreve || r.descripcion)
+            : r.descripcion;
 
           const totalFromTags = computeTotalFromTags(nextTags, nextValorUnitario);
 
@@ -407,6 +412,7 @@ export function useRepuestos(machineId: string | null) {
             codigoSAP: nextCodigoSAP,
             codigoBaader: nextCodigoBaader,
             textoBreve: nextTextoBreve,
+            descripcion: nextDescripcion,
             total: totalFromTags,
             updatedAt: Timestamp.now()
           };
@@ -435,7 +441,7 @@ export function useRepuestos(machineId: string | null) {
             codigoSAP: op.codigoSAP,
             codigoBaader: op.codigoBaader,
             textoBreve: op.textoBreve || '',
-            descripcion: op.textoBreve || '',
+            descripcion: op.descripcion || op.textoBreve || '',
             cantidadSolicitada: 0,
             cantidadStockBodega: 0,
             valorUnitario: baseValor,
@@ -480,7 +486,8 @@ export function useRepuestos(machineId: string | null) {
       const existing = (keySAP && bySAP.get(keySAP)) || (keyBaader && byBaader.get(keyBaader)) || null;
       const valorUnitario = Math.max(0, toFiniteNumber(row.valorUnitario, 0));
       const textoBreve = (row.textoBreve || '').trim();
-      return { existing, codigoSAP, codigoBaader, valorUnitario, textoBreve };
+      const descripcion = (row.descripcion || '').trim();
+      return { existing, codigoSAP, codigoBaader, valorUnitario, textoBreve, descripcion };
     });
 
     const chunks = chunk(ops, 400);
@@ -494,6 +501,9 @@ export function useRepuestos(machineId: string | null) {
           const nextCodigoSAP = r.codigoSAP === placeholder && op.codigoSAP !== placeholder ? op.codigoSAP : r.codigoSAP;
           const nextCodigoBaader = r.codigoBaader === placeholder && op.codigoBaader !== placeholder ? op.codigoBaader : r.codigoBaader;
           const nextTextoBreve = (!r.textoBreve || r.textoBreve.trim().length === 0) && op.textoBreve ? op.textoBreve : r.textoBreve;
+          const nextDescripcion = (!r.descripcion || r.descripcion.trim().length === 0)
+            ? (op.descripcion || op.textoBreve || r.descripcion)
+            : r.descripcion;
 
           const totalFromTags = computeTotalFromTags(r.tags, nextValorUnitario);
 
@@ -501,7 +511,7 @@ export function useRepuestos(machineId: string | null) {
             codigoSAP: nextCodigoSAP,
             codigoBaader: nextCodigoBaader,
             textoBreve: nextTextoBreve,
-            descripcion: (!r.descripcion || r.descripcion.trim().length === 0) && op.textoBreve ? op.textoBreve : r.descripcion,
+            descripcion: nextDescripcion,
             valorUnitario: nextValorUnitario,
             total: totalFromTags,
             updatedAt: Timestamp.now()
@@ -514,7 +524,7 @@ export function useRepuestos(machineId: string | null) {
             codigoSAP: op.codigoSAP,
             codigoBaader: op.codigoBaader,
             textoBreve: op.textoBreve || '',
-            descripcion: op.textoBreve || '',
+            descripcion: op.descripcion || op.textoBreve || '',
             cantidadSolicitada: 0,
             cantidadStockBodega: 0,
             valorUnitario: baseValor,
