@@ -596,13 +596,11 @@ export function Dashboard() {
         [tipo === 'manual' ? 'imagenesManual' : 'fotosReales']: updatedImages
       }, repuesto);
       
-      if (meta?.originalSize && meta?.optimizedSize) {
-        const formatLabel = meta.chosen?.format && meta.chosen.format !== 'original'
-          ? `${meta.chosen.format.toUpperCase()}${meta.chosen.quality ? ` ${Math.round(meta.chosen.quality * 100)}%` : ''}`
+      if (imagen.sizeOriginal && imagen.sizeFinal) {
+        const formatLabel = imagen.formatFinal && imagen.formatFinal !== 'original'
+          ? `${imagen.formatFinal.toUpperCase()}${imagen.qualityFinal ? ` ${Math.round(imagen.qualityFinal * 100)}%` : ''}`
           : null;
-        success(
-          `Imagen agregada: ${formatFileSize(meta.originalSize)} → ${formatFileSize(meta.optimizedSize)}${formatLabel ? ` (${formatLabel})` : ''}`
-        );
+        success(`Imagen agregada: ${formatFileSize(imagen.sizeOriginal)} → ${formatFileSize(imagen.sizeFinal)}${formatLabel ? ` (${formatLabel})` : ''}`);
       } else {
         success('Imagen agregada correctamente');
       }

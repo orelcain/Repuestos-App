@@ -27,14 +27,21 @@ export function ImageQualityModal({
   const [estimatedSize, setEstimatedSize] = useState<number>(0);
   const [optimization, setOptimization] = useState<OptimizeImageResult['chosen'] | null>(null);
   const [computedResult, setComputedResult] = useState<OptimizeImageResult | null>(null);
+  const [computedKey, setComputedKey] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [calculating, setCalculating] = useState(false);
+
+  const buildKey = (f: File, q: number) => `${f.name}|${f.size}|${f.lastModified}|${q}`;
 
   // Generar preview y calcular tamaños cuando cambia el archivo o calidad
   useEffect(() => {
     if (!file || !isOpen) return;
 
     setOriginalSize(file.size);
+    setEstimatedSize(0);
+    setOptimization(null);
+    setComputedResult(null);
+    setComputedKey(null);
     
     // Generar preview del archivo original
     const reader = new FileReader();
@@ -48,24 +55,34 @@ export function ImageQualityModal({
   useEffect(() => {
     if (!file || !isOpen) return;
 
+    let cancelled = false;
+    const key = buildKey(file, selectedQuality.value);
+
     const calculateSize = async () => {
       setCalculating(true);
       try {
         const result = await optimizeImage(file, selectedQuality.value);
+        if (cancelled) return;
         setEstimatedSize(result.file.size);
         setOptimization(result.chosen);
         setComputedResult(result);
+        setComputedKey(key);
       } catch (err) {
         console.error('Error estimando tamaño:', err);
+        if (cancelled) return;
         setEstimatedSize(0);
         setOptimization(null);
         setComputedResult(null);
+        setComputedKey(null);
       } finally {
-        setCalculating(false);
+        if (!cancelled) setCalculating(false);
       }
     };
 
     calculateSize();
+    return () => {
+      cancelled = true;
+    };
   }, [file, selectedQuality, isOpen]);
 
   const handleConfirm = async () => {
@@ -73,9 +90,11 @@ export function ImageQualityModal({
 
     setProcessing(true);
     try {
-      // Si ya calculamos un resultado para esta selección, reutilizarlo.
-      // Esto evita discrepancias entre el “estimado” mostrado y el archivo que se sube.
-      const result = computedResult ?? (await optimizeImage(file, selectedQuality.value));
+      const key = buildKey(file, selectedQuality.value);
+      // Reusar solo si corresponde exactamente al mismo archivo y calidad.
+      const result = computedResult && computedKey === key
+        ? computedResult
+        : await optimizeImage(file, selectedQuality.value);
       onConfirm(result);
       onClose();
     } catch (err) {

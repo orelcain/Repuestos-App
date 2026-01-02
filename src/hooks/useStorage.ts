@@ -76,6 +76,8 @@ export function useStorage(machineId: string | null) {
               ? 'jpeg'
               : 'original';
 
+      const sizeOriginal = options?.meta?.sizeOriginal ?? (options?.skipOptimize ? undefined : file.size);
+
       const imagen: ImagenRepuesto = {
         id: `${timestamp}`,
         url,
@@ -84,7 +86,7 @@ export function useStorage(machineId: string | null) {
         esPrincipal: false,
         tipo,
         createdAt: new Date(),
-        sizeOriginal: options?.meta?.sizeOriginal,
+        sizeOriginal,
         sizeFinal: fileToUpload.size,
         formatFinal,
         qualityFinal: options?.meta?.chosen?.quality
