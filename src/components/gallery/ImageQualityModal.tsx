@@ -26,6 +26,7 @@ export function ImageQualityModal({
   const [originalSize, setOriginalSize] = useState<number>(0);
   const [estimatedSize, setEstimatedSize] = useState<number>(0);
   const [optimization, setOptimization] = useState<OptimizeImageResult['chosen'] | null>(null);
+  const [computedResult, setComputedResult] = useState<OptimizeImageResult | null>(null);
   const [processing, setProcessing] = useState(false);
   const [calculating, setCalculating] = useState(false);
 
@@ -53,10 +54,12 @@ export function ImageQualityModal({
         const result = await optimizeImage(file, selectedQuality.value);
         setEstimatedSize(result.file.size);
         setOptimization(result.chosen);
+        setComputedResult(result);
       } catch (err) {
         console.error('Error estimando tamaño:', err);
         setEstimatedSize(0);
         setOptimization(null);
+        setComputedResult(null);
       } finally {
         setCalculating(false);
       }
@@ -70,7 +73,9 @@ export function ImageQualityModal({
 
     setProcessing(true);
     try {
-      const result = await optimizeImage(file, selectedQuality.value);
+      // Si ya calculamos un resultado para esta selección, reutilizarlo.
+      // Esto evita discrepancias entre el “estimado” mostrado y el archivo que se sube.
+      const result = computedResult ?? (await optimizeImage(file, selectedQuality.value));
       onConfirm(result);
       onClose();
     } catch (err) {

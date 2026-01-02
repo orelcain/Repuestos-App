@@ -25,70 +25,104 @@ type CanvasConvertOptions = {
 
 async function convertWithCanvas(file: File, options: CanvasConvertOptions): Promise<File> {
   const { mimeType, quality, maxWidth, maxHeight, fileNameSuffix } = options;
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const canvas = document.createElement('canvas');
+  // Preferir createImageBitmap (más eficiente/estable en móvil) y OffscreenCanvas cuando exista.
+  // Mantener fallback a Image+ObjectURL para navegadores sin createImageBitmap.
+  const loadBitmap = async () => {
+    if (typeof createImageBitmap === 'function') {
+      return createImageBitmap(file);
+    }
+
+    return new Promise<ImageBitmap>((resolve, reject) => {
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+
+      img.onload = async () => {
+        try {
+          const bitmap = await createImageBitmap(img);
+          resolve(bitmap);
+        } catch (e) {
+          reject(e);
+        } finally {
+          URL.revokeObjectURL(objectUrl);
+        }
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error('Error al cargar la imagen'));
+      };
+
+      img.src = objectUrl;
+    });
+  };
+
+  const bitmap = await loadBitmap();
+  try {
+    let width = bitmap.width;
+    let height = bitmap.height;
+
+    if (width > maxWidth) {
+      height = (height * maxWidth) / width;
+      width = maxWidth;
+    }
+
+    if (height > maxHeight) {
+      width = (width * maxHeight) / height;
+      height = maxHeight;
+    }
+
+    const targetW = Math.max(1, Math.round(width));
+    const targetH = Math.max(1, Math.round(height));
+
+    const canvas: OffscreenCanvas | HTMLCanvasElement =
+      typeof OffscreenCanvas !== 'undefined'
+        ? new OffscreenCanvas(targetW, targetH)
+        : Object.assign(document.createElement('canvas'), { width: targetW, height: targetH });
+
     const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      throw new Error('No se pudo crear contexto de canvas');
+    }
 
-    img.onload = () => {
-      let { width, height } = img;
+    ctx.drawImage(bitmap, 0, 0, targetW, targetH);
 
-      if (width > maxWidth) {
-        height = (height * maxWidth) / width;
-        width = maxWidth;
+    const blob: Blob = await (async () => {
+      // OffscreenCanvas puede soportar convertToBlob
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const anyCanvas: any = canvas;
+      if (typeof anyCanvas.convertToBlob === 'function') {
+        return anyCanvas.convertToBlob({ type: mimeType, quality });
       }
 
-      if (height > maxHeight) {
-        width = (width * maxHeight) / height;
-        height = maxHeight;
-      }
+      return new Promise<Blob>((resolve, reject) => {
+        (canvas as HTMLCanvasElement).toBlob(
+          (b) => (b ? resolve(b) : reject(new Error('No se pudo convertir la imagen'))),
+          mimeType,
+          quality
+        );
+      });
+    })();
 
-      canvas.width = Math.max(1, Math.round(width));
-      canvas.height = Math.max(1, Math.round(height));
+    // Validación de formato:
+    // - Si el navegador devuelve un type distinto (ej: PNG cuando pedimos WebP), fallar para activar fallback.
+    // - Si devuelve type vacío, lo aceptamos (algunos navegadores lo hacen) y seguimos.
+    if (blob.type && blob.type !== mimeType) {
+      throw new Error(`Formato no soportado en este navegador: solicitado ${mimeType}, obtenido ${blob.type}`);
+    }
 
-      if (!ctx) {
-        reject(new Error('No se pudo crear contexto de canvas'));
-        return;
-      }
-
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) {
-            reject(new Error('No se pudo convertir la imagen'));
-            return;
-          }
-
-          // Algunos navegadores ignoran el mimeType solicitado (ej: piden WebP y devuelven PNG o type vacío).
-          // Si no coincide exactamente, preferimos fallar para que el caller haga fallback (p.ej. a JPEG).
-          if (blob.type !== mimeType) {
-            reject(new Error(`Formato no soportado en este navegador: solicitado ${mimeType}, obtenido ${blob.type || 'desconocido'}`));
-            return;
-          }
-
-          const originalName = file.name.replace(/\.[^.]+$/, '');
-          const convertedFile = new File([blob], `${originalName}.${fileNameSuffix}`, {
-            type: mimeType,
-            lastModified: Date.now()
-          });
-
-          resolve(convertedFile);
-        },
-        mimeType,
-        quality
-      );
-    };
-
-    img.onerror = () => reject(new Error('Error al cargar la imagen'));
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      img.src = e.target?.result as string;
-    };
-    reader.onerror = () => reject(new Error('Error al leer el archivo'));
-    reader.readAsDataURL(file);
-  });
+    const originalName = file.name.replace(/\.[^.]+$/, '');
+    return new File([blob], `${originalName}.${fileNameSuffix}`, {
+      type: mimeType,
+      lastModified: Date.now()
+    });
+  } finally {
+    // Evitar leaks en navegadores que soportan close()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const anyBitmap: any = bitmap;
+    if (typeof anyBitmap.close === 'function') {
+      anyBitmap.close();
+    }
+  }
 }
 
 // Convertir imagen a WebP con calidad específica
@@ -151,19 +185,25 @@ export async function optimizeImage(
     [800, 800]
   ];
 
+  let bestWebp: { file: File; chosen: OptimizeImageResult['chosen'] } | null = null;
+  let bestJpeg: { file: File; chosen: OptimizeImageResult['chosen'] } | null = null;
+
   // 1) Intentar WebP primero (suele ser lo mejor)
   for (const [maxWidth, maxHeight] of maxDims) {
     for (const quality of qualitySteps) {
       try {
         const candidate = await convertToWebP(file, quality, maxWidth, maxHeight);
-        if (candidate.size < originalSize) {
-          return { file: candidate, chosen: { format: 'webp', quality, maxWidth, maxHeight } };
+        if (!bestWebp || candidate.size < bestWebp.file.size) {
+          bestWebp = { file: candidate, chosen: { format: 'webp', quality, maxWidth, maxHeight } };
         }
       } catch {
-        // Algunos navegadores pueden fallar al generar WebP vía canvas.
-        // En ese caso seguimos probando otros candidatos sin romper el flujo.
+        // Si falla WebP, seguimos.
       }
     }
+  }
+
+  if (bestWebp && bestWebp.file.size < originalSize) {
+    return { file: bestWebp.file, chosen: bestWebp.chosen };
   }
 
   // 2) Fallback a JPEG si WebP no reduce
@@ -171,13 +211,17 @@ export async function optimizeImage(
     for (const quality of qualitySteps) {
       try {
         const candidate = await convertToJpeg(file, quality, maxWidth, maxHeight);
-        if (candidate.size < originalSize) {
-          return { file: candidate, chosen: { format: 'jpeg', quality, maxWidth, maxHeight } };
+        if (!bestJpeg || candidate.size < bestJpeg.file.size) {
+          bestJpeg = { file: candidate, chosen: { format: 'jpeg', quality, maxWidth, maxHeight } };
         }
       } catch {
         // Si falla la conversión a JPEG, seguimos.
       }
     }
+  }
+
+  if (bestJpeg && bestJpeg.file.size < originalSize) {
+    return { file: bestJpeg.file, chosen: bestJpeg.chosen };
   }
 
   // 3) Si nada reduce, devolver original (evita subir algo más pesado)
