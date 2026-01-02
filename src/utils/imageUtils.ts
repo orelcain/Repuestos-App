@@ -206,77 +206,64 @@ export type OptimizeImageResult = {
   };
 };
 
-// Optimiza intentando evitar que el resultado pese más que el original.
+// Optimización automática: WebP 95% (alta calidad + compresión moderna).
+// Fallback a JPEG 95% si WebP no es soportado.
 export async function optimizeImage(
   file: File,
-  preferredQuality: number = 0.85
+  preferredQuality: number = 0.95
 ): Promise<OptimizeImageResult> {
   const debug = typeof window !== 'undefined' && window.localStorage?.getItem('debugImageOptimize') === '1';
   const originalSize = file.size;
-  const q1 = Math.max(0.3, Math.min(0.95, preferredQuality));
-  const q2 = Math.max(0.3, Math.min(0.95, q1 - 0.1));
-  const q3 = Math.max(0.3, Math.min(0.95, q1 - 0.2));
-  const qualitySteps = Array.from(new Set([q1, q2, q3, 0.6, 0.5, 0.4, 0.3, 0.25])).filter((q) => q >= 0.25 && q <= 0.95);
-
-  const maxDims: Array<[number, number]> = [
-    [1920, 1920],
-    [1600, 1600],
-    [1280, 1280],
-    [1024, 1024],
-    [800, 800],
-    [640, 640],
-    [512, 512]
-  ];
-
-  let bestWebp: { file: File; chosen: OptimizeImageResult['chosen'] } | null = null;
-  let bestJpeg: { file: File; chosen: OptimizeImageResult['chosen'] } | null = null;
-
-  // 1) Intentar WebP primero (suele ser lo mejor)
-  for (const [maxWidth, maxHeight] of maxDims) {
-    for (const quality of qualitySteps) {
-      try {
-        const candidate = await convertToWebP(file, quality, maxWidth, maxHeight);
-        if (!bestWebp || candidate.size < bestWebp.file.size) {
-          bestWebp = { file: candidate, chosen: { format: 'webp', quality, maxWidth, maxHeight } };
-        }
-      } catch {
-        // Si falla WebP, seguimos.
-      }
-    }
-  }
+  const quality = Math.max(0.3, Math.min(0.95, preferredQuality));
+  const maxWidth = 1920;
+  const maxHeight = 1920;
 
   if (debug) {
     console.log('[optimizeImage] original', { name: file.name, type: file.type, size: originalSize });
-    console.log('[optimizeImage] bestWebp', bestWebp ? { type: bestWebp.file.type, size: bestWebp.file.size, chosen: bestWebp.chosen } : null);
+    console.log('[optimizeImage] intentando WebP', { quality, maxWidth, maxHeight });
   }
 
-  if (bestWebp && bestWebp.file.size < originalSize) {
-    return { file: bestWebp.file, chosen: bestWebp.chosen };
-  }
-
-  // 2) Fallback a JPEG si WebP no reduce
-  for (const [maxWidth, maxHeight] of maxDims) {
-    for (const quality of qualitySteps) {
-      try {
-        const candidate = await convertToJpeg(file, quality, maxWidth, maxHeight);
-        if (!bestJpeg || candidate.size < bestJpeg.file.size) {
-          bestJpeg = { file: candidate, chosen: { format: 'jpeg', quality, maxWidth, maxHeight } };
-        }
-      } catch {
-        // Si falla la conversión a JPEG, seguimos.
-      }
+  // 1) Intentar WebP primero (mejor compresión con alta calidad)
+  try {
+    const webpFile = await convertToWebP(file, quality, maxWidth, maxHeight);
+    if (debug) {
+      console.log('[optimizeImage] WebP generado', { type: webpFile.type, size: webpFile.size });
+    }
+    
+    if (webpFile.size < originalSize) {
+      return { file: webpFile, chosen: { format: 'webp', quality, maxWidth, maxHeight } };
+    }
+    
+    if (debug) {
+      console.log('[optimizeImage] WebP no reduce tamaño; intentando JPEG');
+    }
+  } catch (err) {
+    if (debug) {
+      console.warn('[optimizeImage] WebP falló; intentando JPEG', err);
     }
   }
 
-  if (debug) {
-    console.log('[optimizeImage] bestJpeg', bestJpeg ? { type: bestJpeg.file.type, size: bestJpeg.file.size, chosen: bestJpeg.chosen } : null);
+  // 2) Fallback a JPEG si WebP no está disponible o no reduce
+  try {
+    const jpegFile = await convertToJpeg(file, quality, maxWidth, maxHeight);
+    if (debug) {
+      console.log('[optimizeImage] JPEG generado', { type: jpegFile.type, size: jpegFile.size });
+    }
+    
+    if (jpegFile.size < originalSize) {
+      return { file: jpegFile, chosen: { format: 'jpeg', quality, maxWidth, maxHeight } };
+    }
+    
+    if (debug) {
+      console.log('[optimizeImage] JPEG no reduce tamaño; devolviendo original');
+    }
+  } catch (err) {
+    if (debug) {
+      console.warn('[optimizeImage] JPEG falló; devolviendo original', err);
+    }
   }
 
-  if (bestJpeg && bestJpeg.file.size < originalSize) {
-    return { file: bestJpeg.file, chosen: bestJpeg.chosen };
-  }
-
-  // 3) Si nada reduce, devolver original (evita subir algo más pesado)
+  // 3) Si ambos fallan o no reducen, devolver original
   return { file, chosen: { format: 'original' } };
 }
 

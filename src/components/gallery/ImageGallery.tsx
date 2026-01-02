@@ -1,7 +1,6 @@
 import { useState, useRef } from 'react';
 import { ImagenRepuesto, Repuesto } from '../../types';
 import { Modal, Button } from '../ui';
-import { ImageQualityModal } from './ImageQualityModal';
 import type { OptimizeImageResult } from '../../utils/imageUtils';
 import { 
   ChevronLeft, 
@@ -47,10 +46,6 @@ export function ImageGallery({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [zoomImage, setZoomImage] = useState<ImagenRepuesto | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
-  const [currentFileIndex, setCurrentFileIndex] = useState(0);
-  const [showQualityModal, setShowQualityModal] = useState(false);
-  const [_showUploadOptions, _setShowUploadOptions] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -61,57 +56,29 @@ export function ImageGallery({
     const files = e.target.files;
     if (!files || !repuesto || files.length === 0) return;
 
-    // Guardar archivos pendientes y mostrar modal de calidad
+    // Optimización automática sin modal (WebP 95%)
     const fileArray = Array.from(files);
-    setPendingFiles(fileArray);
-    setCurrentFileIndex(0);
-    setShowQualityModal(true);
-    
-    // Limpiar input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  const handleOptimizedUpload = async (result: OptimizeImageResult) => {
-    if (!repuesto) return;
-
     setUploading(true);
+    
     try {
-      const originalFile = pendingFiles[currentFileIndex];
-      await onUpload(result.file, repuesto.id, tipo, {
-        originalSize: originalFile?.size,
-        optimizedSize: result.file.size,
-        chosen: result.chosen,
-        // Ya viene optimizada desde el modal: evitar doble optimización.
-        skipOptimize: true
-      });
-      
-      // Si hay más archivos pendientes, mostrar el siguiente
-      if (currentFileIndex < pendingFiles.length - 1) {
-        setCurrentFileIndex(prev => prev + 1);
-        setShowQualityModal(true);
-      } else {
-        // Limpiar estado
-        setPendingFiles([]);
-        setCurrentFileIndex(0);
+      for (const file of fileArray) {
+        // Optimizar con calidad automática (95%)
+        const { optimizeImage } = await import('../../utils/imageUtils');
+        const result = await optimizeImage(file, 0.95);
+        
+        await onUpload(result.file, repuesto.id, tipo, {
+          originalSize: file.size,
+          optimizedSize: result.file.size,
+          chosen: result.chosen,
+          skipOptimize: true // Ya optimizada
+        });
       }
-    } catch (error) {
-      console.error('Error al subir imagen:', error);
     } finally {
       setUploading(false);
-    }
-  };
-
-  const handleCloseQualityModal = () => {
-    setShowQualityModal(false);
-    // Si hay más archivos, preguntar por el siguiente
-    if (currentFileIndex < pendingFiles.length - 1) {
-      setCurrentFileIndex(prev => prev + 1);
-      setTimeout(() => setShowQualityModal(true), 100);
-    } else {
-      setPendingFiles([]);
-      setCurrentFileIndex(0);
+      // Limpiar input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -374,14 +341,6 @@ export function ImageGallery({
           </p>
         </div>
       </Modal>
-
-      {/* Modal de Calidad de Imagen */}
-      <ImageQualityModal
-        isOpen={showQualityModal}
-        onClose={handleCloseQualityModal}
-        file={pendingFiles[currentFileIndex] || null}
-        onConfirm={handleOptimizedUpload}
-      />
     </div>
   );
 }

@@ -1,8 +1,17 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.32';
+export const APP_VERSION = '4.9.33';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.33',
+    date: '2026-01-02',
+    changes: [
+      '✨ Optimización automática: WebP 95% sin modal de selección',
+      '⚡ Compresión simplificada y más confiable cross-browser',
+      '📱 Mejor experiencia de carga en móviles',
+    ],
+  },
   {
     version: '4.9.32',
     date: '2026-01-02',
