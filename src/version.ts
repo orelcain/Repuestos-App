@@ -1,8 +1,15 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.52';
+export const APP_VERSION = '4.9.53';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.53',
+    date: '2026-01-02',
+    changes: [
+      '📱 Modal móvil: tags/eventos más compactos (sin desbordes) en Editar Repuesto',
+    ],
+  },
   {
     version: '4.9.52',
     date: '2026-01-02',

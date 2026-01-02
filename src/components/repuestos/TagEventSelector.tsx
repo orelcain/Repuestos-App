@@ -100,15 +100,15 @@ export function TagEventSelector({ tags, onTagsChange, valorUnitario, allRepuest
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+      <div className="flex items-center justify-between gap-3">
+        <label className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
           <Tag className="w-4 h-4" />
           Tags / Eventos
         </label>
         <button
           type="button"
           onClick={() => setShowAddForm(!showAddForm)}
-          className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 font-medium flex items-center gap-1"
+          className="text-xs sm:text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 font-medium flex items-center gap-1 whitespace-nowrap"
         >
           <Plus className="w-4 h-4" />
           Asignar tag
@@ -125,25 +125,25 @@ export function TagEventSelector({ tags, onTagsChange, valorUnitario, allRepuest
           tagsAsignados.map((tag) => (
             <div
               key={tag.nombre}
-              className={`flex items-center justify-between p-3 rounded-lg border ${
+              className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-2 sm:p-3 rounded-lg border ${
                 tag.tipo === 'solicitud'
                   ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800'
                   : 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800'
               }`}
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-start sm:items-center gap-3 min-w-0">
                 {/* Icono según tipo */}
                 {tag.tipo === 'solicitud' ? (
-                  <ShoppingCart className="w-5 h-5 text-blue-500" />
+                  <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 flex-shrink-0" />
                 ) : (
-                  <Package className="w-5 h-5 text-green-500" />
+                  <Package className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 flex-shrink-0" />
                 )}
                 
                 {/* Nombre y tipo */}
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-gray-800 dark:text-gray-200">{tag.nombre}</span>
-                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="font-medium text-gray-800 dark:text-gray-200 text-sm sm:text-base truncate">{tag.nombre}</span>
+                    <span className={`px-1.5 py-0.5 text-[10px] sm:text-xs font-medium rounded-full flex-shrink-0 ${
                       tag.tipo === 'solicitud'
                         ? 'bg-blue-200 text-blue-800'
                         : 'bg-green-200 text-green-800'
@@ -152,8 +152,8 @@ export function TagEventSelector({ tags, onTagsChange, valorUnitario, allRepuest
                     </span>
                   </div>
                   {tag.fecha && (
-                    <span className="text-xs text-gray-400 flex items-center gap-1">
-                      <Calendar className="w-3 h-3" />
+                    <span className="text-[10px] sm:text-xs text-gray-400 flex items-center gap-1">
+                      <Calendar className="w-3 h-3 flex-shrink-0" />
                       {(() => {
                         try {
                           const fecha = tag.fecha instanceof Date ? tag.fecha : new Date(tag.fecha);
@@ -168,9 +168,9 @@ export function TagEventSelector({ tags, onTagsChange, valorUnitario, allRepuest
               </div>
 
               {/* Cantidad y controles */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                  <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
                     {tag.tipo === 'solicitud' ? 'Cant:' : 'Stock:'}
                   </span>
                   <input
@@ -178,10 +178,10 @@ export function TagEventSelector({ tags, onTagsChange, valorUnitario, allRepuest
                     min="0"
                     value={tag.cantidad}
                     onChange={(e) => handleUpdateCantidad(tag.nombre, parseInt(e.target.value) || 0)}
-                    className="w-20 px-2 py-1 text-center bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-1 focus:ring-primary-500"
+                    className="w-16 sm:w-20 px-2 py-1 text-center text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-1 focus:ring-primary-500"
                   />
                 </div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">
+                <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
                   ${(tag.cantidad * valorUnitario).toLocaleString('en-US', { minimumFractionDigits: 0 })}
                 </span>
                 <button
