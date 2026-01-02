@@ -2272,6 +2272,7 @@ export function RepuestosTable({
         onClose={() => setShowImportQuantitiesModal(false)}
         activeSolicitudTag={activeContexts.solicitud}
         activeStockTag={activeContexts.stock}
+        repuestos={repuestos}
         onImport={handleImportCantidades}
       />
     </div>

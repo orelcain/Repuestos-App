@@ -1,7 +1,8 @@
 import { useMemo, useRef, useState } from 'react';
 import ExcelJS from 'exceljs';
-import { Upload, FileSpreadsheet, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { Upload, FileSpreadsheet, AlertCircle, CheckCircle, Loader2, GitCompare } from 'lucide-react';
 import { Modal, Button } from '../ui';
+import type { Repuesto } from '../../types';
 
 export interface ImportCantidadRow {
   codigoSAP: string;
@@ -10,6 +11,25 @@ export interface ImportCantidadRow {
   descripcion?: string;
   valorUnitario: number;
   cantidad: number;
+  forceOverride?: {
+    codigoSAP?: boolean;
+    codigoBaader?: boolean;
+    textoBreve?: boolean;
+    descripcion?: boolean;
+    valorUnitario?: boolean;
+  };
+}
+
+export interface ConflictRow {
+  newData: ImportCantidadRow;
+  existing: Repuesto;
+  overrides: {
+    codigoSAP: boolean;
+    codigoBaader: boolean;
+    textoBreve: boolean;
+    descripcion: boolean;
+    valorUnitario: boolean;
+  };
 }
 
 interface ImportQuantitiesModalProps {
@@ -17,6 +37,7 @@ interface ImportQuantitiesModalProps {
   onClose: () => void;
   activeSolicitudTag: string | null;
   activeStockTag: string | null;
+  repuestos: Repuesto[];
   onImport: (args:
     | {
         mode: 'catalog';
@@ -92,12 +113,15 @@ export function ImportQuantitiesModal({
   onClose,
   activeSolicitudTag,
   activeStockTag,
+  repuestos,
   onImport
 }: ImportQuantitiesModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<ImportCantidadRow[]>([]);
+  const [conflicts, setConflicts] = useState<ConflictRow[]>([]);
+  const [showConflicts, setShowConflicts] = useState(false);
   const [rawHeaders, setRawHeaders] = useState<string[]>([]);
   const [rawRowsAll, setRawRowsAll] = useState<Array<Record<string, unknown>>>([]);
   const [rawRowsPreview, setRawRowsPreview] = useState<Array<Record<string, unknown>>>([]);
@@ -135,6 +159,8 @@ export function ImportQuantitiesModal({
   const reset = () => {
     setFile(null);
     setPreview([]);
+    setConflicts([]);
+    setShowConflicts(false);
     setRawHeaders([]);
     setRawRowsAll([]);
     setRawRowsPreview([]);
@@ -170,9 +196,57 @@ export function ImportQuantitiesModal({
     }
 
     setPreview(parsed);
+    detectConflicts(parsed);
     if (parsed.length === 0) {
       setError('Con el mapeo seleccionado no se pudieron construir filas válidas. Ajusta las columnas e intenta nuevamente.');
     }
+  };
+
+  const normalizeKey = (code: string) => code.toLowerCase().replace(/\s+/g, '').trim();
+
+  const detectConflicts = (rows: ImportCantidadRow[]) => {
+    const bySAP = new Map<string, Repuesto>();
+    const byBaader = new Map<string, Repuesto>();
+    
+    repuestos.forEach((r) => {
+      if (r.codigoSAP && r.codigoSAP !== 'pendiente') bySAP.set(normalizeKey(r.codigoSAP), r);
+      if (r.codigoBaader && r.codigoBaader !== 'pendiente') byBaader.set(normalizeKey(r.codigoBaader), r);
+    });
+
+    const conflictsFound: ConflictRow[] = [];
+    
+    rows.forEach((newData) => {
+      const keySAP = newData.codigoSAP !== 'pendiente' ? normalizeKey(newData.codigoSAP) : '';
+      const keyBaader = newData.codigoBaader !== 'pendiente' ? normalizeKey(newData.codigoBaader) : '';
+      
+      const existing = (keySAP && bySAP.get(keySAP)) || (keyBaader && byBaader.get(keyBaader));
+      
+      if (existing) {
+        // Detectar qué campos van a cambiar
+        const hasDiff = 
+          (newData.codigoSAP !== 'pendiente' && existing.codigoSAP !== newData.codigoSAP) ||
+          (newData.codigoBaader !== 'pendiente' && existing.codigoBaader !== newData.codigoBaader) ||
+          (newData.textoBreve && existing.textoBreve !== newData.textoBreve) ||
+          (newData.descripcion && existing.descripcion !== newData.descripcion) ||
+          (newData.valorUnitario > 0 && existing.valorUnitario !== newData.valorUnitario);
+        
+        if (hasDiff) {
+          conflictsFound.push({
+            newData,
+            existing,
+            overrides: {
+              codigoSAP: false,
+              codigoBaader: false,
+              textoBreve: false,
+              descripcion: false,
+              valorUnitario: false
+            }
+          });
+        }
+      }
+    });
+
+    setConflicts(conflictsFound);
   };
 
   const parseExcel = async (excelFile: File) => {
@@ -269,6 +343,7 @@ export function ImportQuantitiesModal({
       setRawRowsAll(rawRows);
       setRawRowsPreview(rawRows.slice(0, 20));
       setPreview(parsed);
+      detectConflicts(parsed);
 
       // Sugerencias de mapeo (útiles si el parseo automático no encuentra filas)
       setColumnMap({
@@ -323,14 +398,31 @@ export function ImportQuantitiesModal({
     setImporting(true);
     setError(null);
     try {
+      // Aplicar overrides a las filas con conflictos
+      const rowsWithOverrides = preview.map((row) => {
+        const conflict = conflicts.find(
+          (c) =>
+            (normalizeKey(c.newData.codigoSAP) === normalizeKey(row.codigoSAP) && row.codigoSAP !== 'pendiente') ||
+            (normalizeKey(c.newData.codigoBaader) === normalizeKey(row.codigoBaader) && row.codigoBaader !== 'pendiente')
+        );
+
+        if (conflict) {
+          return {
+            ...row,
+            forceOverride: conflict.overrides
+          };
+        }
+        return row;
+      });
+
       if ('mode' in selectedTarget && selectedTarget.mode === 'catalog') {
-        await onImport({ mode: 'catalog', rows: preview });
+        await onImport({ mode: 'catalog', rows: rowsWithOverrides });
       } else {
         await onImport({
           mode: 'context',
           tipo: (selectedTarget as { tipo: 'solicitud' | 'stock' }).tipo,
           tagName: (selectedTarget as { tagName: string }).tagName,
-          rows: preview
+          rows: rowsWithOverrides
         });
       }
       reset();
@@ -495,6 +587,190 @@ export function ImportQuantitiesModal({
                 <li>• Si el repuesto no existe en el catálogo, se crea para completar el catálogo.</li>
               </ul>
             </div>
+
+            {/* Conflictos detectados */}
+            {conflicts.length > 0 && (
+              <div className="p-4 rounded-lg border-2 border-amber-300 dark:border-amber-600 bg-amber-50 dark:bg-amber-900/20">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <GitCompare className="w-5 h-5 text-amber-700 dark:text-amber-400" />
+                    <span className="font-semibold text-amber-900 dark:text-amber-100">
+                      {conflicts.length} repuesto{conflicts.length > 1 ? 's' : ''} ya existe{conflicts.length > 1 ? 'n' : ''} en el catálogo
+                    </span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowConflicts((v) => !v)}
+                  >
+                    {showConflicts ? 'Ocultar' : 'Revisar'}
+                  </Button>
+                </div>
+                <p className="text-sm text-amber-800 dark:text-amber-300">
+                  Algunos repuestos del Excel ya están en el catálogo. Puedes revisar qué datos actualizar.
+                </p>
+
+                {showConflicts && (
+                  <div className="mt-4 space-y-3 max-h-96 overflow-y-auto">
+                    {conflicts.map((conflict, idx) => (
+                      <div key={idx} className="p-3 rounded-lg border border-amber-200 dark:border-amber-700 bg-white dark:bg-gray-900">
+                        <div className="text-sm font-medium text-gray-800 dark:text-gray-100 mb-2">
+                          {conflict.existing.codigoSAP !== 'pendiente' && `SAP: ${conflict.existing.codigoSAP}`}
+                          {conflict.existing.codigoSAP !== 'pendiente' && conflict.existing.codigoBaader !== 'pendiente' && ' • '}
+                          {conflict.existing.codigoBaader !== 'pendiente' && `N° Parte: ${conflict.existing.codigoBaader}`}
+                        </div>
+                        
+                        <div className="grid grid-cols-[auto,1fr,1fr] gap-2 text-xs">
+                          <div className="font-medium text-gray-600 dark:text-gray-400">Campo</div>
+                          <div className="font-medium text-gray-600 dark:text-gray-400">Actual</div>
+                          <div className="font-medium text-gray-600 dark:text-gray-400">Nuevo (Excel)</div>
+
+                          {/* Código SAP */}
+                          {conflict.newData.codigoSAP !== 'pendiente' && conflict.existing.codigoSAP !== conflict.newData.codigoSAP && (
+                            <>
+                              <label className="flex items-center gap-1">
+                                <input
+                                  type="checkbox"
+                                  checked={conflict.overrides.codigoSAP}
+                                  onChange={(e) => {
+                                    const next = [...conflicts];
+                                    next[idx].overrides.codigoSAP = e.target.checked;
+                                    setConflicts(next);
+                                  }}
+                                  className="rounded"
+                                />
+                                <span className="text-gray-700 dark:text-gray-200">SAP</span>
+                              </label>
+                              <div className="text-gray-600 dark:text-gray-300">{conflict.existing.codigoSAP}</div>
+                              <div className="text-primary-600 dark:text-primary-400 font-medium">{conflict.newData.codigoSAP}</div>
+                            </>
+                          )}
+
+                          {/* Código Baader */}
+                          {conflict.newData.codigoBaader !== 'pendiente' && conflict.existing.codigoBaader !== conflict.newData.codigoBaader && (
+                            <>
+                              <label className="flex items-center gap-1">
+                                <input
+                                  type="checkbox"
+                                  checked={conflict.overrides.codigoBaader}
+                                  onChange={(e) => {
+                                    const next = [...conflicts];
+                                    next[idx].overrides.codigoBaader = e.target.checked;
+                                    setConflicts(next);
+                                  }}
+                                  className="rounded"
+                                />
+                                <span className="text-gray-700 dark:text-gray-200">N° Parte</span>
+                              </label>
+                              <div className="text-gray-600 dark:text-gray-300">{conflict.existing.codigoBaader}</div>
+                              <div className="text-primary-600 dark:text-primary-400 font-medium">{conflict.newData.codigoBaader}</div>
+                            </>
+                          )}
+
+                          {/* Texto Breve */}
+                          {conflict.newData.textoBreve && conflict.existing.textoBreve !== conflict.newData.textoBreve && (
+                            <>
+                              <label className="flex items-center gap-1">
+                                <input
+                                  type="checkbox"
+                                  checked={conflict.overrides.textoBreve}
+                                  onChange={(e) => {
+                                    const next = [...conflicts];
+                                    next[idx].overrides.textoBreve = e.target.checked;
+                                    setConflicts(next);
+                                  }}
+                                  className="rounded"
+                                />
+                                <span className="text-gray-700 dark:text-gray-200">Texto</span>
+                              </label>
+                              <div className="text-gray-600 dark:text-gray-300 truncate">{conflict.existing.textoBreve || '(vacío)'}</div>
+                              <div className="text-primary-600 dark:text-primary-400 font-medium truncate">{conflict.newData.textoBreve}</div>
+                            </>
+                          )}
+
+                          {/* Descripción */}
+                          {conflict.newData.descripcion && conflict.existing.descripcion !== conflict.newData.descripcion && (
+                            <>
+                              <label className="flex items-center gap-1">
+                                <input
+                                  type="checkbox"
+                                  checked={conflict.overrides.descripcion}
+                                  onChange={(e) => {
+                                    const next = [...conflicts];
+                                    next[idx].overrides.descripcion = e.target.checked;
+                                    setConflicts(next);
+                                  }}
+                                  className="rounded"
+                                />
+                                <span className="text-gray-700 dark:text-gray-200">Desc.</span>
+                              </label>
+                              <div className="text-gray-600 dark:text-gray-300 truncate">{conflict.existing.descripcion || '(vacío)'}</div>
+                              <div className="text-primary-600 dark:text-primary-400 font-medium truncate">{conflict.newData.descripcion}</div>
+                            </>
+                          )}
+
+                          {/* Valor Unitario */}
+                          {conflict.newData.valorUnitario > 0 && conflict.existing.valorUnitario !== conflict.newData.valorUnitario && (
+                            <>
+                              <label className="flex items-center gap-1">
+                                <input
+                                  type="checkbox"
+                                  checked={conflict.overrides.valorUnitario}
+                                  onChange={(e) => {
+                                    const next = [...conflicts];
+                                    next[idx].overrides.valorUnitario = e.target.checked;
+                                    setConflicts(next);
+                                  }}
+                                  className="rounded"
+                                />
+                                <span className="text-gray-700 dark:text-gray-200">V.U.</span>
+                              </label>
+                              <div className="text-gray-600 dark:text-gray-300">${conflict.existing.valorUnitario.toFixed(2)}</div>
+                              <div className="text-primary-600 dark:text-primary-400 font-medium">${conflict.newData.valorUnitario.toFixed(2)}</div>
+                            </>
+                          )}
+                        </div>
+
+                        <div className="mt-2 pt-2 border-t border-amber-100 dark:border-amber-800 flex gap-2">
+                          <button
+                            onClick={() => {
+                              const next = [...conflicts];
+                              next[idx].overrides = {
+                                codigoSAP: true,
+                                codigoBaader: true,
+                                textoBreve: true,
+                                descripcion: true,
+                                valorUnitario: true
+                              };
+                              setConflicts(next);
+                            }}
+                            className="text-xs px-2 py-1 rounded bg-primary-100 text-primary-700 hover:bg-primary-200 dark:bg-primary-900 dark:text-primary-200 dark:hover:bg-primary-800"
+                          >
+                            Actualizar todo
+                          </button>
+                          <button
+                            onClick={() => {
+                              const next = [...conflicts];
+                              next[idx].overrides = {
+                                codigoSAP: false,
+                                codigoBaader: false,
+                                textoBreve: false,
+                                descripcion: false,
+                                valorUnitario: false
+                              };
+                              setConflicts(next);
+                            }}
+                            className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                          >
+                            Mantener actual
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
 

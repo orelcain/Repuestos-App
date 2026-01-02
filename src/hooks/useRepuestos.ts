@@ -22,6 +22,13 @@ export interface ImportCantidadRow {
   descripcion?: string;
   valorUnitario?: number;
   cantidad: number;
+  forceOverride?: {
+    codigoSAP?: boolean;
+    codigoBaader?: boolean;
+    textoBreve?: boolean;
+    descripcion?: boolean;
+    valorUnitario?: boolean;
+  };
 }
 
 const computeTotalFromTags = (tags: unknown, valorUnitario: number) => {
@@ -380,8 +387,9 @@ export function useRepuestos(machineId: string | null) {
       const valorUnitario = Math.max(0, toFiniteNumber(row.valorUnitario, 0));
       const textoBreve = (row.textoBreve || '').trim();
       const descripcion = (row.descripcion || '').trim();
+      const forceOverride = row.forceOverride || {};
 
-      return { existing, codigoSAP, codigoBaader, cantidad, valorUnitario, textoBreve, descripcion };
+      return { existing, codigoSAP, codigoBaader, cantidad, valorUnitario, textoBreve, descripcion, forceOverride };
     });
 
     // Limitar batch (500). Usamos 400 para margen.
@@ -395,14 +403,14 @@ export function useRepuestos(machineId: string | null) {
 
           const nextTags = upsertTagAsignado(r.tags, tagName, tipo, op.cantidad);
 
-          const nextValorUnitario = r.valorUnitario === 0 && op.valorUnitario > 0 ? op.valorUnitario : r.valorUnitario;
+          const nextValorUnitario = op.forceOverride.valorUnitario ? op.valorUnitario : (r.valorUnitario === 0 && op.valorUnitario > 0 ? op.valorUnitario : r.valorUnitario);
 
-          const nextCodigoSAP = r.codigoSAP === placeholder && op.codigoSAP !== placeholder ? op.codigoSAP : r.codigoSAP;
-          const nextCodigoBaader = r.codigoBaader === placeholder && op.codigoBaader !== placeholder ? op.codigoBaader : r.codigoBaader;
-          const nextTextoBreve = (!r.textoBreve || r.textoBreve.trim().length === 0) && op.textoBreve ? op.textoBreve : r.textoBreve;
-          const nextDescripcion = (!r.descripcion || r.descripcion.trim().length === 0)
-            ? (op.descripcion || op.textoBreve || r.descripcion)
-            : r.descripcion;
+          const nextCodigoSAP = op.forceOverride.codigoSAP ? op.codigoSAP : (r.codigoSAP === placeholder && op.codigoSAP !== placeholder ? op.codigoSAP : r.codigoSAP);
+          const nextCodigoBaader = op.forceOverride.codigoBaader ? op.codigoBaader : (r.codigoBaader === placeholder && op.codigoBaader !== placeholder ? op.codigoBaader : r.codigoBaader);
+          const nextTextoBreve = op.forceOverride.textoBreve ? op.textoBreve : ((!r.textoBreve || r.textoBreve.trim().length === 0) && op.textoBreve ? op.textoBreve : r.textoBreve);
+          const nextDescripcion = op.forceOverride.descripcion 
+            ? op.descripcion 
+            : ((!r.descripcion || r.descripcion.trim().length === 0) ? (op.descripcion || op.textoBreve || r.descripcion) : r.descripcion);
 
           const totalFromTags = computeTotalFromTags(nextTags, nextValorUnitario);
 
@@ -487,7 +495,8 @@ export function useRepuestos(machineId: string | null) {
       const valorUnitario = Math.max(0, toFiniteNumber(row.valorUnitario, 0));
       const textoBreve = (row.textoBreve || '').trim();
       const descripcion = (row.descripcion || '').trim();
-      return { existing, codigoSAP, codigoBaader, valorUnitario, textoBreve, descripcion };
+      const forceOverride = row.forceOverride || {};
+      return { existing, codigoSAP, codigoBaader, valorUnitario, textoBreve, descripcion, forceOverride };
     });
 
     const chunks = chunk(ops, 400);
@@ -497,13 +506,13 @@ export function useRepuestos(machineId: string | null) {
       for (const op of batchOps) {
         if (op.existing) {
           const r = op.existing;
-          const nextValorUnitario = r.valorUnitario === 0 && op.valorUnitario > 0 ? op.valorUnitario : r.valorUnitario;
-          const nextCodigoSAP = r.codigoSAP === placeholder && op.codigoSAP !== placeholder ? op.codigoSAP : r.codigoSAP;
-          const nextCodigoBaader = r.codigoBaader === placeholder && op.codigoBaader !== placeholder ? op.codigoBaader : r.codigoBaader;
-          const nextTextoBreve = (!r.textoBreve || r.textoBreve.trim().length === 0) && op.textoBreve ? op.textoBreve : r.textoBreve;
-          const nextDescripcion = (!r.descripcion || r.descripcion.trim().length === 0)
-            ? (op.descripcion || op.textoBreve || r.descripcion)
-            : r.descripcion;
+          const nextValorUnitario = op.forceOverride.valorUnitario ? op.valorUnitario : (r.valorUnitario === 0 && op.valorUnitario > 0 ? op.valorUnitario : r.valorUnitario);
+          const nextCodigoSAP = op.forceOverride.codigoSAP ? op.codigoSAP : (r.codigoSAP === placeholder && op.codigoSAP !== placeholder ? op.codigoSAP : r.codigoSAP);
+          const nextCodigoBaader = op.forceOverride.codigoBaader ? op.codigoBaader : (r.codigoBaader === placeholder && op.codigoBaader !== placeholder ? op.codigoBaader : r.codigoBaader);
+          const nextTextoBreve = op.forceOverride.textoBreve ? op.textoBreve : ((!r.textoBreve || r.textoBreve.trim().length === 0) && op.textoBreve ? op.textoBreve : r.textoBreve);
+          const nextDescripcion = op.forceOverride.descripcion 
+            ? op.descripcion 
+            : ((!r.descripcion || r.descripcion.trim().length === 0) ? (op.descripcion || op.textoBreve || r.descripcion) : r.descripcion);
 
           const totalFromTags = computeTotalFromTags(r.tags, nextValorUnitario);
 
