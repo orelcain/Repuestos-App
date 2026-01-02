@@ -614,10 +614,12 @@ export function Dashboard() {
       const originalBytes = imagen.sizeOriginal || meta?.originalSize || 0;
       const finalBytes = imagen.sizeFinal || file.size;
       const format = imagen.formatFinal || meta?.chosen?.format || 'original';
+      const qualityPct = imagen.qualityFinal ? Math.round(imagen.qualityFinal * 100) : meta?.chosen?.quality ? Math.round(meta.chosen.quality * 100) : null;
+      const formatLabel = format !== 'original' ? `${format.toUpperCase()}${qualityPct ? ` ${qualityPct}%` : ''}` : 'ORIGINAL';
       
       if (originalBytes && finalBytes && format !== 'original') {
-        const reduction = Math.round((1 - finalBytes / originalBytes) * 100);
-        success(`✓ ${formatFileSize(originalBytes)} → ${formatFileSize(finalBytes)} (${format.toUpperCase()}, -${reduction}%)`);
+        const reduction = Math.max(0, Math.round((1 - finalBytes / originalBytes) * 100));
+        success(`✓ ${formatFileSize(originalBytes)} → ${formatFileSize(finalBytes)} (${formatLabel}, -${reduction}%)`);
       } else if (format === 'original') {
         success(`⚠ Subida sin optimizar: ${formatFileSize(finalBytes)}`);
       } else {

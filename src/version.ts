@@ -1,8 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.35';
+export const APP_VERSION = '4.9.36';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.36',
+    date: '2026-01-02',
+    changes: [
+      '📸 Overlay: muestra Optimizada/Original y formato de forma más clara',
+      '🧮 Toast: incluye formato, calidad y % de reducción',
+    ],
+  },
   {
     version: '4.9.35',
     date: '2026-01-02',

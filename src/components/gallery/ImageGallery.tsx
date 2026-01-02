@@ -273,9 +273,9 @@ export function ImageGallery({
                           {img.sizeOriginal && img.sizeFinal
                             ? `${formatFileSize(img.sizeOriginal)} → ${formatFileSize(img.sizeFinal)}`
                             : img.sizeFinal
-                              ? formatFileSize(img.sizeFinal)
+                              ? `Optimizada: ${formatFileSize(img.sizeFinal)}`
                               : img.sizeOriginal
-                                ? formatFileSize(img.sizeOriginal)
+                                ? `Original: ${formatFileSize(img.sizeOriginal)}`
                                 : ''}
                           {img.formatFinal && img.formatFinal !== 'original' ? ` · ${img.formatFinal.toUpperCase()}` : ''}
                         </p>
