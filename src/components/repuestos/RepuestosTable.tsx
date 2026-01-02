@@ -1968,14 +1968,13 @@ export function RepuestosTable({
             const isLastEdited = ultimoRepuestoEditado?.id === repuesto.id;
             const isSelected = selectedRepuesto?.id === repuesto.id;
 
-            const cantidadSolicitud = hasAnyContext ? getCantidadPorContexto(repuesto, 'solicitud') : 0;
-            const cantidadStock = hasAnyContext ? getCantidadPorContexto(repuesto, 'stock') : 0;
-            const totalContexto = hasAnyContext
+            const showSolicitud = !!activeContexts.solicitud;
+            const showStock = !!activeContexts.stock;
+            const cantidadSolicitud = showSolicitud ? getCantidadPorContexto(repuesto, 'solicitud') : 0;
+            const cantidadStock = showStock ? getCantidadPorContexto(repuesto, 'stock') : 0;
+            const totalContexto = showSolicitud || showStock
               ? (repuesto.valorUnitario || 0) * (cantidadSolicitud + cantidadStock)
               : 0;
-
-            const descripcionCorta =
-              repuesto.textoBreve || repuesto.descripcion || (repuesto.nombreManual ? `Manual: ${repuesto.nombreManual}` : '');
             
             return (
               <div
@@ -2055,256 +2054,119 @@ export function RepuestosTable({
                   )}
                 </div>
 
-                {/* Resumen compacto */}
-                {descripcionCorta && (
-                  <p className="mt-2 text-sm text-gray-700 dark:text-gray-200 line-clamp-1">
-                    {descripcionCorta}
-                  </p>
-                )}
+                {/* Texto extendido (siempre visible, estilo compacto) */}
+                <div className="mt-2 space-y-1">
+                  {repuesto.textoBreve && (
+                    <p className="text-sm text-gray-800 dark:text-gray-200 font-medium line-clamp-2">
+                      {repuesto.textoBreve}
+                    </p>
+                  )}
+                  {repuesto.descripcion && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                      {repuesto.descripcion}
+                    </p>
+                  )}
+                  {repuesto.nombreManual && repuesto.nombreManual !== repuesto.textoBreve && (
+                    <p className="text-xs text-primary-600 dark:text-primary-400 italic line-clamp-1">
+                      Manual: {repuesto.nombreManual}
+                    </p>
+                  )}
+                  {!repuesto.textoBreve && !repuesto.descripcion && !repuesto.nombreManual && (
+                    <p className="text-sm text-gray-400 dark:text-gray-500 italic">Sin descripción</p>
+                  )}
+                </div>
 
-                {hasAnyContext && (
-                  <div className="mt-2 text-xs text-gray-600 dark:text-gray-300 flex flex-wrap gap-x-2 gap-y-1">
-                    {!!activeContexts.solicitud && (
-                      <span className="inline-flex items-center gap-1">
-                        <ShoppingCart className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                        <span className="font-semibold">{cantidadSolicitud}</span>
-                      </span>
-                    )}
-                    {!!activeContexts.stock && (
-                      <span className="inline-flex items-center gap-1">
-                        <Package className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
-                        <span className="font-semibold">{cantidadStock}</span>
-                      </span>
-                    )}
+                {/* Métricas compactas: catálogo = solo V.U.; con contexto = cantidades + total */}
+                <div className="mt-2 text-xs text-gray-600 dark:text-gray-300 flex flex-wrap gap-x-2 gap-y-1">
+                  {showSolicitud && (
                     <span className="inline-flex items-center gap-1">
-                      <span className="text-gray-400 dark:text-gray-500">V.U.</span>
-                      <span className="font-semibold">${repuesto.valorUnitario?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}</span>
+                      <ShoppingCart className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                      <span className="font-semibold">{cantidadSolicitud}</span>
                     </span>
+                  )}
+                  {showStock && (
+                    <span className="inline-flex items-center gap-1">
+                      <Package className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
+                      <span className="font-semibold">{cantidadStock}</span>
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-1">
+                    <span className="text-gray-400 dark:text-gray-500">V.U.</span>
+                    <span className="font-semibold">${repuesto.valorUnitario?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}</span>
+                  </span>
+                  {(showSolicitud || showStock) && (
                     <span className="inline-flex items-center gap-1">
                       <span className="text-gray-400 dark:text-gray-500">Total</span>
                       <span className="font-semibold">${totalContexto.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </span>
-                  </div>
-                )}
-
-                {/* Detalles solo cuando está seleccionada (expandida) */}
-                {isSelected && (
-                  <>
-                    <div className="mt-2 bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3 space-y-1.5">
-                      {repuesto.textoBreve && (
-                        <p className="text-sm text-gray-800 dark:text-gray-200 font-medium line-clamp-2">
-                          {repuesto.textoBreve}
-                        </p>
-                      )}
-                      {repuesto.descripcion && (
-                        <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-                          {repuesto.descripcion}
-                        </p>
-                      )}
-                      {repuesto.nombreManual && repuesto.nombreManual !== repuesto.textoBreve && (
-                        <p className="text-xs text-primary-600 dark:text-primary-400 italic">
-                          Manual: {repuesto.nombreManual}
-                        </p>
-                      )}
-                      {!repuesto.textoBreve && !repuesto.descripcion && !repuesto.nombreManual && (
-                        <p className="text-sm text-gray-400 dark:text-gray-500 italic">Sin descripción</p>
-                      )}
-                    </div>
-                  </>
-                )}
-
-                {/* Tags - si hay contextos, mostrar solo los relevantes (solicitud/stock); si no, mostrar todos */}
-                {isSelected && repuesto.tags && repuesto.tags.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {repuesto.tags
-                      .filter(tag => {
-                        if (!hasAnyContext) return true;
-
-                        if (isTagAsignado(tag)) {
-                          const matchesSolicitud = !!activeContexts.solicitud && tag.tipo === 'solicitud' && tag.nombre === activeContexts.solicitud;
-                          const matchesStock = !!activeContexts.stock && tag.tipo === 'stock' && tag.nombre === activeContexts.stock;
-                          return matchesSolicitud || matchesStock;
-                        }
-
-                        const tagNombre = String(tag);
-                        return (
-                          (!!activeContexts.solicitud && tagNombre === activeContexts.solicitud) ||
-                          (!!activeContexts.stock && tagNombre === activeContexts.stock)
-                        );
-                      })
-                      .map((tag, index) => {
-                        const tagInfo = isTagAsignado(tag) ? tag : null;
-                        const isSolicitud = tagInfo?.tipo === 'solicitud';
-                        return (
-                          <span
-                            key={`${getTagNombre(tag)}-${index}`}
-                            className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold ${
-                              isSolicitud
-                                ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700'
-                                : 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-700'
-                            }`}
-                          >
-                            {isSolicitud ? <ShoppingCart className="w-3 h-3" /> : <Package className="w-3 h-3" />}
-                            {tagInfo ? `${tagInfo.nombre} (${tagInfo.cantidad})` : String(tag)}
-                          </span>
-                        );
-                      })}
-                  </div>
-                )}
-
-                {/* Grid de datos numéricos - usar cantidades según contextos seleccionados */}
-                {isSelected && (
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                  {/* Cantidad Solicitada */}
-                  {(!hasAnyContext || !!activeContexts.solicitud) && (
-                    <div
-                      className={`rounded-xl p-3 ${
-                        activeContexts.solicitud
-                          ? 'bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800'
-                          : 'bg-gray-50 dark:bg-gray-700'
-                      }`}
-                    >
-                      <span className="text-xs text-gray-500 dark:text-gray-400 block font-medium">
-                        {activeContexts.solicitud ? `Solicitada "${activeContexts.solicitud}"` : 'Cant. Solicitada'}
-                      </span>
-                      <span
-                        className={`text-2xl font-black ${
-                          activeContexts.solicitud ? 'text-blue-700 dark:text-blue-300' : 'text-gray-800 dark:text-gray-200'
-                        }`}
-                      >
-                        {activeContexts.solicitud ? getCantidadPorContexto(repuesto, 'solicitud') : '--'}
-                      </span>
-                    </div>
                   )}
-                  
-                  {/* Stock Bodega */}
-                  {(!hasAnyContext || !!activeContexts.stock) && (() => {
-                    const hasStockContext = !!activeContexts.stock;
-                    const stockValue = hasStockContext ? getCantidadPorContexto(repuesto, 'stock') : 0;
-                    return (
-                      <div
-                        className={`rounded-xl p-3 ${
-                          hasStockContext
-                            ? stockValue > 0
-                              ? 'bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800'
-                              : 'bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-800'
-                            : 'bg-gray-50 dark:bg-gray-700'
-                        }`}
-                      >
-                        <span className="text-xs text-gray-500 dark:text-gray-400 block font-medium">
-                          {hasStockContext ? `Stock "${activeContexts.stock}"` : 'Stock Bodega'}
-                        </span>
-                        <span
-                          className={`text-2xl font-black ${
-                            hasStockContext
-                              ? stockValue > 0
-                                ? 'text-green-700 dark:text-green-300'
-                                : 'text-orange-600 dark:text-orange-300'
-                              : 'text-gray-500 dark:text-gray-400'
-                          }`}
-                        >
-                          {hasStockContext ? stockValue : '--'}
-                        </span>
-                      </div>
-                    );
-                  })()}
-                  
-                  {/* Valor Unitario */}
-                  <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-3">
-                    <span className="text-xs text-gray-500 dark:text-gray-400 block font-medium">V. Unitario</span>
-                    <span className="text-lg font-bold text-gray-700 dark:text-gray-200">
-                      ${repuesto.valorUnitario?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
-                    </span>
-                  </div>
-                  
-                  {/* Total USD - según contextos */}
-                  <div
-                    className={`rounded-xl p-3 ${
-                      hasAnyContext
-                        ? 'bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-800'
-                        : 'bg-primary-50 dark:bg-primary-900/30'
-                    }`}
-                  >
-                    <span className="text-xs text-gray-500 dark:text-gray-400 block font-medium">
-                      {hasAnyContext ? 'Total Contexto' : 'Total General USD'}
-                    </span>
-                    <span className={`text-lg font-black ${hasAnyContext ? 'text-yellow-700 dark:text-yellow-400' : 'text-primary-700 dark:text-primary-400'}`}>
-                      {hasAnyContext 
-                        ? `$${((repuesto.valorUnitario * getCantidadPorContexto(repuesto, 'solicitud')) + (repuesto.valorUnitario * getCantidadPorContexto(repuesto, 'stock'))).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                        : '--'
-                      }
-                    </span>
-                  </div>
-                  </div>
-                )}
+                </div>
 
-                {/* Acciones: solo visibles cuando la tarjeta está expandida */}
-                {isSelected && (
-                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onViewManual(repuesto);
-                        }}
-                        className={`p-2.5 rounded-xl transition-colors ${
-                          hasManualMarker
-                            ? 'bg-primary-100 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400'
-                            : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500'
-                        }`}
-                        title="Ver en manual"
-                      >
-                        <FileText className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onViewPhotos(repuesto);
-                        }}
-                        className={`p-2.5 rounded-xl transition-colors ${
-                          repuesto.fotosReales?.length > 0
-                            ? 'bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-400'
-                            : 'bg-gray-100 dark:bg-gray-700 text-gray-300 dark:text-gray-600'
-                        }`}
-                        title="Fotos"
-                      >
-                        <Camera className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onViewHistory(repuesto);
-                        }}
-                        className="p-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors"
-                        title="Historial"
-                      >
-                        <History className="w-5 h-5" />
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onEdit(repuesto);
-                        }}
-                        className="p-2.5 rounded-xl bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 transition-colors"
-                        title="Editar"
-                      >
-                        <Edit2 className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDelete(repuesto);
-                        }}
-                        className="p-2.5 rounded-xl bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 transition-colors"
-                        title="Eliminar"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </div>
+                {/* Acciones: siempre visibles (compactas) */}
+                <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onViewManual(repuesto);
+                      }}
+                      className={`p-2 rounded-xl transition-colors ${
+                        hasManualMarker
+                          ? 'bg-primary-100 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500'
+                      }`}
+                      title="Ver en manual"
+                    >
+                      <FileText className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onViewPhotos(repuesto);
+                      }}
+                      className={`p-2 rounded-xl transition-colors ${
+                        repuesto.fotosReales?.length > 0
+                          ? 'bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-400'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-300 dark:text-gray-600'
+                      }`}
+                      title="Fotos"
+                    >
+                      <Camera className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onViewHistory(repuesto);
+                      }}
+                      className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors"
+                      title="Historial"
+                    >
+                      <History className="w-5 h-5" />
+                    </button>
                   </div>
-                )}
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEdit(repuesto);
+                      }}
+                      className="p-2 rounded-xl bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 transition-colors"
+                      title="Editar"
+                    >
+                      <Edit2 className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(repuesto);
+                      }}
+                      className="p-2 rounded-xl bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 transition-colors"
+                      title="Eliminar"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
               </div>
             );
           })}

@@ -1,8 +1,17 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.20';
+export const APP_VERSION = '4.9.21';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.21',
+    date: '2026-01-02',
+    changes: [
+      '📱 PWA móvil: Tarjeta unificada (sin “modo grande”), con texto extendido siempre visible',
+      '🧰 PWA móvil: Botonera inferior siempre visible (manual/fotos/historial/editar/eliminar)',
+      '📦 Catálogo: muestra V.U. sin cantidades; con contexto: cantidades y total según contexto activo'
+    ]
+  },
   {
     version: '4.9.20',
     date: '2026-01-01',
