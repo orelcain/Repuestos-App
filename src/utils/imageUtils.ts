@@ -15,44 +15,44 @@ export const QUALITY_OPTIONS: ImageQualityOption[] = [
   { label: 'Mínima', value: 0.30, description: 'Solo para previsualizaciones' },
 ];
 
-// Convertir imagen a WebP con calidad específica
-export async function convertToWebP(
-  file: File, 
-  quality: number = 0.85,
-  maxWidth: number = 1920,
-  maxHeight: number = 1920
-): Promise<File> {
+type CanvasConvertOptions = {
+  mimeType: 'image/webp' | 'image/jpeg';
+  quality: number;
+  maxWidth: number;
+  maxHeight: number;
+  fileNameSuffix: string;
+};
+
+async function convertWithCanvas(file: File, options: CanvasConvertOptions): Promise<File> {
+  const { mimeType, quality, maxWidth, maxHeight, fileNameSuffix } = options;
   return new Promise((resolve, reject) => {
     const img = new Image();
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
 
     img.onload = () => {
-      // Calcular dimensiones manteniendo proporción
       let { width, height } = img;
-      
+
       if (width > maxWidth) {
         height = (height * maxWidth) / width;
         width = maxWidth;
       }
-      
+
       if (height > maxHeight) {
         width = (width * maxHeight) / height;
         height = maxHeight;
       }
 
-      canvas.width = width;
-      canvas.height = height;
+      canvas.width = Math.max(1, Math.round(width));
+      canvas.height = Math.max(1, Math.round(height));
 
       if (!ctx) {
         reject(new Error('No se pudo crear contexto de canvas'));
         return;
       }
 
-      // Dibujar imagen redimensionada
-      ctx.drawImage(img, 0, 0, width, height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-      // Convertir a WebP
       canvas.toBlob(
         (blob) => {
           if (!blob) {
@@ -60,25 +60,21 @@ export async function convertToWebP(
             return;
           }
 
-          // Crear nuevo archivo con extensión .webp
           const originalName = file.name.replace(/\.[^.]+$/, '');
-          const webpFile = new File([blob], `${originalName}.webp`, {
-            type: 'image/webp',
-            lastModified: Date.now(),
+          const convertedFile = new File([blob], `${originalName}.${fileNameSuffix}`, {
+            type: mimeType,
+            lastModified: Date.now()
           });
 
-          resolve(webpFile);
+          resolve(convertedFile);
         },
-        'image/webp',
+        mimeType,
         quality
       );
     };
 
-    img.onerror = () => {
-      reject(new Error('Error al cargar la imagen'));
-    };
+    img.onerror = () => reject(new Error('Error al cargar la imagen'));
 
-    // Cargar imagen desde File
     const reader = new FileReader();
     reader.onload = (e) => {
       img.src = e.target?.result as string;
@@ -86,6 +82,88 @@ export async function convertToWebP(
     reader.onerror = () => reject(new Error('Error al leer el archivo'));
     reader.readAsDataURL(file);
   });
+}
+
+// Convertir imagen a WebP con calidad específica
+export async function convertToWebP(
+  file: File,
+  quality: number = 0.85,
+  maxWidth: number = 1920,
+  maxHeight: number = 1920
+): Promise<File> {
+  return convertWithCanvas(file, {
+    mimeType: 'image/webp',
+    quality,
+    maxWidth,
+    maxHeight,
+    fileNameSuffix: 'webp'
+  });
+}
+
+export async function convertToJpeg(
+  file: File,
+  quality: number = 0.85,
+  maxWidth: number = 1920,
+  maxHeight: number = 1920
+): Promise<File> {
+  return convertWithCanvas(file, {
+    mimeType: 'image/jpeg',
+    quality,
+    maxWidth,
+    maxHeight,
+    fileNameSuffix: 'jpg'
+  });
+}
+
+export type OptimizeImageResult = {
+  file: File;
+  chosen: {
+    format: 'webp' | 'jpeg' | 'original';
+    quality?: number;
+    maxWidth?: number;
+    maxHeight?: number;
+  };
+};
+
+// Optimiza intentando evitar que el resultado pese más que el original.
+export async function optimizeImage(
+  file: File,
+  preferredQuality: number = 0.85
+): Promise<OptimizeImageResult> {
+  const originalSize = file.size;
+  const q1 = Math.max(0.3, Math.min(0.95, preferredQuality));
+  const q2 = Math.max(0.3, Math.min(0.95, q1 - 0.1));
+  const q3 = Math.max(0.3, Math.min(0.95, q1 - 0.2));
+  const qualitySteps = Array.from(new Set([q1, q2, q3, 0.5, 0.3])).filter((q) => q >= 0.3 && q <= 0.95);
+
+  const maxDims: Array<[number, number]> = [
+    [1920, 1920],
+    [1600, 1600],
+    [1280, 1280]
+  ];
+
+  // 1) Intentar WebP primero (suele ser lo mejor)
+  for (const [maxWidth, maxHeight] of maxDims) {
+    for (const quality of qualitySteps) {
+      const candidate = await convertToWebP(file, quality, maxWidth, maxHeight);
+      if (candidate.size < originalSize) {
+        return { file: candidate, chosen: { format: 'webp', quality, maxWidth, maxHeight } };
+      }
+    }
+  }
+
+  // 2) Fallback a JPEG si WebP no reduce
+  for (const [maxWidth, maxHeight] of maxDims) {
+    for (const quality of qualitySteps) {
+      const candidate = await convertToJpeg(file, quality, maxWidth, maxHeight);
+      if (candidate.size < originalSize) {
+        return { file: candidate, chosen: { format: 'jpeg', quality, maxWidth, maxHeight } };
+      }
+    }
+  }
+
+  // 3) Si nada reduce, devolver original (evita subir algo más pesado)
+  return { file, chosen: { format: 'original' } };
 }
 
 // Obtener tamaño estimado después de compresión

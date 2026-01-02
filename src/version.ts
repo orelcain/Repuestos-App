@@ -1,8 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.22';
+export const APP_VERSION = '4.9.23';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.23',
+    date: '2026-01-01',
+    changes: [
+      '🖼️ PWA móvil: Modal de optimización de imagen más compacto (scroll interno + botón Subir siempre visible)',
+      '🗜️ Imágenes: Optimización automática evita que WebP pese más (ajusta calidad/tamaño o mantiene original)'
+    ]
+  },
   {
     version: '4.9.22',
     date: '2026-01-01',
