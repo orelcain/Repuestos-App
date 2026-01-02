@@ -1,8 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.21';
+export const APP_VERSION = '4.9.22';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.22',
+    date: '2026-01-01',
+    changes: [
+      '📥 Import Excel: Vista previa de columnas/filas cuando no calzan encabezados',
+      '🧩 Import Excel: Mapeo manual de columnas (SAP/Baader/Texto/Cantidad/V.U.) para no perder datos'
+    ]
+  },
   {
     version: '4.9.21',
     date: '2026-01-02',
