@@ -1,8 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.19';
+export const APP_VERSION = '4.9.20';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.20',
+    date: '2026-01-01',
+    changes: [
+      '📥 Import Excel: En modo catálogo el botón permite seleccionar archivo (evita “Importar 0 filas” bloqueado)',
+      '⚠️ Import Excel: Aviso cuando el Excel no trae filas válidas'
+    ]
+  },
   {
     version: '4.9.19',
     date: '2026-01-01',
