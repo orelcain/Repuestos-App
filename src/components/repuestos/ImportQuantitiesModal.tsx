@@ -23,6 +23,7 @@ export interface ImportCantidadRow {
 export interface ConflictRow {
   newData: ImportCantidadRow;
   existing: Repuesto;
+  skipImport: boolean;
   overrides: {
     codigoSAP: boolean;
     codigoBaader: boolean;
@@ -234,6 +235,7 @@ export function ImportQuantitiesModal({
           conflictsFound.push({
             newData,
             existing,
+            skipImport: false,
             overrides: {
               codigoSAP: false,
               codigoBaader: false,
@@ -398,22 +400,34 @@ export function ImportQuantitiesModal({
     setImporting(true);
     setError(null);
     try {
-      // Aplicar overrides a las filas con conflictos
-      const rowsWithOverrides = preview.map((row) => {
-        const conflict = conflicts.find(
-          (c) =>
-            (normalizeKey(c.newData.codigoSAP) === normalizeKey(row.codigoSAP) && row.codigoSAP !== 'pendiente') ||
-            (normalizeKey(c.newData.codigoBaader) === normalizeKey(row.codigoBaader) && row.codigoBaader !== 'pendiente')
-        );
+      // Filtrar filas omitidas y aplicar overrides a las filas con conflictos
+      const rowsWithOverrides = preview
+        .filter((row) => {
+          const conflict = conflicts.find(
+            (c) =>
+              (normalizeKey(c.newData.codigoSAP) === normalizeKey(row.codigoSAP) && row.codigoSAP !== 'pendiente') ||
+              (normalizeKey(c.newData.codigoBaader) === normalizeKey(row.codigoBaader) && row.codigoBaader !== 'pendiente')
+          );
+          // Si tiene conflicto y está marcado como skipImport, no incluirlo
+          return !(conflict && conflict.skipImport);
+        })
+        .map((row) => {
+          const conflict = conflicts.find(
+            (c) =>
+              (normalizeKey(c.newData.codigoSAP) === normalizeKey(row.codigoSAP) && row.codigoSAP !== 'pendiente') ||
+              (normalizeKey(c.newData.codigoBaader) === normalizeKey(row.codigoBaader) && row.codigoBaader !== 'pendiente')
+          );
 
-        if (conflict) {
-          return {
-            ...row,
-            forceOverride: conflict.overrides
-          };
-        }
-        return row;
-      });
+          if (conflict) {
+            return {
+              ...row,
+              forceOverride: conflict.overrides
+            };
+          }
+          return row;
+        });
+
+      const skippedCount = preview.length - rowsWithOverrides.length;
 
       if ('mode' in selectedTarget && selectedTarget.mode === 'catalog') {
         await onImport({ mode: 'catalog', rows: rowsWithOverrides });
@@ -425,6 +439,11 @@ export function ImportQuantitiesModal({
           rows: rowsWithOverrides
         });
       }
+      
+      if (skippedCount > 0) {
+        setError(null);
+      }
+      
       reset();
       onClose();
     } catch (err) {
@@ -436,6 +455,8 @@ export function ImportQuantitiesModal({
   };
 
   const canImport = preview.length > 0 && !!selectedTarget;
+  const skippedCount = conflicts.filter((c) => c.skipImport).length;
+  const effectiveImportCount = preview.length - skippedCount;
 
   const showMapping = !!file && !loading && rawHeaders.length > 0;
   const needsCantidad = selectedTarget ? !('mode' in selectedTarget && selectedTarget.mode === 'catalog') : targetTipo !== 'catalog';
@@ -731,39 +752,67 @@ export function ImportQuantitiesModal({
                           )}
                         </div>
 
-                        <div className="mt-2 pt-2 border-t border-amber-100 dark:border-amber-800 flex gap-2">
-                          <button
-                            onClick={() => {
-                              const next = [...conflicts];
-                              next[idx].overrides = {
-                                codigoSAP: true,
-                                codigoBaader: true,
-                                textoBreve: true,
-                                descripcion: true,
-                                valorUnitario: true
-                              };
-                              setConflicts(next);
-                            }}
-                            className="text-xs px-2 py-1 rounded bg-primary-100 text-primary-700 hover:bg-primary-200 dark:bg-primary-900 dark:text-primary-200 dark:hover:bg-primary-800"
-                          >
-                            Actualizar todo
-                          </button>
-                          <button
-                            onClick={() => {
-                              const next = [...conflicts];
-                              next[idx].overrides = {
-                                codigoSAP: false,
-                                codigoBaader: false,
-                                textoBreve: false,
-                                descripcion: false,
-                                valorUnitario: false
-                              };
-                              setConflicts(next);
-                            }}
-                            className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                          >
-                            Mantener actual
-                          </button>
+                        <div className="mt-2 pt-2 border-t border-amber-100 dark:border-amber-800 flex gap-2 flex-wrap">
+                          {!conflict.skipImport ? (
+                            <>
+                              <button
+                                onClick={() => {
+                                  const next = [...conflicts];
+                                  next[idx].overrides = {
+                                    codigoSAP: true,
+                                    codigoBaader: true,
+                                    textoBreve: true,
+                                    descripcion: true,
+                                    valorUnitario: true
+                                  };
+                                  setConflicts(next);
+                                }}
+                                className="text-xs px-2 py-1 rounded bg-primary-100 text-primary-700 hover:bg-primary-200 dark:bg-primary-900 dark:text-primary-200 dark:hover:bg-primary-800"
+                              >
+                                Actualizar todo
+                              </button>
+                              <button
+                                onClick={() => {
+                                  const next = [...conflicts];
+                                  next[idx].overrides = {
+                                    codigoSAP: false,
+                                    codigoBaader: false,
+                                    textoBreve: false,
+                                    descripcion: false,
+                                    valorUnitario: false
+                                  };
+                                  setConflicts(next);
+                                }}
+                                className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                              >
+                                Mantener actual
+                              </button>
+                              <button
+                                onClick={() => {
+                                  const next = [...conflicts];
+                                  next[idx].skipImport = true;
+                                  setConflicts(next);
+                                }}
+                                className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900 dark:text-red-200 dark:hover:bg-red-800"
+                              >
+                                No importar
+                              </button>
+                            </>
+                          ) : (
+                            <div className="flex items-center gap-2 w-full">
+                              <span className="text-xs text-red-600 dark:text-red-400 font-medium">❌ Este repuesto no se importará</span>
+                              <button
+                                onClick={() => {
+                                  const next = [...conflicts];
+                                  next[idx].skipImport = false;
+                                  setConflicts(next);
+                                }}
+                                className="text-xs px-2 py-1 rounded bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900 dark:text-green-200 dark:hover:bg-green-800 ml-auto"
+                              >
+                                Revertir (sí importar)
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -966,7 +1015,8 @@ export function ImportQuantitiesModal({
               loading={importing}
               icon={<Upload className="w-4 h-4" />}
             >
-              Importar {preview.length} filas
+              Importar {effectiveImportCount} fila{effectiveImportCount !== 1 ? 's' : ''}
+              {skippedCount > 0 && ` (${skippedCount} omitida${skippedCount !== 1 ? 's' : ''})`}
             </Button>
           )}
         </div>
