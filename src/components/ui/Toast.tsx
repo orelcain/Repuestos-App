@@ -25,17 +25,17 @@ interface ToastProps {
 
 function Toast({ toast, onRemove }: ToastProps) {
   const icons = {
-    success: <CheckCircle className="w-5 h-5 text-green-500" />,
-    error: <XCircle className="w-5 h-5 text-red-500" />,
-    warning: <AlertTriangle className="w-5 h-5 text-yellow-500" />,
-    info: <Info className="w-5 h-5 text-blue-500" />
+    success: <CheckCircle className="w-5 h-5 text-green-400" />,
+    error: <XCircle className="w-5 h-5 text-red-400" />,
+    warning: <AlertTriangle className="w-5 h-5 text-yellow-400" />,
+    info: <Info className="w-5 h-5 text-blue-400" />
   };
 
   const bgColors = {
-    success: 'bg-green-50 border-green-200',
-    error: 'bg-red-50 border-red-200',
-    warning: 'bg-yellow-50 border-yellow-200',
-    info: 'bg-blue-50 border-blue-200'
+    success: 'bg-gray-800 border-green-500',
+    error: 'bg-gray-800 border-red-500',
+    warning: 'bg-gray-800 border-yellow-500',
+    info: 'bg-gray-800 border-blue-500'
   };
 
   return (
@@ -46,10 +46,10 @@ function Toast({ toast, onRemove }: ToastProps) {
       `}
     >
       {icons[toast.type]}
-      <p className="flex-1 text-sm text-gray-700">{toast.message}</p>
+      <p className="flex-1 text-sm text-white">{toast.message}</p>
       <button
         onClick={() => onRemove(toast.id)}
-        className="p-1 rounded hover:bg-black/5 transition-colors"
+        className="p-1 rounded hover:bg-white/10 transition-colors"
       >
         <X className="w-4 h-4 text-gray-400" />
       </button>

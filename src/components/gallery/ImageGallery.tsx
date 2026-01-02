@@ -264,11 +264,15 @@ export function ImageGallery({
                     />
 
                     {(img.sizeFinal || img.sizeOriginal) && (
-                      <div className="absolute bottom-0 inset-x-0 bg-black/55 px-1 py-0.5">
+                      <div className="absolute bottom-0 inset-x-0 bg-black/70 px-1 py-0.5">
                         <p className="text-[9px] leading-tight text-white truncate">
-                          {img.sizeOriginal
-                            ? `${formatFileSize(img.sizeOriginal)} → ${formatFileSize(img.sizeFinal || 0)}`
-                            : `${formatFileSize(img.sizeFinal || 0)}`}
+                          {img.sizeOriginal && img.sizeFinal
+                            ? `${formatFileSize(img.sizeOriginal)} → ${formatFileSize(img.sizeFinal)}`
+                            : img.sizeFinal
+                              ? formatFileSize(img.sizeFinal)
+                              : img.sizeOriginal
+                                ? formatFileSize(img.sizeOriginal)
+                                : ''}
                           {img.formatFinal && img.formatFinal !== 'original' ? ` · ${img.formatFinal.toUpperCase()}` : ''}
                         </p>
                       </div>
