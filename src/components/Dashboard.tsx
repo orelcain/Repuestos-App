@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, lazy, Suspense, useMemo } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense, useMemo, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useRepuestos } from '../hooks/useRepuestos';
 import { useStorage } from '../hooks/useStorage';
@@ -7,7 +7,6 @@ import { useToast } from '../hooks/useToast';
 import { useTheme } from '../hooks/useTheme';
 import { useUndoRedo } from '../hooks/useUndoRedo';
 import { usePDFPreloader, setGlobalPDFCache } from '../hooks/usePDFPreloader';
-import { useManualWarmup } from '../hooks/useManualWarmup';
 import { useMachineContext } from '../contexts/MachineContext';
 import { Repuesto, RepuestoFormData, ImagenRepuesto, VinculoManual, Machine } from '../types';
 import { APP_VERSION } from '../version';
@@ -26,7 +25,6 @@ import { TagManagerModal } from './repuestos/TagManagerModal';
 import { ImageGallery } from './gallery/ImageGallery';
 import { ActivityLogModal } from './ActivityLogModal';
 import { ContextComparator } from './ContextComparator';
-import Tooltip from './common/Tooltip';
 
 // Lazy load PDF components para optimizar carga inicial
 const PDFViewer = lazy(() => import('./pdf/PDFViewer').then(module => ({ default: module.PDFViewer })));
@@ -96,7 +94,7 @@ const PDFLoadingFallback = () => (
 
 type RightPanelMode = 'gallery' | 'pdf' | 'marker-editor' | 'hidden';
 type GalleryType = 'manual' | 'real';
-type MainView = 'repuestos' | 'stats';
+type MainView = 'catalogo' | 'manual' | 'reportes' | 'admin';
 
 // Eliminar propiedades undefined para no romper Firestore
 const sanitizeImagen = (img: ImagenRepuesto): ImagenRepuesto => {
@@ -160,12 +158,7 @@ export function Dashboard() {
   // Precarga del PDF del manual (carga automática después de 3 segundos)
   const pdfPreloader = usePDFPreloader(pdfUrl, 3000);
 
-  // Precarga liviana de manuales (cache de red) para cambios rápidos entre máquinas
-  const manualWarmup = useManualWarmup(currentMachine, machines);
-  
-  // Estado de precarga del editor de marcadores
-  const [editorReady, setEditorReady] = useState(editorPreloaded);
-  const [editorLoading, setEditorLoading] = useState(editorPreloading);
+  // Nota: la precarga del editor de marcadores se hace en background (sin UI dedicada)
 
   // Estado móvil
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -174,7 +167,7 @@ export function Dashboard() {
   const [showTagManager, setShowTagManager] = useState(false);
   
   // Vista principal activa
-  const [mainView, setMainView] = useState<MainView>('repuestos');
+  const [mainView, setMainView] = useState<MainView>('catalogo');
 
   // Alcance del buscador (tabla): máquina actual vs catálogo completo
   const [catalogScope, setCatalogScope] = useState<'machine' | 'selected' | 'global'>('machine');
@@ -272,6 +265,26 @@ export function Dashboard() {
   
   // Modal de comparador de contextos
   const [showContextComparator, setShowContextComparator] = useState(false);
+
+  // Menú de módulos (desktop)
+  const [modulesMenuOpen, setModulesMenuOpen] = useState(false);
+  const modulesMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (modulesMenuRef.current && !modulesMenuRef.current.contains(event.target as Node)) {
+        setModulesMenuOpen(false);
+      }
+    };
+
+    if (modulesMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [modulesMenuOpen]);
   
   // Modal para editar máquina (abrir desde "Agregar Manual")
   const [editingMachineModal, setEditingMachineModal] = useState<Machine | null>(null);
@@ -331,11 +344,7 @@ export function Dashboard() {
       
       // Precargar el editor de marcadores después de que el PDF esté listo
       if (!editorPreloaded && !editorPreloading) {
-        setEditorLoading(true);
-        preloadMarkerEditor().then(() => {
-          setEditorReady(true);
-          setEditorLoading(false);
-        });
+        preloadMarkerEditor();
       }
     }
   }, [pdfPreloader.isReady, pdfPreloader.pdf, pdfPreloader.textContent, pdfUrl]);
@@ -358,7 +367,7 @@ export function Dashboard() {
 
   const handleJumpToMachineRepuesto = useCallback(
     async (targetMachineId: string, repuestoId: string) => {
-      setMainView('repuestos');
+      setMainView('catalogo');
       setRightPanelMode('hidden');
       setSelectedRepuesto(null);
       setLastSelectedRepuesto(repuestoId);
@@ -398,7 +407,13 @@ export function Dashboard() {
       // Ctrl/Cmd + M: Ver manual
       if ((e.ctrlKey || e.metaKey) && e.key === 'm') {
         e.preventDefault();
-        setRightPanelMode(rightPanelMode === 'pdf' ? 'hidden' : 'pdf');
+        if (mainView === 'manual') {
+          setMainView('catalogo');
+          setRightPanelMode('hidden');
+        } else {
+          setMainView('manual');
+          setRightPanelMode('pdf');
+        }
       }
       
       // Escape: Cerrar modal/panel
@@ -498,6 +513,7 @@ export function Dashboard() {
   // Handlers de visualización
   const handleViewManual = (repuesto: Repuesto) => {
     setSelectedRepuesto(repuesto);
+    setMainView('manual');
     setRightPanelMode('pdf');
     // Si tiene vínculo a página específica, navegar y mostrar marcador
     if (repuesto.vinculosManual && repuesto.vinculosManual.length > 0) {
@@ -969,164 +985,103 @@ export function Dashboard() {
 
           {/* Acciones desktop */}
           <div className="hidden md:flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setRightPanelMode(rightPanelMode === 'pdf' ? 'hidden' : 'pdf');
-              }}
-              icon={<BookOpen className="w-4 h-4" />}
-              className="relative"
-            >
-              {currentMachine ? (
-                <div className="flex flex-col items-start">
-                  <div className="flex items-center">
-                    <span>Manuales {currentMachine.nombre}</span>
-                    {currentMachine.manuals && currentMachine.manuals.length > 0 && (
-                      <span className="ml-1.5 px-1.5 py-0.5 text-xs font-semibold bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 rounded-full">
+            {/* Menú por módulos (desktop) */}
+            <div className="relative" ref={modulesMenuRef}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setModulesMenuOpen(v => !v)}
+                icon={<Menu className="w-4 h-4" />}
+                className="relative"
+              >
+                Módulos
+                {/* Indicador de manual precargado */}
+                {pdfPreloader.isReady ? (
+                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full" title="Manual precargado" />
+                ) : pdfPreloader.loading ? (
+                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-500 rounded-full animate-pulse" title="Precargando manual..." />
+                ) : null}
+              </Button>
+
+              {modulesMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
+                  <button
+                    onClick={() => {
+                      setRightPanelMode(rightPanelMode === 'pdf' ? 'hidden' : 'pdf');
+                      setModulesMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
+                  >
+                    <BookOpen className="w-4 h-4 text-gray-500 dark:text-gray-300" />
+                    <span className="flex-1 text-left">
+                      {currentMachine ? `Manuales ${currentMachine.nombre}` : 'Manuales'}
+                    </span>
+                    {currentMachine?.manuals?.length ? (
+                      <span className="px-1.5 py-0.5 text-xs font-semibold bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 rounded-full">
                         {currentMachine.manuals.length}
                       </span>
-                    )}
-                  </div>
+                    ) : null}
+                  </button>
 
-                  {/* Barra de precarga (solo si hay manuales) */}
-                  {currentMachine.manuals && currentMachine.manuals.length > 0 && (
-                    <Tooltip
-                      position="bottom"
-                      delay={250}
-                      maxWidth={380}
-                      content={(
-                        <div className="space-y-3">
-                          <div className="text-xs font-semibold text-gray-200">
-                            Precarga manuales: {currentMachine.nombre}
-                          </div>
+                  <button
+                    onClick={() => {
+                      handleExportExcel();
+                      setModulesMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
+                  >
+                    <FileSpreadsheet className="w-4 h-4 text-gray-500 dark:text-gray-300" />
+                    <span>Exportar Excel</span>
+                  </button>
 
-                          <div className="space-y-2">
-                            {manualWarmup.currentMachineProgress.items.map((it, index) => {
-                              const fileName = it.url.split('/').pop()?.split('?')[0] || `Manual ${index + 1}`;
-                              const decodedName = decodeURIComponent(fileName);
-                              const totalBytes = typeof it.totalBytes === 'number' ? it.totalBytes : 0;
-                              const loadedBytes = typeof it.loadedBytes === 'number' ? it.loadedBytes : 0;
-                              const hasTotal = totalBytes > 0;
-                              const pct = hasTotal
-                                ? Math.max(0, Math.min(100, Math.round((loadedBytes / totalBytes) * 100)))
-                                : it.status === 'done' ? 100 : it.status === 'fetching' ? 50 : 0;
+                  <button
+                    onClick={() => {
+                      handleExportPDF();
+                      setModulesMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
+                  >
+                    <Download className="w-4 h-4 text-gray-500 dark:text-gray-300" />
+                    <span>Exportar PDF</span>
+                  </button>
 
-                              return (
-                                <div key={it.url} className="space-y-1">
-                                  <div className="flex items-center justify-between gap-2">
-                                    <span className="text-xs text-gray-100 truncate max-w-[250px]">
-                                      {decodedName}
-                                    </span>
-                                    <span className="text-[11px] text-gray-200">
-                                      {it.status === 'done' ? 'Listo' : it.status === 'fetching' ? `${pct}%` : it.status === 'error' ? 'Error' : 'En cola'}
-                                    </span>
-                                  </div>
-                                  <div className="h-1.5 w-full rounded-full bg-gray-700 overflow-hidden">
-                                    <div
-                                      className={`h-full rounded-full ${it.status === 'done' ? 'bg-primary-400' : it.status === 'fetching' ? 'bg-primary-500' : it.status === 'error' ? 'bg-red-500' : 'bg-gray-600'}`}
-                                      style={{ width: `${pct}%` }}
-                                    />
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
+                  <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
 
-                          <div className="pt-2 border-t border-gray-700">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-xs text-gray-100">Editor de marcadores</span>
-                              <span className="text-[11px] text-gray-200">
-                                {editorReady ? 'Listo' : editorLoading ? 'Cargando' : 'Pendiente'}
-                              </span>
-                            </div>
-                            <div className="mt-1 h-1.5 w-full rounded-full bg-gray-700 overflow-hidden">
-                              <div
-                                className={`${editorReady ? 'bg-primary-400' : editorLoading ? 'bg-primary-500 animate-pulse' : 'bg-gray-600'} h-full rounded-full`}
-                                style={{ width: editorReady ? '100%' : editorLoading ? '60%' : '0%' }}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    >
-                      <div className="mt-1 w-[160px]">
-                        <div className="h-1.5 w-full rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
-                          <div
-                            className={`${manualWarmup.currentMachineProgress.status === 'done' ? 'bg-primary-500' : manualWarmup.currentMachineProgress.status === 'fetching' ? 'bg-primary-600' : manualWarmup.currentMachineProgress.status === 'error' ? 'bg-red-500' : 'bg-gray-400'} h-full rounded-full transition-[width] duration-200`}
-                            style={{ width: `${manualWarmup.currentMachineProgress.percent}%` }}
-                          />
-                        </div>
-                      </div>
-                    </Tooltip>
-                  )}
+                  <button
+                    onClick={() => {
+                      setShowBackupModal(true);
+                      setModulesMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
+                  >
+                    <Database className="w-4 h-4 text-gray-500 dark:text-gray-300" />
+                    <span>Backup</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowReportsModal(true);
+                      setModulesMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
+                  >
+                    <BarChart3 className="w-4 h-4 text-gray-500 dark:text-gray-300" />
+                    <span>Reportes</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowContextComparator(true);
+                      setModulesMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
+                  >
+                    <GitCompare className="w-4 h-4 text-gray-500 dark:text-gray-300" />
+                    <span>Comparar</span>
+                  </button>
                 </div>
-              ) : (
-                'Manual'
               )}
-              {/* Indicador PDF precargado */}
-              {pdfPreloader.isReady ? (
-                <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full" title="Manual precargado - apertura instantánea" />
-              ) : pdfPreloader.loading ? (
-                <span className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-500 rounded-full animate-pulse" title="Precargando manual..." />
-              ) : null}
-              {/* Indicador Editor de marcadores precargado */}
-              {pdfPreloader.isReady && (
-                editorReady ? (
-                  <span className="absolute -top-1 right-1 w-2 h-2 bg-green-500 rounded-full" title="Editor de marcadores listo - apertura instantánea" />
-                ) : editorLoading ? (
-                  <span className="absolute -top-1 right-1 w-2 h-2 bg-yellow-500 rounded-full animate-pulse" title="Precargando editor de marcadores..." />
-                ) : null
-              )}
-            </Button>
-
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleExportExcel}
-              icon={<FileSpreadsheet className="w-4 h-4" />}
-            >
-              Excel
-            </Button>
-
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleExportPDF}
-              icon={<Download className="w-4 h-4" />}
-            >
-              PDF
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowBackupModal(true)}
-              icon={<Database className="w-4 h-4" />}
-              title="Backup/Restore datos"
-            >
-              Backup
-            </Button>
-
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setShowReportsModal(true)}
-              icon={<BarChart3 className="w-4 h-4" />}
-              title="Ver reportes y análisis"
-            >
-              Reportes
-            </Button>
-
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setShowContextComparator(true)}
-              icon={<GitCompare className="w-4 h-4" />}
-              title="Comparar contextos/eventos"
-            >
-              Comparar
-            </Button>
+            </div>
 
             {/* Botones Undo/Redo */}
             <div className="flex items-center gap-1 border-l border-gray-200 dark:border-gray-700 pl-3 ml-1">
@@ -1221,6 +1176,18 @@ export function Dashboard() {
             <div className="p-4 space-y-2">
               <button
                 onClick={() => {
+                  setMainView('catalogo');
+                  setRightPanelMode('hidden');
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100"
+              >
+                <Package className="w-5 h-5 text-gray-500" />
+                <span>Catálogo</span>
+              </button>
+              <button
+                onClick={() => {
+                  setMainView('manual');
                   setRightPanelMode('pdf');
                   setMobileMenuOpen(false);
                 }}
@@ -1228,6 +1195,28 @@ export function Dashboard() {
               >
                 <BookOpen className="w-5 h-5 text-gray-500" />
                 <span>Ver Manual</span>
+              </button>
+              <button
+                onClick={() => {
+                  setMainView('reportes');
+                  setRightPanelMode('hidden');
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <BarChart3 className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                <span>Reportes</span>
+              </button>
+              <button
+                onClick={() => {
+                  setMainView('admin');
+                  setRightPanelMode('hidden');
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <Database className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                <span>Admin</span>
               </button>
               <button
                 onClick={() => {
@@ -1299,41 +1288,219 @@ export function Dashboard() {
           <div className="flex items-center gap-1">
             <button
               onClick={() => {
-                setMainView('repuestos');
-                if (rightPanelMode === 'hidden') setRightPanelMode('hidden');
+                setMainView('catalogo');
               }}
               className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                mainView === 'repuestos'
+                mainView === 'catalogo'
                   ? 'text-primary-600 border-primary-600'
                   : 'text-gray-500 border-transparent hover:text-gray-700'
               }`}
             >
               <Package className="w-4 h-4" />
-              Repuestos
+              Catálogo
             </button>
             <button
               onClick={() => {
-                setMainView('stats');
+                setMainView('manual');
+                setRightPanelMode('pdf');
+              }}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                mainView === 'manual'
+                  ? 'text-primary-600 border-primary-600'
+                  : 'text-gray-500 border-transparent hover:text-gray-700'
+              }`}
+            >
+              <BookOpen className="w-4 h-4" />
+              Manual
+            </button>
+            <button
+              onClick={() => {
+                setMainView('reportes');
                 setRightPanelMode('hidden');
               }}
               className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                mainView === 'stats'
+                mainView === 'reportes'
                   ? 'text-primary-600 border-primary-600'
                   : 'text-gray-500 border-transparent hover:text-gray-700'
               }`}
             >
               <BarChart3 className="w-4 h-4" />
-              Estadísticas
+              Reportes
+            </button>
+            <button
+              onClick={() => {
+                setMainView('admin');
+                setRightPanelMode('hidden');
+              }}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                mainView === 'admin'
+                  ? 'text-primary-600 border-primary-600'
+                  : 'text-gray-500 border-transparent hover:text-gray-700'
+              }`}
+            >
+              <Database className="w-4 h-4" />
+              Admin
             </button>
           </div>
         </div>
 
         {/* Contenido basado en la vista activa */}
         <div className="flex-1 flex overflow-hidden">
-          {mainView === 'stats' ? (
+          {mainView === 'reportes' ? (
             <div className="flex-1 overflow-hidden">
               <StatsPanel repuestos={repuestos} />
             </div>
+          ) : mainView === 'admin' ? (
+            <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900">
+              <div className="max-w-4xl mx-auto p-6">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Administración</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Button
+                    variant="secondary"
+                    onClick={() => setShowImportModal(true)}
+                    icon={<Upload className="w-4 h-4" />}
+                  >
+                    Importar
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setShowBackupModal(true)}
+                    icon={<Database className="w-4 h-4" />}
+                  >
+                    Backup/Restore
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setShowReportsModal(true)}
+                    icon={<BarChart3 className="w-4 h-4" />}
+                  >
+                    Reportes y Análisis
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setShowActivityLogModal(true)}
+                    icon={<History className="w-4 h-4" />}
+                  >
+                    Activity Log
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : mainView === 'manual' ? (
+            <>
+              {/* Manual a ancho completo (reutiliza el panel derecho) */}
+              <div className="w-full flex flex-col">
+                <div className="flex-1 overflow-hidden">
+                  <div className="w-full flex flex-col h-full">
+                    {/* Tabs del panel (solo Manual) */}
+                    <div className="flex border-b border-gray-200 bg-white">
+                      <button
+                        onClick={() => setRightPanelMode('pdf')}
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors text-primary-600 border-b-2 border-primary-600"
+                      >
+                        <FileText className="w-4 h-4" />
+                        Manual
+                      </button>
+                      {/* Botón cerrar en móvil: vuelve a Catálogo */}
+                      <button
+                        onClick={() => {
+                          setMainView('catalogo');
+                          setRightPanelMode('hidden');
+                        }}
+                        className="md:hidden px-3 text-gray-400 hover:text-gray-600"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    {/* Selector de manuales cuando hay múltiples */}
+                    {currentMachine && currentMachine.manuals && currentMachine.manuals.length > 1 && (
+                      <div className="flex border-b border-gray-100 bg-gray-50 px-3 py-2">
+                        <select
+                          value={selectedManualIndex}
+                          onChange={(e) => setSelectedManualIndex(Number(e.target.value))}
+                          className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        >
+                          {currentMachine.manuals.map((manual, index) => {
+                            const fileName = manual.split('/').pop()?.split('?')[0] || `Manual ${index + 1}`;
+                            const decodedName = decodeURIComponent(fileName);
+                            return (
+                              <option key={index} value={index}>
+                                {decodedName}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
+                    )}
+
+                    <div className="flex-1 overflow-hidden">
+                      {rightPanelMode === 'marker-editor' && markerRepuesto && pdfUrl ? (
+                        <Suspense fallback={<PDFLoadingFallback />}>
+                          <PDFMarkerEditor
+                            pdfUrl={pdfUrl}
+                            repuestoId={markerRepuesto.id}
+                            repuestoDescripcion={markerRepuesto.descripcion || markerRepuesto.textoBreve}
+                            existingMarker={editingMarker || undefined}
+                            onSave={handleSaveMarker}
+                            onCancel={() => {
+                              setRightPanelMode('pdf');
+                              setMarkerRepuesto(null);
+                              setEditingMarker(null);
+                            }}
+                            repuestos={repuestos}
+                            onSelectRepuesto={(r: Repuesto) => {
+                              setMarkerRepuesto(r);
+                              setSelectedRepuesto(r);
+                            }}
+                          />
+                        </Suspense>
+                      ) : pdfUrl ? (
+                        <Suspense fallback={<PDFLoadingFallback />}>
+                          <PDFViewer
+                            pdfUrl={pdfUrl}
+                            targetPage={targetPage}
+                            marker={currentMarker}
+                            onCapture={selectedRepuesto ? handlePDFCapture : undefined}
+                            onEditMarker={selectedRepuesto ? (marker) => handleMarkInManual(selectedRepuesto, marker) : undefined}
+                            onDeleteMarker={selectedRepuesto ? (marker) => handleDeleteMarker(selectedRepuesto, marker.id) : undefined}
+                            onAddMarker={selectedRepuesto ? () => handleMarkInManual(selectedRepuesto) : undefined}
+                            preloadedPDF={pdfPreloader.url === pdfUrl ? pdfPreloader.pdf : null}
+                            preloadedText={pdfPreloader.url === pdfUrl ? pdfPreloader.textContent : undefined}
+                          />
+                        </Suspense>
+                      ) : (
+                        <div className="flex items-center justify-center h-full bg-gray-50 dark:bg-gray-900 p-8">
+                          <div className="text-center max-w-md">
+                            <div className="w-20 h-20 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                              <FileText className="w-10 h-10 text-gray-400 dark:text-gray-500" />
+                            </div>
+                            <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                              No hay manual disponible
+                            </h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                              Esta máquina aún no tiene manuales cargados.
+                              {currentMachine ? ` Puedes agregar manuales desde la configuración de "${currentMachine.nombre}".` : ''}
+                            </p>
+                            <Button
+                              variant="primary"
+                              onClick={() => {
+                                if (currentMachine) {
+                                  setEditingMachineModal(currentMachine);
+                                }
+                              }}
+                              icon={<Upload className="w-4 h-4" />}
+                            >
+                              Agregar Manual
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
           ) : (
             <>
               {/* Panel Izquierdo - Tabla */}
