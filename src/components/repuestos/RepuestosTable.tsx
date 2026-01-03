@@ -1605,7 +1605,7 @@ export function RepuestosTable({
                     ${isLastEdited
                       ? 'bg-orange-100/50 dark:bg-orange-900/30 border-orange-300 border-2' 
                       : selectedRepuesto?.id === repuesto.id 
-                        ? 'bg-primary-50 dark:bg-primary-900/30 border-primary-200 dark:border-primary-700' 
+                        ? 'bg-primary-500/15 dark:bg-primary-500/20 border-primary-200 dark:border-primary-700 ring-1 ring-inset ring-primary-400/40 dark:ring-primary-400/30' 
                         : 'border-gray-100 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'
                     }
                   `}
@@ -2149,7 +2149,7 @@ export function RepuestosTable({
                   ${isLastEdited
                     ? 'border-orange-400 dark:border-orange-500 bg-orange-50 dark:bg-orange-900/20 shadow-sm'
                     : isSelected
-                      ? 'border-primary-500 dark:border-primary-400 shadow-sm'
+                      ? 'border-primary-400 dark:border-primary-400 bg-primary-500/10 dark:bg-primary-500/15 shadow-sm'
                       : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                   }
                 `}
