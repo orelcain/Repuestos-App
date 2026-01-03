@@ -208,6 +208,7 @@ export function Dashboard() {
   }, [catalogScope, selectedCatalogMachineIds.length]);
 
   const isManualPanelOpen = rightPanelMode === 'pdf' || rightPanelMode === 'marker-editor';
+  const canCloseManualFromHeader = mainView === 'catalogo' && isManualPanelOpen;
   
   // Repuestos filtrados (para exportación)
   const [filteredRepuestos, setFilteredRepuestos] = useState<Repuesto[]>([]);
@@ -1246,6 +1247,16 @@ export function Dashboard() {
             {!isManualPanelOpen && desktopCoreActions}
 
             {!isManualPanelOpen && desktopUserActions}
+
+            {canCloseManualFromHeader && (
+              <button
+                onClick={() => setRightPanelMode('hidden')}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-300 transition-colors"
+                title="Cerrar manual"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
           </div>
 
           {/* Menú móvil */}
