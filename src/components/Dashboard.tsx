@@ -204,6 +204,15 @@ export function Dashboard() {
   }, [catalogScope, machines, selectedCatalogMachineIds]);
 
   const globalCatalog = useGlobalCatalog({ enabled: catalogScope !== 'machine', machines: catalogMachines });
+
+  const catalogScopeBadge = useMemo(() => {
+    if (catalogScope === 'global') return 'Catálogo completo';
+    if (catalogScope === 'selected') {
+      const count = selectedCatalogMachineIds.length;
+      return count > 0 ? `Máquinas seleccionadas (${count})` : 'Máquinas seleccionadas';
+    }
+    return null;
+  }, [catalogScope, selectedCatalogMachineIds.length]);
   
   // Repuestos filtrados (para exportación)
   const [filteredRepuestos, setFilteredRepuestos] = useState<Repuesto[]>([]);
@@ -949,6 +958,11 @@ export function Dashboard() {
           {/* Selector de Máquina y versión */}
           <div className="flex items-center gap-4">
             <MachineSelector onEditMachine={(machine) => setEditingMachineModal(machine)} />
+            {catalogScopeBadge && (
+              <span className="text-xs font-medium bg-amber-100 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 px-2 py-0.5 rounded-full">
+                {catalogScopeBadge}
+              </span>
+            )}
             <span className="text-xs font-normal bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 px-2 py-0.5 rounded-full">
               v{APP_VERSION}
             </span>
