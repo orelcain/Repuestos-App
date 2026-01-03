@@ -24,6 +24,8 @@ export interface ConflictRow {
   newData: ImportCantidadRow;
   existing: Repuesto;
   skipImport: boolean;
+  similarity: number; // 0-100, porcentaje de similitud
+  matchType: 'exact' | 'similar'; // exacto o similar
   overrides: {
     codigoSAP: boolean;
     codigoBaader: boolean;
@@ -206,6 +208,36 @@ export function ImportQuantitiesModal({
   const normalizeKey = (code: string) => code.toLowerCase().replace(/\s+/g, '').trim();
   const normalizeText = (text: string) => text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
 
+  // Calcula similitud entre dos textos (0-100)
+  const calculateSimilarity = (text1: string, text2: string): number => {
+    const t1 = normalizeText(text1);
+    const t2 = normalizeText(text2);
+    
+    if (t1 === t2) return 100;
+    if (!t1 || !t2) return 0;
+    
+    // Similitud por palabras comunes
+    const words1 = t1.split(' ').filter(w => w.length > 2);
+    const words2 = t2.split(' ').filter(w => w.length > 2);
+    
+    if (words1.length === 0 || words2.length === 0) return 0;
+    
+    const commonWords = words1.filter(w => words2.includes(w)).length;
+    const totalWords = Math.max(words1.length, words2.length);
+    const wordSimilarity = (commonWords / totalWords) * 100;
+    
+    // Similitud por caracteres (Levenshtein simplificado)
+    const maxLen = Math.max(t1.length, t2.length);
+    let matches = 0;
+    for (let i = 0; i < Math.min(t1.length, t2.length); i++) {
+      if (t1[i] === t2[i]) matches++;
+    }
+    const charSimilarity = (matches / maxLen) * 100;
+    
+    // Promedio ponderado (palabras 70%, caracteres 30%)
+    return Math.round(wordSimilarity * 0.7 + charSimilarity * 0.3);
+  };
+
   const detectConflicts = (rows: ImportCantidadRow[]) => {
     const bySAP = new Map<string, Repuesto>();
     const byBaader = new Map<string, Repuesto>();
@@ -229,12 +261,43 @@ export function ImportQuantitiesModal({
       const keyBaader = newData.codigoBaader !== 'pendiente' ? normalizeKey(newData.codigoBaader) : '';
       
       let existing = (keySAP && bySAP.get(keySAP)) || (keyBaader && byBaader.get(keyBaader));
+      let matchType: 'exact' | 'similar' = 'exact';
+      let similarity = 100;
       
       // Si no se encontró por códigos Y ambos códigos son "pendiente", buscar por texto/descripción
       if (!existing && newData.codigoSAP === 'pendiente' && newData.codigoBaader === 'pendiente') {
-        const textKey = normalizeText(newData.descripcion || newData.textoBreve || '');
+        const newText = newData.descripcion || newData.textoBreve || '';
+        const textKey = normalizeText(newText);
+        
         if (textKey.length > 5) {
+          // Buscar coincidencia exacta primero
           existing = byText.get(textKey);
+          
+          // Si no hay coincidencia exacta, buscar similares (>60% similitud)
+          if (!existing) {
+            let bestMatch: Repuesto | undefined;
+            let bestSimilarity = 0;
+            
+            repuestos.forEach((r) => {
+              // Solo considerar repuestos sin códigos (para evitar duplicar la búsqueda)
+              if ((r.codigoSAP === 'pendiente' || !r.codigoSAP) && (r.codigoBaader === 'pendiente' || !r.codigoBaader)) {
+                const existingText = r.descripcion || r.textoBreve || '';
+                if (existingText.length > 5) {
+                  const sim = calculateSimilarity(newText, existingText);
+                  if (sim >= 60 && sim > bestSimilarity) {
+                    bestSimilarity = sim;
+                    bestMatch = r;
+                  }
+                }
+              }
+            });
+            
+            if (bestMatch && bestSimilarity >= 60) {
+              existing = bestMatch;
+              matchType = 'similar';
+              similarity = bestSimilarity;
+            }
+          }
         }
       }
       
@@ -247,11 +310,14 @@ export function ImportQuantitiesModal({
           (newData.descripcion && existing.descripcion !== newData.descripcion) ||
           (newData.valorUnitario > 0 && existing.valorUnitario !== newData.valorUnitario);
         
-        if (hasDiff) {
+        // Para similares, siempre mostrar (incluso sin diff)
+        if (hasDiff || matchType === 'similar') {
           conflictsFound.push({
             newData,
             existing,
             skipImport: false,
+            similarity,
+            matchType,
             overrides: {
               codigoSAP: false,
               codigoBaader: false,
@@ -650,12 +716,31 @@ export function ImportQuantitiesModal({
                 {showConflicts && (
                   <div className="mt-4 space-y-3 max-h-96 overflow-y-auto">
                     {conflicts.map((conflict, idx) => (
-                      <div key={idx} className="p-3 rounded-lg border border-amber-200 dark:border-amber-700 bg-white dark:bg-gray-900">
-                        <div className="text-sm font-medium text-gray-800 dark:text-gray-100 mb-2">
-                          {conflict.existing.codigoSAP !== 'pendiente' && `SAP: ${conflict.existing.codigoSAP}`}
-                          {conflict.existing.codigoSAP !== 'pendiente' && conflict.existing.codigoBaader !== 'pendiente' && ' • '}
-                          {conflict.existing.codigoBaader !== 'pendiente' && `N° Parte: ${conflict.existing.codigoBaader}`}
+                      <div key={idx} className={`p-3 rounded-lg border ${
+                        conflict.matchType === 'similar'
+                          ? 'border-orange-300 dark:border-orange-600 bg-orange-50/50 dark:bg-orange-900/10'
+                          : 'border-amber-200 dark:border-amber-700 bg-white dark:bg-gray-900'
+                      }`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <div className="text-sm font-medium text-gray-800 dark:text-gray-100">
+                              {conflict.existing.codigoSAP !== 'pendiente' && `SAP: ${conflict.existing.codigoSAP}`}
+                              {conflict.existing.codigoSAP !== 'pendiente' && conflict.existing.codigoBaader !== 'pendiente' && ' • '}
+                              {conflict.existing.codigoBaader !== 'pendiente' && `N° Parte: ${conflict.existing.codigoBaader}`}
+                            </div>
+                            {conflict.matchType === 'similar' && (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 font-medium">
+                                🔍 {Math.round(conflict.similarity)}% similar
+                              </span>
+                            )}
+                          </div>
                         </div>
+                        
+                        {conflict.matchType === 'similar' && (
+                          <div className="mb-3 p-2 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded text-xs text-orange-800 dark:text-orange-200">
+                            💡 <strong>Posible duplicado:</strong> Este repuesto parece similar a uno existente. Verifica si son el mismo y decide si actualizar los campos o crear uno nuevo marcando "❌ No importar".
+                          </div>
+                        )}
                         
                         <div className="grid grid-cols-[auto,1fr,1fr] gap-2 text-xs">
                           <div className="font-medium text-gray-600 dark:text-gray-400">Campo</div>
