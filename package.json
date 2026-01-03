@@ -12,6 +12,7 @@
     "bump": "node scripts/bump-version.mjs",
     "check:version": "node scripts/check-version-sync.mjs",
     "check": "npm run check:version && npm run lint && npm run build",
+    "iter": "node scripts/finish-iteration.mjs",
     "predeploy": "npm run check:version",
     "deploy": "npm run build && gh-pages -d dist"
   },

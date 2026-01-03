@@ -164,6 +164,20 @@ npm run deploy
 
 Nota: `npm run deploy` ejecuta un chequeo automático de sincronización de versión antes de publicar.
 
+### Un solo comando (recomendado)
+
+Si quieres ejecutar TODO el procedimiento en una sola acción (bump + checks + commit + push + deploy):
+
+```bash
+npm run iter -- "Descripción corta del cambio (iteración)"
+```
+
+Opcional (forzar versión):
+
+```bash
+npm run iter -- 4.9.70 "Descripción"
+```
+
 ## Despliegue en GitHub Pages
 
 ### 1. Crear repositorio
