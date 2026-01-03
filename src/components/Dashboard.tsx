@@ -1151,11 +1151,24 @@ export function Dashboard() {
     </>
   );
 
+  const desktopUserActions = (
+    <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+      <span>{user?.email}</span>
+      <button
+        onClick={signOut}
+        className="p-2 rounded-lg hover:bg-gray-100 text-gray-500"
+        title="Cerrar sesión"
+      >
+        <LogOut className="w-4 h-4" />
+      </button>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col transition-colors">
       {/* Header */}
       <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="px-4 py-3 flex items-center justify-between">
+        <div className="px-4 py-3 flex items-center justify-between flex-nowrap">
           {/* Selector de Máquina y versión */}
           <div className="flex items-center gap-4">
             <MachineSelector
@@ -1171,6 +1184,10 @@ export function Dashboard() {
             {isManualPanelOpen && (
               <div className="hidden md:flex items-center gap-3">
                 {desktopCoreActions}
+
+                <div className="w-px h-8 bg-gray-200 dark:bg-gray-700" />
+
+                {desktopUserActions}
               </div>
             )}
           </div>
@@ -1179,16 +1196,7 @@ export function Dashboard() {
           <div className="hidden md:flex items-center gap-3">
             {!isManualPanelOpen && desktopCoreActions}
 
-            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-              <span>{user?.email}</span>
-              <button
-                onClick={signOut}
-                className="p-2 rounded-lg hover:bg-gray-100 text-gray-500"
-                title="Cerrar sesión"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
+            {!isManualPanelOpen && desktopUserActions}
           </div>
 
           {/* Menú móvil */}
