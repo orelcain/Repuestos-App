@@ -1168,7 +1168,7 @@ export function Dashboard() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col transition-colors">
       {/* Header */}
       <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="px-4 py-3 flex items-center justify-between flex-nowrap">
+        <div className={`px-4 ${isManualPanelOpen ? 'py-2' : 'py-3'} flex items-center justify-between flex-nowrap`}>
           {/* Selector de Máquina y versión */}
           <div className="flex items-center gap-4">
             <MachineSelector
@@ -1338,7 +1338,7 @@ export function Dashboard() {
                 setMainView('catalogo');
                 setRightPanelMode('hidden');
               }}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex items-center gap-2 px-4 ${isManualPanelOpen ? 'py-2' : 'py-3'} text-sm font-medium border-b-2 transition-colors ${
                 mainView === 'catalogo'
                   ? 'text-primary-600 border-primary-600'
                   : 'text-gray-500 border-transparent hover:text-gray-700'
@@ -1352,7 +1352,7 @@ export function Dashboard() {
                 setMainView('reportes');
                 setRightPanelMode('hidden');
               }}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex items-center gap-2 px-4 ${isManualPanelOpen ? 'py-2' : 'py-3'} text-sm font-medium border-b-2 transition-colors ${
                 mainView === 'reportes'
                   ? 'text-primary-600 border-primary-600'
                   : 'text-gray-500 border-transparent hover:text-gray-700'
@@ -1366,7 +1366,7 @@ export function Dashboard() {
                 setMainView('admin');
                 setRightPanelMode('hidden');
               }}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex items-center gap-2 px-4 ${isManualPanelOpen ? 'py-2' : 'py-3'} text-sm font-medium border-b-2 transition-colors ${
                 mainView === 'admin'
                   ? 'text-primary-600 border-primary-600'
                   : 'text-gray-500 border-transparent hover:text-gray-700'
@@ -1699,7 +1699,7 @@ export function Dashboard() {
             <div className="flex border-b border-gray-200 bg-white">
               <button
                 onClick={() => setRightPanelMode('gallery')}
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                className={`flex-1 flex items-center justify-center gap-2 px-4 ${isManualPanelOpen ? 'py-2' : 'py-3'} text-sm font-medium border-b-2 transition-colors ${
                   rightPanelMode === 'gallery'
                     ? 'text-primary-600 border-primary-600'
                     : 'text-gray-500 border-transparent hover:text-gray-700'
@@ -1710,7 +1710,7 @@ export function Dashboard() {
               </button>
               <button
                 onClick={() => setRightPanelMode('pdf')}
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                className={`flex-1 flex items-center justify-center gap-2 px-4 ${isManualPanelOpen ? 'py-2' : 'py-3'} text-sm font-medium border-b-2 transition-colors ${
                   rightPanelMode === 'pdf' || rightPanelMode === 'marker-editor'
                     ? 'text-primary-600 border-primary-600'
                     : 'text-gray-500 border-transparent hover:text-gray-700'
