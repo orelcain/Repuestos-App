@@ -121,6 +121,10 @@ export function ImportQuantitiesModal({
 }: ImportQuantitiesModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [inputMode, setInputMode] = useState<'file' | 'paste'>('file');
+  const [pasteText, setPasteText] = useState('');
+  const [pasteHasHeader, setPasteHasHeader] = useState(false);
+
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<ImportCantidadRow[]>([]);
   const [conflicts, setConflicts] = useState<ConflictRow[]>([]);
@@ -170,7 +174,110 @@ export function ImportQuantitiesModal({
     setColumnMap({ codigoSAP: '', codigoBaader: '', textoBreve: '', descripcion: '', cantidad: '', valorUnitario: '' });
     setError(null);
     setMappingOpen(false);
+    setInputMode('file');
+    setPasteText('');
+    setPasteHasHeader(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const makeUniqueHeaders = (headers: string[]) => {
+    const seen = new Map<string, number>();
+    return headers.map((hRaw, idx) => {
+      const base = (hRaw || '').trim() || `Col ${idx + 1}`;
+      const count = seen.get(base) ?? 0;
+      seen.set(base, count + 1);
+      return count === 0 ? base : `${base} (${count + 1})`;
+    });
+  };
+
+  const detectDelimiter = (line: string) => {
+    if (line.includes('\t')) return '\t';
+    if (line.includes(';')) return ';';
+    if (line.includes(',')) return ',';
+    return '\t';
+  };
+
+  const parsePastedTable = (text: string, hasHeader: boolean) => {
+    const lines = text
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .split('\n')
+      .map((l) => l.replace(/\s+$/g, ''))
+      .filter((l) => l.trim().length > 0);
+
+    if (lines.length === 0) return { headers: [] as string[], rows: [] as Array<Record<string, unknown>> };
+
+    const delimiter = detectDelimiter(lines[0]);
+    const grid = lines.map((line) => line.split(delimiter));
+    const maxCols = Math.max(...grid.map((r) => r.length));
+
+    const padRow = (row: string[]) => {
+      const next = [...row];
+      while (next.length < maxCols) next.push('');
+      return next;
+    };
+
+    const padded = grid.map(padRow);
+
+    const rawHeaderRow = hasHeader ? padded[0] : Array.from({ length: maxCols }, (_, i) => `Col ${i + 1}`);
+    const headers = makeUniqueHeaders(rawHeaderRow.map((h) => (h ?? '').toString()));
+
+    const dataRows = hasHeader ? padded.slice(1) : padded;
+    const rows = dataRows.map((cells) => {
+      const record: Record<string, unknown> = {};
+      headers.forEach((h, i) => {
+        record[h] = (cells[i] ?? '').toString();
+      });
+      return record;
+    });
+
+    return { headers, rows };
+  };
+
+  const buildGuessMapping = (headers: string[]) => {
+    if (headers.length === 2) {
+      return {
+        codigoSAP: headers[0],
+        codigoBaader: '',
+        textoBreve: '',
+        descripcion: '',
+        cantidad: headers[1],
+        valorUnitario: ''
+      } satisfies ColumnMap;
+    }
+
+    const guessed: ColumnMap = {
+      codigoSAP: guessHeader(headers, ['codigo sap', 'código sap', 'sap', 'cod sap']),
+      codigoBaader: guessHeader(headers, ['codigo baader', 'código baader', 'baader', 'n° parte', 'parte', 'part', 'part#']),
+      textoBreve: guessHeader(headers, ['texto breve', 'breve', 'descripcion sap', 'descripción sap']),
+      descripcion: guessHeader(headers, ['descripcion', 'descripción', 'descripcion extendida', 'descripción extendida', 'nombre']),
+      cantidad: guessHeader(headers, ['cantidad', 'cant', 'qty']),
+      valorUnitario: guessHeader(headers, ['valor unitario', 'precio', 'usd', 'unitario'])
+    };
+
+    // Si no hay encabezados utilizables, por defecto usar 1ª columna como SAP y 2ª como Cantidad
+    if (!guessed.codigoSAP && headers.length >= 1) guessed.codigoSAP = headers[0];
+    if (!guessed.cantidad && headers.length >= 2) guessed.cantidad = headers[1];
+    return guessed;
+  };
+
+  const handleProcessPaste = () => {
+    setError(null);
+    const { headers, rows } = parsePastedTable(pasteText, pasteHasHeader);
+    if (headers.length === 0 || rows.length === 0) {
+      setError('No se detectaron filas válidas. Copia desde Excel y pega aquí (idealmente con columnas separadas por TAB).');
+      return;
+    }
+
+    setFile(null);
+    setRawHeaders(headers);
+    setRawRowsAll(rows);
+    setRawRowsPreview(rows.slice(0, 50));
+
+    const guessed = buildGuessMapping(headers);
+    setColumnMap(guessed);
+    setMappingOpen(true);
+    buildPreviewFromMapping(rows, guessed);
   };
 
   const buildPreviewFromMapping = (rows: Array<Record<string, unknown>>, mapping: ColumnMap) => {
@@ -540,7 +647,7 @@ export function ImportQuantitiesModal({
   const skippedCount = conflicts.filter((c) => c.skipImport).length;
   const effectiveImportCount = preview.length - skippedCount;
 
-  const showMapping = !!file && !loading && rawHeaders.length > 0;
+  const showMapping = !loading && rawHeaders.length > 0;
   const needsCantidad = selectedTarget ? !('mode' in selectedTarget && selectedTarget.mode === 'catalog') : targetTipo !== 'catalog';
 
   return (
@@ -599,23 +706,84 @@ export function ImportQuantitiesModal({
           </div>
         </div>
 
-        {/* Zona de carga */}
-        {!file && (
-          <div
-            onDrop={handleDrop}
-            onDragOver={(e) => e.preventDefault()}
-            className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 text-center hover:border-primary-500 transition-colors cursor-pointer"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleFileChange} className="hidden" />
-            {loading ? (
-              <Loader2 className="w-12 h-12 mx-auto text-primary-600 animate-spin" />
+        {/* Zona de carga / pegado */}
+        {!file && preview.length === 0 && (
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setInputMode('file')}
+                className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                  inputMode === 'file'
+                    ? 'bg-primary-100 dark:bg-primary-900/30 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300'
+                    : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                }`}
+              >
+                Archivo Excel
+              </button>
+              <button
+                type="button"
+                onClick={() => setInputMode('paste')}
+                className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                  inputMode === 'paste'
+                    ? 'bg-primary-100 dark:bg-primary-900/30 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300'
+                    : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                }`}
+              >
+                Pegar desde Excel
+              </button>
+            </div>
+
+            {inputMode === 'file' ? (
+              <div
+                onDrop={(e) => {
+                  setInputMode('file');
+                  handleDrop(e);
+                }}
+                onDragOver={(e) => e.preventDefault()}
+                className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 text-center hover:border-primary-500 transition-colors cursor-pointer"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={(e) => {
+                    setInputMode('file');
+                    handleFileChange(e);
+                  }}
+                  className="hidden"
+                />
+                {loading ? (
+                  <Loader2 className="w-12 h-12 mx-auto text-primary-600 animate-spin" />
+                ) : (
+                  <>
+                    <FileSpreadsheet className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                    <p className="text-gray-600 dark:text-gray-300 mb-2">Arrastra tu archivo Excel aquí o haz clic para seleccionar</p>
+                    <p className="text-sm text-gray-400">Formatos aceptados: .xlsx, .xls</p>
+                  </>
+                )}
+              </div>
             ) : (
-              <>
-                <FileSpreadsheet className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-                <p className="text-gray-600 dark:text-gray-300 mb-2">Arrastra tu archivo Excel aquí o haz clic para seleccionar</p>
-                <p className="text-sm text-gray-400">Formatos aceptados: .xlsx, .xls</p>
-              </>
+              <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-900 space-y-3">
+                <div className="text-sm text-gray-700 dark:text-gray-200">
+                  Copia un rango desde Excel y pégalo aquí. Luego asigna qué columna es SAP/Cantidad/etc.
+                </div>
+                <textarea
+                  value={pasteText}
+                  onChange={(e) => setPasteText(e.target.value)}
+                  placeholder="Ej: (TAB) separa columnas, ENTER separa filas"
+                  className="w-full h-40 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-800 dark:text-gray-100 font-mono"
+                />
+                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+                  <input
+                    type="checkbox"
+                    checked={pasteHasHeader}
+                    onChange={(e) => setPasteHasHeader(e.target.checked)}
+                  />
+                  Primera fila es encabezado
+                </label>
+              </div>
             )}
           </div>
         )}
@@ -1101,15 +1269,7 @@ export function ImportQuantitiesModal({
           <Button variant="secondary" onClick={onClose}>
             Cancelar
           </Button>
-          {!file ? (
-            <Button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={loading}
-              icon={<FileSpreadsheet className="w-4 h-4" />}
-            >
-              Seleccionar Excel
-            </Button>
-          ) : (
+          {preview.length > 0 ? (
             <Button
               onClick={handleImport}
               disabled={!canImport}
@@ -1118,6 +1278,22 @@ export function ImportQuantitiesModal({
             >
               Importar {effectiveImportCount} fila{effectiveImportCount !== 1 ? 's' : ''}
               {skippedCount > 0 && ` (${skippedCount} omitida${skippedCount !== 1 ? 's' : ''})`}
+            </Button>
+          ) : inputMode === 'paste' ? (
+            <Button
+              onClick={handleProcessPaste}
+              disabled={loading || pasteText.trim().length === 0}
+              icon={<Upload className="w-4 h-4" />}
+            >
+              Procesar pegado
+            </Button>
+          ) : (
+            <Button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={loading}
+              icon={<FileSpreadsheet className="w-4 h-4" />}
+            >
+              Seleccionar Excel
             </Button>
           )}
         </div>

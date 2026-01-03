@@ -1,9 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.81';
+export const APP_VERSION = '4.9.82';
 
 // Historial de versiones
 // ⚠️ Importante: agrega SIEMPRE la versión más nueva ARRIBA (al inicio del array)
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.82',
+    date: '2026-01-03',
+    changes: [
+      'UX: pegar desde Excel en importación de cantidades'
+    ]
+  },
   {
     version: '4.9.81',
     date: '2026-01-03',
