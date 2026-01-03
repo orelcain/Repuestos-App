@@ -16,9 +16,11 @@ import { MachineFormModal } from './MachineFormModal';
 
 interface MachineSelectorProps {
   onEditMachine?: (machine: Machine) => void;
+  displayLabel?: string | null;
+  displaySubLabel?: string | null;
 }
 
-export function MachineSelector({ onEditMachine }: MachineSelectorProps) {
+export function MachineSelector({ onEditMachine, displayLabel = null, displaySubLabel = null }: MachineSelectorProps) {
   const { currentMachine, machines, setCurrentMachine, loading } = useMachineContext();
   
   const [isOpen, setIsOpen] = useState(false);
@@ -93,10 +95,17 @@ export function MachineSelector({ onEditMachine }: MachineSelectorProps) {
             style={{ backgroundColor: currentMachine?.color || '#3b82f6' }}
           />
           
-          {/* Nombre de la máquina */}
-          <span className="font-medium text-gray-800 dark:text-gray-200 truncate flex-1 text-left">
-            {currentMachine?.nombre || 'Seleccionar máquina'}
-          </span>
+          {/* Nombre mostrado (puede ser override) */}
+          <div className="flex-1 min-w-0 text-left">
+            <div className="font-medium text-gray-800 dark:text-gray-200 truncate">
+              {displayLabel || currentMachine?.nombre || 'Seleccionar máquina'}
+            </div>
+            {displaySubLabel && (
+              <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                {displaySubLabel}
+              </div>
+            )}
+          </div>
           
           {/* Chevron */}
           <ChevronDown 

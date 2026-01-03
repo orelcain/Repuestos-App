@@ -1,9 +1,37 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.64';
+export const APP_VERSION = '4.9.68';
 
 // Historial de versiones
 // ⚠️ Importante: agrega SIEMPRE la versión más nueva ARRIBA (al inicio del array)
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.68',
+    date: '2026-01-03',
+    changes: [
+      '🔖 Version: actualizar graph y pages'
+    ]
+  },
+  {
+    version: '4.9.67',
+    date: '2026-01-03',
+    changes: [
+      '📝 Docs: se documenta flujo de versionado (bump) para mantener graph y labels sincronizados'
+    ]
+  },
+  {
+    version: '4.9.66',
+    date: '2026-01-03',
+    changes: [
+      '🏷️ Header: selector muestra el modo del catálogo en vez de la máquina'
+    ]
+  },
+  {
+    version: '4.9.65',
+    date: '2026-01-03',
+    changes: [
+      '🏷️ Header: el selector muestra el modo (catálogo completo / seleccionadas) como título y la máquina como subtítulo'
+    ]
+  },
   {
     version: '4.9.64',
     date: '2026-01-02',

@@ -957,12 +957,11 @@ export function Dashboard() {
         <div className="px-4 py-3 flex items-center justify-between">
           {/* Selector de Máquina y versión */}
           <div className="flex items-center gap-4">
-            <MachineSelector onEditMachine={(machine) => setEditingMachineModal(machine)} />
-            {catalogScopeBadge && (
-              <span className="text-xs font-medium bg-amber-100 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 px-2 py-0.5 rounded-full">
-                {catalogScopeBadge}
-              </span>
-            )}
+            <MachineSelector
+              onEditMachine={(machine) => setEditingMachineModal(machine)}
+              displayLabel={catalogScopeBadge}
+              displaySubLabel={catalogScopeBadge ? (currentMachine?.nombre || null) : null}
+            />
             <span className="text-xs font-normal bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 px-2 py-0.5 rounded-full">
               v{APP_VERSION}
             </span>

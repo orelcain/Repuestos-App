@@ -94,6 +94,34 @@ npm run build
 npm run preview
 ```
 
+## Versionado (aplicar siempre)
+
+Para evitar desincronización entre la versión mostrada en la UI, el historial (“graph”) y los labels (PWA/PC/OG), usa el script de bump antes de desplegar.
+
+### Bump de versión
+
+```bash
+# Incrementa patch automáticamente (x.y.z → x.y.(z+1))
+# y actualiza TODO: package.json + src/version.ts (graph) + index.html + vite.config.ts (PWA)
+npm run bump -- "Descripción corta del cambio"
+```
+
+Opcional:
+
+```bash
+# Forzar versión y/o fecha (YYYY-MM-DD)
+npm run bump -- 4.9.70 "Descripción"
+```
+
+### Flujo recomendado antes de deploy
+
+```bash
+npm run bump -- "..."
+git add -A
+git commit -m "chore: bump version"
+npm run deploy
+```
+
 ## Despliegue en GitHub Pages
 
 ### 1. Crear repositorio
