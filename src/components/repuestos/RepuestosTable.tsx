@@ -4,6 +4,7 @@ import { useTableColumns } from '../../hooks/useTableColumns';
 import { useTags } from '../../hooks/useTags';
 import { AddToListModal } from './AddToListModal';
 import { ImportQuantitiesModal, type ImportCantidadRow } from './ImportQuantitiesModal';
+import type { GlobalRepuesto } from '../../hooks/useGlobalCatalog';
 import { 
   Search, 
   Plus, 
@@ -34,12 +35,20 @@ import {
   ShoppingCart,
   ListPlus,
   FileSpreadsheet,
-  ChevronDown
+  ChevronDown,
+  Loader2
 } from 'lucide-react';
 
 interface RepuestosTableProps {
   machineId: string | null;
   repuestos: Repuesto[];
+  catalogScope?: 'machine' | 'global';
+  onCatalogScopeChange?: (scope: 'machine' | 'global') => void;
+  globalRepuestos?: GlobalRepuesto[];
+  globalLoading?: boolean;
+  onJumpToMachineRepuesto?: (machineId: string, repuestoId: string) => void;
+  focusRepuestoId?: string | null;
+  onFocusHandled?: () => void;
   selectedRepuesto: Repuesto | null;
   onSelect: (repuesto: Repuesto | null) => void;
   onEdit: (repuesto: Repuesto) => void;
@@ -129,6 +138,13 @@ function HistorialCampoModal({
 export function RepuestosTable({
   machineId,
   repuestos,
+  catalogScope = 'machine',
+  onCatalogScopeChange,
+  globalRepuestos = [],
+  globalLoading = false,
+  onJumpToMachineRepuesto,
+  focusRepuestoId,
+  onFocusHandled,
   selectedRepuesto,
   onSelect,
   onEdit,
@@ -166,6 +182,9 @@ export function RepuestosTable({
   const [precioMin, setPrecioMin] = useState<string>('');
   const [precioMax, setPrecioMax] = useState<string>('');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+
+  const isGlobalCatalog = catalogScope === 'global';
+  const sourceRepuestos: (Repuesto | GlobalRepuesto)[] = isGlobalCatalog ? globalRepuestos : repuestos;
   
   // Estados para modales de contexto
   const [showAddToListModal, setShowAddToListModal] = useState(false);
@@ -360,11 +379,11 @@ export function RepuestosTable({
 
   // Filtrar repuestos
   const filteredRepuestos = useMemo(() => {
-    let result = repuestos;
+    let result = sourceRepuestos;
     // Catálogo por defecto: sin contextos => mostrar todo.
     // Con contextos activos => filtrar a repuestos que pertenezcan a alguno de los eventos seleccionados.
     // Importante: pertenencia no depende de cantidad (puede ser 0).
-    if (hasAnyContext) {
+    if (hasAnyContext && !isGlobalCatalog) {
       result = result.filter(r => {
         const tags = r.tags || [];
 
@@ -402,14 +421,10 @@ export function RepuestosTable({
 
       if (tagFilterMode === 'AND') {
         // AND: debe tener TODOS los tags seleccionados
-        result = result.filter(r => 
-          selectedTags.every(tag => repuestoTieneTag(r, tag))
-        );
+        result = result.filter(r => selectedTags.every(tag => repuestoTieneTag(r as Repuesto, tag)));
       } else {
         // OR: debe tener AL MENOS UNO de los tags seleccionados
-        result = result.filter(r => 
-          selectedTags.some(tag => repuestoTieneTag(r, tag))
-        );
+        result = result.filter(r => selectedTags.some(tag => repuestoTieneTag(r as Repuesto, tag)));
       }
     }
     
@@ -513,7 +528,7 @@ export function RepuestosTable({
     });
     
     return result;
-  }, [repuestos, searchTerm, selectedTags, tagFilterMode, filterSinStock, filterConManual, filterSinTags, precioMin, precioMax, sortColumn, sortDirection, activeContexts, hasAnyContext]);
+  }, [sourceRepuestos, searchTerm, selectedTags, tagFilterMode, filterSinStock, filterConManual, filterSinTags, precioMin, precioMax, sortColumn, sortDirection, activeContexts, hasAnyContext, isGlobalCatalog]);
 
   // Función para manejar click en header de columna
   const handleSort = (column: string) => {
@@ -549,6 +564,24 @@ export function RepuestosTable({
       return currentDate > latestDate ? current : latest;
     });
   }, [repuestos]);
+
+  // Enfoque/scroll a un repuesto específico (usado al saltar desde catálogo global)
+  useEffect(() => {
+    if (!focusRepuestoId) return;
+    if (isGlobalCatalog) return;
+
+    const index = filteredRepuestos.findIndex(r => r.id === focusRepuestoId);
+    if (index === -1) return;
+
+    const pageNumber = Math.floor(index / ITEMS_PER_PAGE) + 1;
+    setCurrentPage(pageNumber);
+
+    setTimeout(() => {
+      const element = document.getElementById(`repuesto-${focusRepuestoId}`);
+      element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      onFocusHandled?.();
+    }, 100);
+  }, [focusRepuestoId, filteredRepuestos, isGlobalCatalog, onFocusHandled]);
 
   // Función para navegar al último repuesto editado
   const irAlUltimoEditado = () => {
@@ -732,7 +765,7 @@ export function RepuestosTable({
                 {hasAnyContext ? 'Repuestos' : 'Catálogo'}
               </div>
               <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                {filteredRepuestos.length} / {repuestos.length}
+                        {filteredRepuestos.length} / {sourceRepuestos.length}
                 {hasAnyContext && (
                   <>
                     {activeContexts.solicitud && <span className="ml-2">• Sol: {activeContexts.solicitud}</span>}
@@ -773,7 +806,7 @@ export function RepuestosTable({
             <Package className="w-6 h-6 text-primary-600" />
             {hasAnyContext ? 'Repuestos' : 'Catálogo de repuestos'}
             <span className="text-base font-normal text-gray-500 dark:text-gray-400">
-              ({filteredRepuestos.length} de {repuestos.length})
+              ({filteredRepuestos.length} de {sourceRepuestos.length})
               {hasAnyContext && (
                 <>
                   {activeContexts.solicitud && (
@@ -1217,24 +1250,43 @@ export function RepuestosTable({
           )}
         </div>
 
-        {/* Barra de búsqueda con botón de filtros avanzados */}
+        {/* Barra de búsqueda con selector de alcance y botón de filtros avanzados */}
         <div className="flex gap-2">
+          <div className="hidden lg:flex items-center gap-2">
+            <select
+              value={catalogScope}
+              onChange={(e) => onCatalogScopeChange?.(e.target.value as 'machine' | 'global')}
+              className="px-3 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              title="Alcance del buscador"
+            >
+              <option value="machine">Máquina actual</option>
+              <option value="global">Catálogo completo</option>
+            </select>
+            {isGlobalCatalog && globalLoading && (
+              <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-300">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Cargando...
+              </div>
+            )}
+          </div>
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder={hasAnyContext 
-                ? `Buscar en contextos activos...` 
-                : "Buscar por código SAP, Baader o descripción..."
+              placeholder={isGlobalCatalog
+                ? 'Buscar en el catálogo completo...'
+                : hasAnyContext
+                  ? 'Buscar en contextos activos...'
+                  : 'Buscar por código SAP, Baader o descripción...'
               }
               className="w-full pl-12 pr-4 py-2.5 lg:py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
           </div>
           
           {/* Botón agregar más a la lista - visible si hay algún contexto */}
-          {hasAnyContext && onAddToContext && (
+          {hasAnyContext && !isGlobalCatalog && onAddToContext && (
             <button
               onClick={() => setShowAddToListModal(true)}
               className="flex items-center gap-2 px-4 py-3 rounded-xl font-medium transition-colors bg-primary-600 hover:bg-primary-700 text-white"
@@ -1427,6 +1479,11 @@ export function RepuestosTable({
         <table className="w-full">
           <thead className="sticky top-0">
             <tr>
+              {isGlobalCatalog && (
+                <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider bg-gray-50 dark:bg-gray-800 dark:text-gray-300">
+                  Máquina
+                </th>
+              )}
               {isColumnVisible('codigoSAP') && renderColumnHeader('codigoSAP')}
               {isColumnVisible('codigoBaader') && renderColumnHeader('codigoBaader')}
               {isColumnVisible('textoBreve') && renderColumnHeader('textoBreve')}
@@ -1447,12 +1504,21 @@ export function RepuestosTable({
             {paginatedRepuestos.map((repuesto) => {
               const hasManualMarker = repuesto.vinculosManual && repuesto.vinculosManual.length > 0;
               const isLastEdited = ultimoRepuestoEditado?.id === repuesto.id;
+              const global = repuesto as GlobalRepuesto;
               
               return (
                 <tr
                   key={repuesto.id}
                   id={`repuesto-${repuesto.id}`}
-                  onClick={() => onSelect(selectedRepuesto?.id === repuesto.id ? null : repuesto)}
+                  onClick={() => {
+                    if (isGlobalCatalog) {
+                      if (onJumpToMachineRepuesto && global.machineId) {
+                        onJumpToMachineRepuesto(global.machineId, repuesto.id);
+                      }
+                      return;
+                    }
+                    onSelect(selectedRepuesto?.id === repuesto.id ? null : (repuesto as Repuesto));
+                  }}
                   className={`
                     border-b cursor-pointer transition-colors group
                     ${isLastEdited
@@ -1463,6 +1529,22 @@ export function RepuestosTable({
                     }
                   `}
                 >
+                  {isGlobalCatalog && (
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onJumpToMachineRepuesto && global.machineId) {
+                            onJumpToMachineRepuesto(global.machineId, repuesto.id);
+                          }
+                        }}
+                        className="text-sm font-medium text-primary-700 dark:text-primary-300 hover:underline"
+                        title="Cambiar a esta máquina y ubicar el repuesto"
+                      >
+                        {global.machineNombre || global.machineId}
+                      </button>
+                    </td>
+                  )}
                   {/* Código SAP con botón copiar */}
                   {isColumnVisible('codigoSAP') && (
                   <td className="px-3 py-2 whitespace-nowrap">

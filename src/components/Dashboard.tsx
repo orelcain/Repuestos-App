@@ -11,6 +11,7 @@ import { useManualWarmup } from '../hooks/useManualWarmup';
 import { useMachineContext } from '../contexts/MachineContext';
 import { Repuesto, RepuestoFormData, ImagenRepuesto, VinculoManual, Machine } from '../types';
 import { APP_VERSION } from '../version';
+import { useGlobalCatalog } from '../hooks/useGlobalCatalog';
 
 // Script de importación - exponer globalmente para uso desde consola
 import { importarRepuestosInformeV2 } from '../scripts/importInformeV2';
@@ -107,7 +108,7 @@ const sanitizeImagen = (img: ImagenRepuesto): ImagenRepuesto => {
 
 export function Dashboard() {
   const { user, signOut } = useAuth();
-  const { currentMachine, machines } = useMachineContext();
+  const { currentMachine, machines, setCurrentMachine } = useMachineContext();
   
   const machineId = currentMachine?.id || null;
   
@@ -174,6 +175,12 @@ export function Dashboard() {
   
   // Vista principal activa
   const [mainView, setMainView] = useState<MainView>('repuestos');
+
+  // Alcance del buscador (tabla): máquina actual vs catálogo completo
+  const [catalogScope, setCatalogScope] = useState<'machine' | 'global'>('machine');
+  const [focusRepuestoId, setFocusRepuestoId] = useState<string | null>(null);
+
+  const globalCatalog = useGlobalCatalog({ enabled: catalogScope === 'global', machines });
   
   // Repuestos filtrados (para exportación)
   const [filteredRepuestos, setFilteredRepuestos] = useState<Repuesto[]>([]);
@@ -316,6 +323,18 @@ export function Dashboard() {
   useEffect(() => {
     setLastSelectedRepuesto(selectedRepuesto?.id || null);
   }, [selectedRepuesto, setLastSelectedRepuesto]);
+
+  const handleJumpToMachineRepuesto = useCallback(
+    async (targetMachineId: string, repuestoId: string) => {
+      setMainView('repuestos');
+      setRightPanelMode('hidden');
+      setSelectedRepuesto(null);
+      setLastSelectedRepuesto(repuestoId);
+      setFocusRepuestoId(repuestoId);
+      await setCurrentMachine(targetMachineId);
+    },
+    [setCurrentMachine, setLastSelectedRepuesto]
+  );
 
   // Atajos de teclado globales
   useEffect(() => {
@@ -1289,6 +1308,13 @@ export function Dashboard() {
                 <RepuestosTable
                   machineId={machineId}
                   repuestos={repuestos}
+                  catalogScope={catalogScope}
+                  onCatalogScopeChange={setCatalogScope}
+                  globalRepuestos={globalCatalog.items}
+                  globalLoading={globalCatalog.loading}
+                  onJumpToMachineRepuesto={handleJumpToMachineRepuesto}
+                  focusRepuestoId={focusRepuestoId}
+                  onFocusHandled={() => setFocusRepuestoId(null)}
                   selectedRepuesto={selectedRepuesto}
                   onSelect={handleSelectRepuesto}
                   onEdit={handleEdit}

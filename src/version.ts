@@ -1,8 +1,24 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.61';
+export const APP_VERSION = '4.9.62';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.62',
+    date: '2026-01-02',
+    changes: [
+      '🌍 Buscador: opción "Catálogo completo" para buscar en todas las máquinas',
+      '🏭 Buscador: columna "Máquina" en resultados globales y salto directo a la máquina/repuesto'
+    ]
+  },
+  {
+    version: '4.9.61',
+    date: '2026-01-02',
+    changes: [
+      '🔎 Import Excel: detecta repuestos similares (fuzzy) cuando no hay código SAP ni N° Parte',
+      '🧠 Import Excel: muestra % de similitud para revisión humana'
+    ]
+  },
   {
     version: '4.9.60',
     date: '2026-01-02',
