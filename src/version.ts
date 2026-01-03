@@ -1,8 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.59';
+export const APP_VERSION = '4.9.60';
 
 // Historial de versiones
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.60',
+    date: '2026-01-02',
+    changes: [
+      '🔍 Import Excel: detecta duplicados por descripción/texto cuando no hay código SAP ni N° Parte',
+      '✅ Import Excel: evita crear repuestos repetidos solo por descripción (sin códigos)'
+    ]
+  },
   {
     version: '4.9.59',
     date: '2026-01-02',

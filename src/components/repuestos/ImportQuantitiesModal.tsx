@@ -204,14 +204,22 @@ export function ImportQuantitiesModal({
   };
 
   const normalizeKey = (code: string) => code.toLowerCase().replace(/\s+/g, '').trim();
+  const normalizeText = (text: string) => text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
 
   const detectConflicts = (rows: ImportCantidadRow[]) => {
     const bySAP = new Map<string, Repuesto>();
     const byBaader = new Map<string, Repuesto>();
+    const byText = new Map<string, Repuesto>();
     
     repuestos.forEach((r) => {
       if (r.codigoSAP && r.codigoSAP !== 'pendiente') bySAP.set(normalizeKey(r.codigoSAP), r);
       if (r.codigoBaader && r.codigoBaader !== 'pendiente') byBaader.set(normalizeKey(r.codigoBaader), r);
+      
+      // Indexar por descripción/texto para detectar duplicados sin códigos
+      const textKey = normalizeText(r.descripcion || r.textoBreve || '');
+      if (textKey.length > 5) { // Solo si tiene al menos 5 caracteres significativos
+        byText.set(textKey, r);
+      }
     });
 
     const conflictsFound: ConflictRow[] = [];
@@ -220,7 +228,15 @@ export function ImportQuantitiesModal({
       const keySAP = newData.codigoSAP !== 'pendiente' ? normalizeKey(newData.codigoSAP) : '';
       const keyBaader = newData.codigoBaader !== 'pendiente' ? normalizeKey(newData.codigoBaader) : '';
       
-      const existing = (keySAP && bySAP.get(keySAP)) || (keyBaader && byBaader.get(keyBaader));
+      let existing = (keySAP && bySAP.get(keySAP)) || (keyBaader && byBaader.get(keyBaader));
+      
+      // Si no se encontró por códigos Y ambos códigos son "pendiente", buscar por texto/descripción
+      if (!existing && newData.codigoSAP === 'pendiente' && newData.codigoBaader === 'pendiente') {
+        const textKey = normalizeText(newData.descripcion || newData.textoBreve || '');
+        if (textKey.length > 5) {
+          existing = byText.get(textKey);
+        }
+      }
       
       if (existing) {
         // Detectar qué campos van a cambiar

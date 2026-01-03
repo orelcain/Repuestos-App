@@ -368,12 +368,22 @@ export function useRepuestos(machineId: string | null) {
 
     const collectionPath = getCollectionPath(machineId);
 
+    // Función para normalizar texto (descripción/textoBreve)
+    const normalizeText = (text: string) => text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+
     // Índices para encontrar repuestos existentes (sin mezclar máquinas: este hook ya es por machineId)
     const bySAP = new Map<string, Repuesto>();
     const byBaader = new Map<string, Repuesto>();
+    const byText = new Map<string, Repuesto>();
     repuestos.forEach((r) => {
-      if (r.codigoSAP) bySAP.set(normalizeKey(r.codigoSAP), r);
-      if (r.codigoBaader) byBaader.set(normalizeKey(r.codigoBaader), r);
+      if (r.codigoSAP && r.codigoSAP !== placeholder) bySAP.set(normalizeKey(r.codigoSAP), r);
+      if (r.codigoBaader && r.codigoBaader !== placeholder) byBaader.set(normalizeKey(r.codigoBaader), r);
+      
+      // Indexar por descripción/texto para detectar duplicados sin códigos
+      const textKey = normalizeText(r.descripcion || r.textoBreve || '');
+      if (textKey.length > 5) {
+        byText.set(textKey, r);
+      }
     });
 
     const ops = rows.map((row) => {
@@ -382,12 +392,21 @@ export function useRepuestos(machineId: string | null) {
       const keySAP = codigoSAP !== placeholder ? normalizeKey(codigoSAP) : '';
       const keyBaader = codigoBaader !== placeholder ? normalizeKey(codigoBaader) : '';
 
-      const existing = (keySAP && bySAP.get(keySAP)) || (keyBaader && byBaader.get(keyBaader)) || null;
+      let existing = (keySAP && bySAP.get(keySAP)) || (keyBaader && byBaader.get(keyBaader)) || null;
+      
       const cantidad = Math.max(0, toFiniteNumber(row.cantidad, 0));
       const valorUnitario = Math.max(0, toFiniteNumber(row.valorUnitario, 0));
       const textoBreve = (row.textoBreve || '').trim();
       const descripcion = (row.descripcion || '').trim();
       const forceOverride = row.forceOverride || {};
+      
+      // Si no se encontró por códigos Y ambos códigos son "pendiente", buscar por texto/descripción
+      if (!existing && codigoSAP === placeholder && codigoBaader === placeholder) {
+        const textKey = normalizeText(descripcion || textoBreve || '');
+        if (textKey.length > 5) {
+          existing = byText.get(textKey) || null;
+        }
+      }
 
       return { existing, codigoSAP, codigoBaader, cantidad, valorUnitario, textoBreve, descripcion, forceOverride };
     });
@@ -479,11 +498,19 @@ export function useRepuestos(machineId: string | null) {
     const { rows, placeholder = 'pendiente' } = args;
     const collectionPath = getCollectionPath(machineId);
 
+    const normalizeText = (text: string) => text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+
     const bySAP = new Map<string, Repuesto>();
     const byBaader = new Map<string, Repuesto>();
+    const byText = new Map<string, Repuesto>();
     repuestos.forEach((r) => {
-      if (r.codigoSAP) bySAP.set(normalizeKey(r.codigoSAP), r);
-      if (r.codigoBaader) byBaader.set(normalizeKey(r.codigoBaader), r);
+      if (r.codigoSAP && r.codigoSAP !== placeholder) bySAP.set(normalizeKey(r.codigoSAP), r);
+      if (r.codigoBaader && r.codigoBaader !== placeholder) byBaader.set(normalizeKey(r.codigoBaader), r);
+      
+      const textKey = normalizeText(r.descripcion || r.textoBreve || '');
+      if (textKey.length > 5) {
+        byText.set(textKey, r);
+      }
     });
 
     const ops = rows.map((row) => {
@@ -491,11 +518,22 @@ export function useRepuestos(machineId: string | null) {
       const codigoBaader = (row.codigoBaader || '').trim() || placeholder;
       const keySAP = codigoSAP !== placeholder ? normalizeKey(codigoSAP) : '';
       const keyBaader = codigoBaader !== placeholder ? normalizeKey(codigoBaader) : '';
-      const existing = (keySAP && bySAP.get(keySAP)) || (keyBaader && byBaader.get(keyBaader)) || null;
+      
+      let existing = (keySAP && bySAP.get(keySAP)) || (keyBaader && byBaader.get(keyBaader)) || null;
+      
       const valorUnitario = Math.max(0, toFiniteNumber(row.valorUnitario, 0));
       const textoBreve = (row.textoBreve || '').trim();
       const descripcion = (row.descripcion || '').trim();
       const forceOverride = row.forceOverride || {};
+      
+      // Si no se encontró por códigos Y ambos códigos son "pendiente", buscar por texto/descripción
+      if (!existing && codigoSAP === placeholder && codigoBaader === placeholder) {
+        const textKey = normalizeText(descripcion || textoBreve || '');
+        if (textKey.length > 5) {
+          existing = byText.get(textKey) || null;
+        }
+      }
+      
       return { existing, codigoSAP, codigoBaader, valorUnitario, textoBreve, descripcion, forceOverride };
     });
 
