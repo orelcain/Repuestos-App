@@ -11,7 +11,6 @@ import { useManualWarmup } from '../hooks/useManualWarmup';
 import { useMachineContext } from '../contexts/MachineContext';
 import { Repuesto, RepuestoFormData, ImagenRepuesto, VinculoManual, Machine } from '../types';
 import { APP_VERSION } from '../version';
-import { Sun, Moon } from 'lucide-react';
 
 // Script de importación - exponer globalmente para uso desde consola
 import { importarRepuestosInformeV2 } from '../scripts/importInformeV2';
@@ -80,6 +79,7 @@ import {
   Redo2,
   History,
   Sun,
+  Moon,
   GitCompare
 } from 'lucide-react';
 
