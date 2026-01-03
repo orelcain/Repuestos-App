@@ -545,6 +545,30 @@ export function Dashboard() {
     }
   };
 
+  const handleGoToMarker = (marker: VinculoManual) => {
+    // Si el marcador tiene machineId, verificar que estamos en la máquina correcta
+    if (marker.machineId && marker.machineId !== currentMachine?.id) {
+      console.warn('⚠️ [Dashboard] Marcador pertenece a otra máquina:', marker.machineId, 'actual:', currentMachine?.id);
+      error(`Este marcador pertenece a ${marker.machineId}. Cambia a esa máquina primero.`);
+      return;
+    }
+
+    // Si el marcador apunta a un manual específico, solo cambiar si pertenece a la máquina actual
+    if (marker.manualUrl && currentMachine?.manuals && currentMachine.manuals.length > 0) {
+      const manualIndex = currentMachine.manuals.findIndex((u) => u === marker.manualUrl);
+      if (manualIndex >= 0 && manualIndex !== selectedManualIndex) {
+        console.log('🔄 [Dashboard] Selecting manual index from marker:', manualIndex);
+        setSelectedManualIndex(manualIndex);
+      } else if (manualIndex === -1) {
+        console.warn('⚠️ [Dashboard] marker.manualUrl no pertenece a los manuales de esta máquina; se mantiene el manual actual');
+      }
+    }
+
+    setRightPanelMode('pdf');
+    setTargetPage(marker.pagina);
+    setCurrentMarker(marker);
+  };
+
   // Esta función se usa internamente
   const _handleViewImages = (repuesto: Repuesto) => {
     setSelectedRepuesto(repuesto);
@@ -1456,19 +1480,72 @@ export function Dashboard() {
                           />
                         </Suspense>
                       ) : pdfUrl ? (
-                        <Suspense fallback={<PDFLoadingFallback />}>
-                          <PDFViewer
-                            pdfUrl={pdfUrl}
-                            targetPage={targetPage}
-                            marker={currentMarker}
-                            onCapture={selectedRepuesto ? handlePDFCapture : undefined}
-                            onEditMarker={selectedRepuesto ? (marker) => handleMarkInManual(selectedRepuesto, marker) : undefined}
-                            onDeleteMarker={selectedRepuesto ? (marker) => handleDeleteMarker(selectedRepuesto, marker.id) : undefined}
-                            onAddMarker={selectedRepuesto ? () => handleMarkInManual(selectedRepuesto) : undefined}
-                            preloadedPDF={pdfPreloader.url === pdfUrl ? pdfPreloader.pdf : null}
-                            preloadedText={pdfPreloader.url === pdfUrl ? pdfPreloader.textContent : undefined}
-                          />
-                        </Suspense>
+                        <div className="flex flex-col h-full">
+                          {selectedRepuesto && (
+                            <div className="border-b border-gray-100 bg-gray-50 px-3 py-2">
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="min-w-0">
+                                  <div className="text-xs text-gray-500">Ubicaciones en manual</div>
+                                  <div className="text-sm font-medium text-gray-800 truncate">
+                                    {selectedRepuesto.codigoSAP} — {selectedRepuesto.textoBreve}
+                                  </div>
+                                </div>
+                                {selectedRepuesto.vinculosManual?.length > 0 ? (
+                                  <div className="text-xs text-gray-500 whitespace-nowrap">
+                                    {selectedRepuesto.vinculosManual.length} marcador(es)
+                                  </div>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant="secondary"
+                                    onClick={() => handleMarkInManual(selectedRepuesto)}
+                                    title="Agregar marcador"
+                                  >
+                                    Marcar
+                                  </Button>
+                                )}
+                              </div>
+
+                              {selectedRepuesto.vinculosManual?.length > 0 && (
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  {selectedRepuesto.vinculosManual
+                                    .slice()
+                                    .sort((a, b) => a.pagina - b.pagina)
+                                    .map((m) => (
+                                      <button
+                                        key={m.id}
+                                        onClick={() => handleGoToMarker(m)}
+                                        className={`px-2 py-1 text-xs rounded-lg border transition-colors ${
+                                          currentMarker?.id === m.id
+                                            ? 'bg-white border-primary-300 text-primary-700'
+                                            : 'bg-white border-gray-200 text-gray-600 hover:text-gray-800'
+                                        }`}
+                                        title={m.descripcion || `Página ${m.pagina}`}
+                                      >
+                                        p.{m.pagina}
+                                      </button>
+                                    ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="flex-1 overflow-hidden">
+                            <Suspense fallback={<PDFLoadingFallback />}>
+                              <PDFViewer
+                                pdfUrl={pdfUrl}
+                                targetPage={targetPage}
+                                marker={currentMarker}
+                                onCapture={selectedRepuesto ? handlePDFCapture : undefined}
+                                onEditMarker={selectedRepuesto ? (marker) => handleMarkInManual(selectedRepuesto, marker) : undefined}
+                                onDeleteMarker={selectedRepuesto ? (marker) => handleDeleteMarker(selectedRepuesto, marker.id) : undefined}
+                                onAddMarker={selectedRepuesto ? () => handleMarkInManual(selectedRepuesto) : undefined}
+                                preloadedPDF={pdfPreloader.url === pdfUrl ? pdfPreloader.pdf : null}
+                                preloadedText={pdfPreloader.url === pdfUrl ? pdfPreloader.textContent : undefined}
+                              />
+                            </Suspense>
+                          </div>
+                        </div>
                       ) : (
                         <div className="flex items-center justify-center h-full bg-gray-50 dark:bg-gray-900 p-8">
                           <div className="text-center max-w-md">
@@ -1577,7 +1654,33 @@ export function Dashboard() {
               </button>
             </div>
 
-            {/* Galería única: sin pestañas manual/real */}
+            {/* Galería: selector Manual/Fotos reales */}
+            {rightPanelMode === 'gallery' && selectedRepuesto && (
+              <div className="flex gap-2 border-b border-gray-100 bg-gray-50 px-3 py-2">
+                <button
+                  onClick={() => setGalleryType('manual')}
+                  className={`flex-1 px-3 py-2 text-sm rounded-lg border transition-colors ${
+                    galleryType === 'manual'
+                      ? 'bg-white border-primary-300 text-primary-700'
+                      : 'bg-white border-gray-200 text-gray-600 hover:text-gray-800'
+                  }`}
+                  title="Imágenes del manual"
+                >
+                  Manual ({selectedRepuesto.imagenesManual?.length || 0})
+                </button>
+                <button
+                  onClick={() => setGalleryType('real')}
+                  className={`flex-1 px-3 py-2 text-sm rounded-lg border transition-colors ${
+                    galleryType === 'real'
+                      ? 'bg-white border-primary-300 text-primary-700'
+                      : 'bg-white border-gray-200 text-gray-600 hover:text-gray-800'
+                  }`}
+                  title="Fotos reales"
+                >
+                  Fotos ({selectedRepuesto.fotosReales?.length || 0})
+                </button>
+              </div>
+            )}
 
             {/* Selector de manuales cuando hay múltiples */}
             {rightPanelMode === 'pdf' && currentMachine && currentMachine.manuals && currentMachine.manuals.length > 1 && (
@@ -1633,19 +1736,72 @@ export function Dashboard() {
                   />
                 </Suspense>
               ) : pdfUrl ? (
-                <Suspense fallback={<PDFLoadingFallback />}>
-                  <PDFViewer
-                    pdfUrl={pdfUrl}
-                    targetPage={targetPage}
-                    marker={currentMarker}
-                    onCapture={selectedRepuesto ? handlePDFCapture : undefined}
-                    onEditMarker={selectedRepuesto ? (marker) => handleMarkInManual(selectedRepuesto, marker) : undefined}
-                    onDeleteMarker={selectedRepuesto ? (marker) => handleDeleteMarker(selectedRepuesto, marker.id) : undefined}
-                    onAddMarker={selectedRepuesto ? () => handleMarkInManual(selectedRepuesto) : undefined}
-                    preloadedPDF={pdfPreloader.url === pdfUrl ? pdfPreloader.pdf : null}
-                    preloadedText={pdfPreloader.url === pdfUrl ? pdfPreloader.textContent : undefined}
-                  />
-                </Suspense>
+                <div className="flex flex-col h-full">
+                  {selectedRepuesto && (
+                    <div className="border-b border-gray-100 bg-gray-50 px-3 py-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-xs text-gray-500">Ubicaciones en manual</div>
+                          <div className="text-sm font-medium text-gray-800 truncate">
+                            {selectedRepuesto.codigoSAP} — {selectedRepuesto.textoBreve}
+                          </div>
+                        </div>
+                        {selectedRepuesto.vinculosManual?.length > 0 ? (
+                          <div className="text-xs text-gray-500 whitespace-nowrap">
+                            {selectedRepuesto.vinculosManual.length} marcador(es)
+                          </div>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => handleMarkInManual(selectedRepuesto)}
+                            title="Agregar marcador"
+                          >
+                            Marcar
+                          </Button>
+                        )}
+                      </div>
+
+                      {selectedRepuesto.vinculosManual?.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {selectedRepuesto.vinculosManual
+                            .slice()
+                            .sort((a, b) => a.pagina - b.pagina)
+                            .map((m) => (
+                              <button
+                                key={m.id}
+                                onClick={() => handleGoToMarker(m)}
+                                className={`px-2 py-1 text-xs rounded-lg border transition-colors ${
+                                  currentMarker?.id === m.id
+                                    ? 'bg-white border-primary-300 text-primary-700'
+                                    : 'bg-white border-gray-200 text-gray-600 hover:text-gray-800'
+                                }`}
+                                title={m.descripcion || `Página ${m.pagina}`}
+                              >
+                                p.{m.pagina}
+                              </button>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex-1 overflow-hidden">
+                    <Suspense fallback={<PDFLoadingFallback />}>
+                      <PDFViewer
+                        pdfUrl={pdfUrl}
+                        targetPage={targetPage}
+                        marker={currentMarker}
+                        onCapture={selectedRepuesto ? handlePDFCapture : undefined}
+                        onEditMarker={selectedRepuesto ? (marker) => handleMarkInManual(selectedRepuesto, marker) : undefined}
+                        onDeleteMarker={selectedRepuesto ? (marker) => handleDeleteMarker(selectedRepuesto, marker.id) : undefined}
+                        onAddMarker={selectedRepuesto ? () => handleMarkInManual(selectedRepuesto) : undefined}
+                        preloadedPDF={pdfPreloader.url === pdfUrl ? pdfPreloader.pdf : null}
+                        preloadedText={pdfPreloader.url === pdfUrl ? pdfPreloader.textContent : undefined}
+                      />
+                    </Suspense>
+                  </div>
+                </div>
               ) : (
                 <div className="flex items-center justify-center h-full bg-gray-50 dark:bg-gray-900 p-8">
                   <div className="text-center max-w-md">

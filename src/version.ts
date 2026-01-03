@@ -1,9 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.70';
+export const APP_VERSION = '4.9.71';
 
 // Historial de versiones
 // ⚠️ Importante: agrega SIEMPRE la versión más nueva ARRIBA (al inicio del array)
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.71',
+    date: '2026-01-03',
+    changes: [
+      'UX: consulta de repuestos (ubicaciones en manual + selector de fotos)'
+    ]
+  },
   {
     version: '4.9.70',
     date: '2026-01-03',
