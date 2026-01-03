@@ -122,6 +122,48 @@ git commit -m "chore: bump version"
 npm run deploy
 ```
 
+## Fin de iteración (procedimiento)
+
+Objetivo: que **cada iteración** quede publicada para prueba en producción (GitHub Pages) y que la versión quede **siempre** sincronizada entre UI + historial (graph) + labels (pages/PWA).
+
+### Checklist (Definition of Done)
+
+1) **Verificar localmente**
+
+```bash
+npm run lint
+npm run build
+```
+
+2) **Bump de versión (obligatorio)**
+
+```bash
+# Esto sincroniza: package.json + src/version.ts (graph/UI) + index.html (pages/labels) + vite.config.ts (PWA)
+npm run bump -- "Descripción corta del cambio (iteración)"
+```
+
+3) **Validación de sincronización + build**
+
+```bash
+npm run check
+```
+
+4) **Commit & push**
+
+```bash
+git add -A
+git commit -m "chore: release vX.Y.Z"
+git push
+```
+
+5) **Deploy a producción (GitHub Pages)**
+
+```bash
+npm run deploy
+```
+
+Nota: `npm run deploy` ejecuta un chequeo automático de sincronización de versión antes de publicar.
+
 ## Despliegue en GitHub Pages
 
 ### 1. Crear repositorio

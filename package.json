@@ -10,6 +10,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "bump": "node scripts/bump-version.mjs",
+    "check:version": "node scripts/check-version-sync.mjs",
+    "check": "npm run check:version && npm run lint && npm run build",
+    "predeploy": "npm run check:version",
     "deploy": "npm run build && gh-pages -d dist"
   },
   "dependencies": {
