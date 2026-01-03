@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { AlertCircle, Plus, Upload, Trash2, MapPin, X } from 'lucide-react';
-import type { PlantAsset, PlantMap, PlantAssetTipo } from '../../types';
+import type { PlantAsset, PlantAssetTipo } from '../../types';
 import { Button, Modal } from '../ui';
 import { usePlantAssets } from '../../hooks/usePlantAssets';
 import { usePlantMaps } from '../../hooks/usePlantMaps';
@@ -35,7 +35,7 @@ const isValidComponentRow = (componente: string) => {
 };
 
 export function PlantAssetsView() {
-  const { assets, loading, error, upsertMany, addMarker, deleteMarker, addReferencia, deleteReferencia, addImagen, deleteImagen } = usePlantAssets();
+  const { assets, loading, error, upsertMany, addMarker, addReferencia, deleteReferencia, addImagen, deleteImagen } = usePlantAssets();
   const { maps, createMap } = usePlantMaps();
   const { uploadPlantMapImage, uploadPlantAssetImage } = usePlantStorage();
 
@@ -56,7 +56,7 @@ export function PlantAssetsView() {
   // === Mapas / marcadores ===
   const [selectedMapId, setSelectedMapId] = useState<string>('');
   const selectedMap = useMemo(() => maps.find((m) => m.id === selectedMapId) || null, [maps, selectedMapId]);
-  const [showAllMarkers, setShowAllMarkers] = useState(false);
+  const [showAllMarkers, setShowAllMarkers] = useState(true);
   const [addingMarker, setAddingMarker] = useState(false);
 
   // === Modales ===
@@ -82,8 +82,9 @@ export function PlantAssetsView() {
       const ws = wb.worksheets[0];
       if (!ws) throw new Error('No se encontró hoja en el Excel');
 
-      const headerRow = ws.getRow(1).values.slice(1).map((v) => String(v ?? '').trim());
-      const idxOf = (name: string) => headerRow.findIndex((h) => h.toLowerCase() === name.toLowerCase());
+      const headerValues = (ws.getRow(1).values as unknown[]) || [];
+      const headerRow: string[] = headerValues.slice(1).map((v: unknown) => String(v ?? '').trim());
+      const idxOf = (name: string) => headerRow.findIndex((h: string) => h.toLowerCase() === name.toLowerCase());
 
       const getCell = (rowVals: any[], headerName: string) => {
         const idx = idxOf(headerName);
@@ -246,20 +247,130 @@ export function PlantAssetsView() {
 
       {/* Detalle */}
       <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900">
-        {!selected ? (
-          <div className="p-8 text-sm text-gray-500">Selecciona un motor/bomba para ver detalles.</div>
-        ) : (
-          <div className="max-w-5xl mx-auto p-6 space-y-6">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-                  {selected.tipo.toUpperCase()} • {selected.codigoSAP}
-                </div>
-                <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                  {selected.area} — {selected.subarea}
-                </div>
+        <div className="max-w-5xl mx-auto p-6 space-y-6">
+          {/* Ubicación (map-first) */}
+          <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div className="text-sm font-semibold text-gray-800 dark:text-gray-100">Ubicación (planos)</div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button size="sm" variant="secondary" icon={<Plus className="w-4 h-4" />} onClick={() => setShowAddMap(true)}>
+                  Agregar plano
+                </Button>
               </div>
             </div>
+
+            <div className="mt-3 grid grid-cols-1 md:grid-cols-[1fr,auto,auto] gap-2">
+              <select
+                value={selectedMapId}
+                onChange={(e) => setSelectedMapId(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+              >
+                <option value="">Seleccionar plano...</option>
+                {maps.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.nombre}
+                  </option>
+                ))}
+              </select>
+
+              {/* Toggle Ver todos / Solo seleccionado */}
+              <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setShowAllMarkers(true)}
+                  className={
+                    `px-3 py-2 text-sm transition-colors ` +
+                    (showAllMarkers
+                      ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
+                      : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800')
+                  }
+                  title="Ver todos los marcadores"
+                >
+                  Ver todos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAllMarkers(false)}
+                  className={
+                    `px-3 py-2 text-sm transition-colors border-l border-gray-200 dark:border-gray-700 ` +
+                    (!showAllMarkers
+                      ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
+                      : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800')
+                  }
+                  title="Ver solo el seleccionado"
+                >
+                  Solo este
+                </button>
+              </div>
+
+              <Button
+                size="sm"
+                icon={<MapPin className="w-4 h-4" />}
+                onClick={() => setAddingMarker((v) => !v)}
+                disabled={!selectedMapId || !selected}
+                title={!selected ? 'Selecciona un motor/bomba para agregar marcador' : undefined}
+              >
+                {addingMarker ? 'Click en el plano...' : 'Agregar marcador'}
+              </Button>
+            </div>
+
+            {selectedMap ? (
+              <div className="mt-4">
+                <PlantMapViewer
+                  map={selectedMap}
+                  selectedAsset={selected}
+                  allAssets={assets}
+                  showAllMarkers={showAllMarkers}
+                  addingMarker={addingMarker}
+                  onAddMarker={handleAddMarker}
+                  onSelectAsset={(assetId) => setSelectedId(assetId)}
+                />
+                <div className="mt-2 text-xs text-gray-500 dark:text-gray-300">
+                  {addingMarker
+                    ? 'Haz click en el plano para colocar el marcador. (Vuelve a apretar “Agregar marcador” para salir)'
+                    : showAllMarkers
+                      ? 'Tip: puedes hacer click en un marcador para seleccionar ese motor/bomba.'
+                      : selected
+                        ? 'Mostrando solo los marcadores del seleccionado.'
+                        : 'Selecciona un motor/bomba para ver sus marcadores.'}
+                </div>
+              </div>
+            ) : (
+              <div className="mt-3 text-sm text-gray-500">Selecciona un plano para ubicar motores/bombas.</div>
+            )}
+          </div>
+
+          {!selected ? (
+            <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-600 dark:text-gray-300">
+              Selecciona un motor/bomba desde la lista o haz click en un marcador (con “Ver todos”).
+            </div>
+          ) : (
+            <>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                    {selected.tipo.toUpperCase()} • {selected.codigoSAP}
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                    {selected.area} — {selected.subarea}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={async () => {
+                      if (selected.codigoSAP.toLowerCase() === 'pendiente') return;
+                      await navigator.clipboard.writeText(selected.codigoSAP);
+                    }}
+                    disabled={selected.codigoSAP.toLowerCase() === 'pendiente'}
+                    title={selected.codigoSAP.toLowerCase() === 'pendiente' ? 'Código SAP pendiente' : 'Copiar código SAP'}
+                  >
+                    Copiar SAP
+                  </Button>
+                </div>
+              </div>
 
             {/* Campos */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -340,7 +451,7 @@ export function PlantAssetsView() {
             {/* Imágenes */}
             <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
               <div className="flex items-center justify-between gap-2">
-                <div className="text-sm font-semibold text-gray-800 dark:text-gray-100">Fotos</div>
+                <div className="text-sm font-semibold text-gray-800 dark:text-gray-100">Fotos (zona/equipo)</div>
                 <label className="inline-flex items-center gap-2 text-sm text-primary-700 dark:text-primary-300 cursor-pointer">
                   <Upload className="w-4 h-4" />
                   Subir
@@ -377,90 +488,12 @@ export function PlantAssetsView() {
               </div>
 
               {(selected.imagenes || []).length === 0 && (
-                <div className="mt-3 text-sm text-gray-500">Sin fotos.</div>
+                <div className="mt-3 text-sm text-gray-500">Sin fotos. Sube una foto de la zona para corroborar ubicación.</div>
               )}
             </div>
-
-            {/* Planos + marcadores */}
-            <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                <div className="text-sm font-semibold text-gray-800 dark:text-gray-100">Planos</div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Button size="sm" variant="secondary" icon={<Plus className="w-4 h-4" />} onClick={() => setShowAddMap(true)}>
-                    Agregar plano
-                  </Button>
-                </div>
-              </div>
-
-              <div className="mt-3 grid grid-cols-1 md:grid-cols-[1fr,auto,auto] gap-2">
-                <select
-                  value={selectedMapId}
-                  onChange={(e) => setSelectedMapId(e.target.value)}
-                  className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
-                >
-                  <option value="">Seleccionar plano...</option>
-                  {maps.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.nombre}
-                    </option>
-                  ))}
-                </select>
-
-                <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-                  <input type="checkbox" checked={showAllMarkers} onChange={(e) => setShowAllMarkers(e.target.checked)} />
-                  Ver todos los marcadores
-                </label>
-
-                <Button
-                  size="sm"
-                  icon={<MapPin className="w-4 h-4" />}
-                  onClick={() => setAddingMarker((v) => !v)}
-                  disabled={!selectedMapId}
-                >
-                  {addingMarker ? 'Click en el plano...' : 'Agregar marcador'}
-                </Button>
-              </div>
-
-              {selectedMap && (
-                <div className="mt-4">
-                  <PlantMapViewer
-                    map={selectedMap}
-                    selectedAsset={selected}
-                    allAssets={assets}
-                    showAllMarkers={showAllMarkers}
-                    addingMarker={addingMarker}
-                    onAddMarker={handleAddMarker}
-                  />
-
-                  <div className="mt-3">
-                    <div className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Marcadores de este activo</div>
-                    <div className="space-y-2">
-                      {(selected.marcadores || [])
-                        .filter((m) => m.mapId === selectedMap.id)
-                        .map((m) => (
-                          <div key={m.id} className="flex items-center gap-2 text-sm">
-                            <span className="text-gray-700 dark:text-gray-200">x={m.x.toFixed(3)} y={m.y.toFixed(3)}</span>
-                            <button
-                              onClick={() => deleteMarker(selected, m.id)}
-                              className="ml-auto p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500"
-                              title="Eliminar marcador"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ))}
-                      {(selected.marcadores || []).filter((m) => m.mapId === selectedMap.id).length === 0 && (
-                        <div className="text-sm text-gray-500">Sin marcadores en este plano.</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {!selectedMap && <div className="mt-3 text-sm text-gray-500">Selecciona un plano para ver/agregar marcadores.</div>}
-            </div>
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* Modal Import */}

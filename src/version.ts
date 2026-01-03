@@ -1,9 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.84';
+export const APP_VERSION = '4.9.85';
 
 // Historial de versiones
 // ⚠️ Importante: agrega SIEMPRE la versión más nueva ARRIBA (al inicio del array)
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.85',
+    date: '2026-01-03',
+    changes: [
+      'Motores/Bombas: mapa primero + copiar SAP'
+    ]
+  },
   {
     version: '4.9.84',
     date: '2026-01-03',
