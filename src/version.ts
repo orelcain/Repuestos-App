@@ -2,6 +2,7 @@
 export const APP_VERSION = '4.9.62';
 
 // Historial de versiones
+// ⚠️ Importante: agrega SIEMPRE la versión más nueva ARRIBA (al inicio del array)
 export const VERSION_HISTORY = [
   {
     version: '4.9.62',
