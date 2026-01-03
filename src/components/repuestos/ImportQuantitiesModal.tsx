@@ -1,8 +1,8 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import ExcelJS from 'exceljs';
 import { Upload, FileSpreadsheet, AlertCircle, CheckCircle, Loader2, GitCompare } from 'lucide-react';
 import { Modal, Button } from '../ui';
-import type { Repuesto } from '../../types';
+import { isTagAsignado, type Repuesto } from '../../types';
 
 export interface ImportCantidadRow {
   codigoSAP: string;
@@ -21,11 +21,14 @@ export interface ImportCantidadRow {
 }
 
 export interface ConflictRow {
+  rowIndex: number;
   newData: ImportCantidadRow;
   existing: Repuesto;
   skipImport: boolean;
   similarity: number; // 0-100, porcentaje de similitud
   matchType: 'exact' | 'similar'; // exacto o similar
+  isDuplicateNoOp?: boolean;
+  duplicateDetail?: string;
   overrides: {
     codigoSAP: boolean;
     codigoBaader: boolean;
@@ -315,6 +318,28 @@ export function ImportQuantitiesModal({
   const normalizeKey = (code: string) => code.toLowerCase().replace(/\s+/g, '').trim();
   const normalizeText = (text: string) => text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
 
+  const getContextTarget = ():
+    | { tipo: 'solicitud' | 'stock'; tagName: string }
+    | null => {
+    if (!selectedTarget) return null;
+    if ('mode' in selectedTarget && selectedTarget.mode === 'catalog') return null;
+    if (!('tipo' in selectedTarget) || !('tagName' in selectedTarget)) return null;
+    return {
+      tipo: (selectedTarget as { tipo: 'solicitud' | 'stock' }).tipo,
+      tagName: (selectedTarget as { tagName: string }).tagName
+    };
+  };
+
+  const getExistingCantidadForTag = (repuesto: Repuesto, tipo: 'solicitud' | 'stock', tagName: string): number | null => {
+    for (const tag of repuesto.tags ?? []) {
+      if (!isTagAsignado(tag)) continue;
+      if (tag.tipo !== tipo) continue;
+      if (tag.nombre !== tagName) continue;
+      return Number.isFinite(tag.cantidad) ? tag.cantidad : 0;
+    }
+    return null;
+  };
+
   // Calcula similitud entre dos textos (0-100)
   const calculateSimilarity = (text1: string, text2: string): number => {
     const t1 = normalizeText(text1);
@@ -362,8 +387,11 @@ export function ImportQuantitiesModal({
     });
 
     const conflictsFound: ConflictRow[] = [];
-    
-    rows.forEach((newData) => {
+
+    const contextTarget = getContextTarget();
+    const isCatalogTarget = !contextTarget;
+
+    rows.forEach((newData, rowIndex) => {
       const keySAP = newData.codigoSAP !== 'pendiente' ? normalizeKey(newData.codigoSAP) : '';
       const keyBaader = newData.codigoBaader !== 'pendiente' ? normalizeKey(newData.codigoBaader) : '';
       
@@ -416,15 +444,34 @@ export function ImportQuantitiesModal({
           (newData.textoBreve && existing.textoBreve !== newData.textoBreve) ||
           (newData.descripcion && existing.descripcion !== newData.descripcion) ||
           (newData.valorUnitario > 0 && existing.valorUnitario !== newData.valorUnitario);
-        
-        // Para similares, siempre mostrar (incluso sin diff)
-        if (hasDiff || matchType === 'similar') {
+
+        // Duplicado "no-op": no cambia campos del catálogo y (en contexto) tampoco cambia la cantidad del evento.
+        let isDuplicateNoOp = false;
+        let duplicateDetail: string | undefined;
+        if (!hasDiff && matchType === 'exact') {
+          if (isCatalogTarget) {
+            isDuplicateNoOp = true;
+            duplicateDetail = 'Sin cambios en el catálogo (reimportación repetida).';
+          } else if (contextTarget) {
+            const existingCantidad = getExistingCantidadForTag(existing, contextTarget.tipo, contextTarget.tagName);
+            if (existingCantidad != null && existingCantidad === newData.cantidad) {
+              isDuplicateNoOp = true;
+              duplicateDetail = 'Misma cantidad ya registrada en este evento.';
+            }
+          }
+        }
+
+        // Para similares, siempre mostrar; para exactos, mostrar si hay cambios o si es duplicado no-op.
+        if (hasDiff || matchType === 'similar' || isDuplicateNoOp) {
           conflictsFound.push({
+            rowIndex,
             newData,
             existing,
-            skipImport: false,
+            skipImport: isDuplicateNoOp,
             similarity,
             matchType,
+            isDuplicateNoOp,
+            duplicateDetail,
             overrides: {
               codigoSAP: false,
               codigoBaader: false,
@@ -439,6 +486,13 @@ export function ImportQuantitiesModal({
 
     setConflicts(conflictsFound);
   };
+
+  // Recalcular conflictos si cambia el destino o los repuestos.
+  useEffect(() => {
+    if (preview.length === 0) return;
+    detectConflicts(preview);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTarget, repuestos]);
 
   const parseExcel = async (excelFile: File) => {
     setLoading(true);
@@ -591,22 +645,12 @@ export function ImportQuantitiesModal({
     try {
       // Filtrar filas omitidas y aplicar overrides a las filas con conflictos
       const rowsWithOverrides = preview
-        .filter((row) => {
-          const conflict = conflicts.find(
-            (c) =>
-              (normalizeKey(c.newData.codigoSAP) === normalizeKey(row.codigoSAP) && row.codigoSAP !== 'pendiente') ||
-              (normalizeKey(c.newData.codigoBaader) === normalizeKey(row.codigoBaader) && row.codigoBaader !== 'pendiente')
-          );
-          // Si tiene conflicto y está marcado como skipImport, no incluirlo
-          return !(conflict && conflict.skipImport);
+        .map((row, idx) => {
+          const conflict = conflicts.find((c) => c.rowIndex === idx);
+          return { row, conflict };
         })
-        .map((row) => {
-          const conflict = conflicts.find(
-            (c) =>
-              (normalizeKey(c.newData.codigoSAP) === normalizeKey(row.codigoSAP) && row.codigoSAP !== 'pendiente') ||
-              (normalizeKey(c.newData.codigoBaader) === normalizeKey(row.codigoBaader) && row.codigoBaader !== 'pendiente')
-          );
-
+        .filter(({ conflict }) => !(conflict && conflict.skipImport))
+        .map(({ row, conflict }) => {
           if (conflict) {
             return {
               ...row,
@@ -907,6 +951,12 @@ export function ImportQuantitiesModal({
                         {conflict.matchType === 'similar' && (
                           <div className="mb-3 p-2 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded text-xs text-orange-800 dark:text-orange-200">
                             💡 <strong>Posible duplicado:</strong> Este repuesto parece similar a uno existente. Verifica si son el mismo y decide si actualizar los campos o crear uno nuevo marcando "❌ No importar".
+                          </div>
+                        )}
+
+                        {conflict.isDuplicateNoOp && (
+                          <div className="mb-3 p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded text-xs text-blue-800 dark:text-blue-200">
+                            ✅ <strong>Repetido sin cambios:</strong> {conflict.duplicateDetail ?? 'No se detectaron cambios.'} Se omitirá por defecto (puedes “Revertir” si igual quieres importarlo).
                           </div>
                         )}
                         
