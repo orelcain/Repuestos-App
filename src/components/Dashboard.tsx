@@ -56,6 +56,7 @@ import { BackupModal } from './backup/BackupModal';
 import { useBackupSystem } from '../hooks/useBackupSystem';
 import { MachineSelector } from './machines/MachineSelector';
 import { MachineFormModal } from './machines/MachineFormModal';
+import { PlantAssetsView } from './plant/PlantAssetsView';
 
 import { exportToExcel, exportToPDF } from '../utils/exportUtils';
 import { formatFileSize } from '../utils/imageUtils';
@@ -79,7 +80,8 @@ import {
   History,
   Sun,
   Moon,
-  GitCompare
+  GitCompare,
+  Wrench
 } from 'lucide-react';
 
 // Componente de loading para los PDF viewers
@@ -94,7 +96,7 @@ const PDFLoadingFallback = () => (
 
 type RightPanelMode = 'gallery' | 'pdf' | 'marker-editor' | 'hidden';
 type GalleryType = 'manual' | 'real';
-type MainView = 'catalogo' | 'manual' | 'reportes' | 'admin';
+type MainView = 'catalogo' | 'motores' | 'manual' | 'reportes' | 'admin';
 
 // Eliminar propiedades undefined para no romper Firestore
 const sanitizeImagen = (img: ImagenRepuesto): ImagenRepuesto => {
@@ -1184,6 +1186,20 @@ export function Dashboard() {
         </button>
         <button
           onClick={() => {
+            setMainView('motores');
+            setRightPanelMode('hidden');
+          }}
+          className={`flex items-center gap-2 px-4 ${isManualPanelOpen ? 'py-2' : 'py-3'} text-sm font-medium border-b-2 transition-colors ${
+            mainView === 'motores'
+              ? 'text-primary-600 border-primary-600'
+              : 'text-gray-500 border-transparent hover:text-gray-700'
+          }`}
+        >
+          <Wrench className="w-4 h-4" />
+          Motores
+        </button>
+        <button
+          onClick={() => {
             setMainView('reportes');
             setRightPanelMode('hidden');
           }}
@@ -1291,6 +1307,17 @@ export function Dashboard() {
               >
                 <Package className="w-5 h-5 text-gray-500" />
                 <span>Catálogo</span>
+              </button>
+              <button
+                onClick={() => {
+                  setMainView('motores');
+                  setRightPanelMode('hidden');
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100"
+              >
+                <Wrench className="w-5 h-5 text-gray-500" />
+                <span>Motores/Bombas</span>
               </button>
               <button
                 onClick={() => {
@@ -1663,7 +1690,11 @@ export function Dashboard() {
 
             {/* Contenido basado en la vista activa */}
             <div className="flex-1 flex overflow-hidden">
-              {mainView === 'reportes' ? (
+              {mainView === 'motores' ? (
+                <div className="flex-1 overflow-hidden">
+                  <PlantAssetsView />
+                </div>
+              ) : mainView === 'reportes' ? (
             <div className="flex-1 overflow-hidden">
               <StatsPanel repuestos={repuestos} />
             </div>

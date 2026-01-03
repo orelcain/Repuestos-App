@@ -189,3 +189,63 @@ export interface Toast {
   type: 'success' | 'error' | 'warning' | 'info';
   duration?: number;
 }
+
+// === MOTORES / BOMBAS (ACTIVOS DE PLANTA) ===
+
+export type PlantAssetTipo = 'motor' | 'bomba';
+
+export interface PlantAssetReferencia {
+  id: string;
+  titulo: string;
+  url: string;
+  createdAt: Date;
+}
+
+export interface PlantAssetImagen {
+  id: string;
+  url: string;
+  descripcion: string;
+  orden: number;
+  esPrincipal: boolean;
+  createdAt: Date;
+}
+
+export interface PlantMarker {
+  id: string;
+  mapId: string;
+  x: number; // 0-1
+  y: number; // 0-1
+  label?: string;
+  createdAt: Date;
+}
+
+export interface PlantMap {
+  id: string;
+  nombre: string;
+  imageUrl: string;
+  createdAt: Date;
+  updatedAt?: Date;
+}
+
+export interface PlantAsset {
+  id: string;
+  tipo: PlantAssetTipo;
+  area: string;
+  subarea: string;
+  componente: string;
+  codigoSAP: string;
+  descripcionSAP: string;
+  marca: string;
+  modeloTipo: string;
+  potencia: string;
+  voltaje: string;
+  relacionReduccion: string;
+  corriente: string;
+  eje: string;
+  observaciones: string;
+  referencias: PlantAssetReferencia[];
+  imagenes: PlantAssetImagen[];
+  marcadores: PlantMarker[];
+  createdAt: Date;
+  updatedAt: Date;
+}
