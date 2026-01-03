@@ -1160,14 +1160,7 @@ export function RepuestosTable({
           </div>
 
           {/* Cantidades según contextos duales */}
-          {totales.sinContexto ? (
-            <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-900/30 rounded-lg border border-amber-200 dark:border-amber-800">
-              <AlertTriangle className="w-4 h-4 text-amber-500" />
-              <span className="text-sm text-amber-700 dark:text-amber-300">
-                Selecciona al menos un evento/tag para ver cantidades y totales
-              </span>
-            </div>
-          ) : (
+          {totales.sinContexto ? null : (
             <>
               {/* Info de lista */}
               <div className="text-center px-3">

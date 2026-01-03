@@ -206,6 +206,8 @@ export function Dashboard() {
     }
     return null;
   }, [catalogScope, selectedCatalogMachineIds.length]);
+
+  const isManualPanelOpen = rightPanelMode === 'pdf' || rightPanelMode === 'marker-editor';
   
   // Repuestos filtrados (para exportación)
   const [filteredRepuestos, setFilteredRepuestos] = useState<Repuesto[]>([]);
@@ -989,6 +991,166 @@ export function Dashboard() {
     );
   }
 
+  const desktopCoreActions = (
+    <>
+      {/* Menú por módulos (desktop) */}
+      <div className="relative" ref={modulesMenuRef}>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => setModulesMenuOpen(v => !v)}
+          icon={<Menu className="w-4 h-4" />}
+          className="relative"
+        >
+          Módulos
+          {/* Indicador de manual precargado */}
+          {pdfPreloader.isReady ? (
+            <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full" title="Manual precargado" />
+          ) : pdfPreloader.loading ? (
+            <span className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-500 rounded-full animate-pulse" title="Precargando manual..." />
+          ) : null}
+        </Button>
+
+        {modulesMenuOpen && (
+          <div className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
+            <button
+              onClick={() => {
+                setMainView('catalogo');
+                setRightPanelMode('pdf');
+                setModulesMenuOpen(false);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
+            >
+              <BookOpen className="w-4 h-4 text-gray-500 dark:text-gray-300" />
+              <span className="flex-1 text-left">
+                {currentMachine ? `Manuales ${currentMachine.nombre}` : 'Manuales'}
+              </span>
+              {currentMachine?.manuals?.length ? (
+                <span className="px-1.5 py-0.5 text-xs font-semibold bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 rounded-full">
+                  {currentMachine.manuals.length}
+                </span>
+              ) : null}
+            </button>
+
+            <button
+              onClick={() => {
+                handleExportExcel();
+                setModulesMenuOpen(false);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-gray-500 dark:text-gray-300" />
+              <span>Exportar Excel</span>
+            </button>
+
+            <button
+              onClick={() => {
+                handleExportPDF();
+                setModulesMenuOpen(false);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
+            >
+              <Download className="w-4 h-4 text-gray-500 dark:text-gray-300" />
+              <span>Exportar PDF</span>
+            </button>
+
+            <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
+
+            <button
+              onClick={() => {
+                setShowBackupModal(true);
+                setModulesMenuOpen(false);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
+            >
+              <Database className="w-4 h-4 text-gray-500 dark:text-gray-300" />
+              <span>Backup</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setShowReportsModal(true);
+                setModulesMenuOpen(false);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
+            >
+              <BarChart3 className="w-4 h-4 text-gray-500 dark:text-gray-300" />
+              <span>Reportes</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setShowContextComparator(true);
+                setModulesMenuOpen(false);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
+            >
+              <GitCompare className="w-4 h-4 text-gray-500 dark:text-gray-300" />
+              <span>Comparar</span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Botones Undo/Redo */}
+      <div className="flex items-center gap-1 border-l border-gray-200 dark:border-gray-700 pl-3 ml-1">
+        <button
+          onClick={handleUndo}
+          disabled={!canUndo}
+          className={`p-2 rounded-lg transition-colors ${
+            canUndo 
+              ? 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' 
+              : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+          }`}
+          title={canUndo ? `Deshacer: ${getActionDescription(peekUndo()!)}` : 'Nada que deshacer'}
+        >
+          <Undo2 className="w-5 h-5" />
+        </button>
+        <button
+          onClick={handleRedo}
+          disabled={!canRedo}
+          className={`p-2 rounded-lg transition-colors ${
+            canRedo 
+              ? 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' 
+              : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+          }`}
+          title="Rehacer"
+        >
+          <Redo2 className="w-5 h-5" />
+        </button>
+        <button
+          onClick={() => setShowActivityLogModal(true)}
+          className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          title="Ver registro de actividad"
+        >
+          <History className="w-5 h-5" />
+        </button>
+      </div>
+
+      {repuestos.length === 0 && (
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={() => setShowImportModal(true)}
+          icon={<Upload className="w-4 h-4" />}
+        >
+          Importar
+        </Button>
+      )}
+
+      <div className="w-px h-8 bg-gray-200 dark:bg-gray-700" />
+
+      {/* Toggle tema */}
+      <button
+        onClick={toggleTheme}
+        className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors"
+        title={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+      >
+        {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+      </button>
+    </>
+  );
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col transition-colors">
       {/* Header */}
@@ -1004,165 +1166,18 @@ export function Dashboard() {
             <span className="text-xs font-normal bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 px-2 py-0.5 rounded-full">
               v{APP_VERSION}
             </span>
+
+            {/* Cuando el manual está abierto, mover acciones al lado izquierdo */}
+            {isManualPanelOpen && (
+              <div className="hidden md:flex items-center gap-3">
+                {desktopCoreActions}
+              </div>
+            )}
           </div>
 
           {/* Acciones desktop */}
           <div className="hidden md:flex items-center gap-3">
-            {/* Menú por módulos (desktop) */}
-            <div className="relative" ref={modulesMenuRef}>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setModulesMenuOpen(v => !v)}
-                icon={<Menu className="w-4 h-4" />}
-                className="relative"
-              >
-                Módulos
-                {/* Indicador de manual precargado */}
-                {pdfPreloader.isReady ? (
-                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full" title="Manual precargado" />
-                ) : pdfPreloader.loading ? (
-                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-500 rounded-full animate-pulse" title="Precargando manual..." />
-                ) : null}
-              </Button>
-
-              {modulesMenuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
-                  <button
-                    onClick={() => {
-                      setMainView('catalogo');
-                      setRightPanelMode('pdf');
-                      setModulesMenuOpen(false);
-                    }}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
-                  >
-                    <BookOpen className="w-4 h-4 text-gray-500 dark:text-gray-300" />
-                    <span className="flex-1 text-left">
-                      {currentMachine ? `Manuales ${currentMachine.nombre}` : 'Manuales'}
-                    </span>
-                    {currentMachine?.manuals?.length ? (
-                      <span className="px-1.5 py-0.5 text-xs font-semibold bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 rounded-full">
-                        {currentMachine.manuals.length}
-                      </span>
-                    ) : null}
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      handleExportExcel();
-                      setModulesMenuOpen(false);
-                    }}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
-                  >
-                    <FileSpreadsheet className="w-4 h-4 text-gray-500 dark:text-gray-300" />
-                    <span>Exportar Excel</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      handleExportPDF();
-                      setModulesMenuOpen(false);
-                    }}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
-                  >
-                    <Download className="w-4 h-4 text-gray-500 dark:text-gray-300" />
-                    <span>Exportar PDF</span>
-                  </button>
-
-                  <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
-
-                  <button
-                    onClick={() => {
-                      setShowBackupModal(true);
-                      setModulesMenuOpen(false);
-                    }}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
-                  >
-                    <Database className="w-4 h-4 text-gray-500 dark:text-gray-300" />
-                    <span>Backup</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setShowReportsModal(true);
-                      setModulesMenuOpen(false);
-                    }}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
-                  >
-                    <BarChart3 className="w-4 h-4 text-gray-500 dark:text-gray-300" />
-                    <span>Reportes</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setShowContextComparator(true);
-                      setModulesMenuOpen(false);
-                    }}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
-                  >
-                    <GitCompare className="w-4 h-4 text-gray-500 dark:text-gray-300" />
-                    <span>Comparar</span>
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Botones Undo/Redo */}
-            <div className="flex items-center gap-1 border-l border-gray-200 dark:border-gray-700 pl-3 ml-1">
-              <button
-                onClick={handleUndo}
-                disabled={!canUndo}
-                className={`p-2 rounded-lg transition-colors ${
-                  canUndo 
-                    ? 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' 
-                    : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
-                }`}
-                title={canUndo ? `Deshacer: ${getActionDescription(peekUndo()!)}` : 'Nada que deshacer'}
-              >
-                <Undo2 className="w-5 h-5" />
-              </button>
-              <button
-                onClick={handleRedo}
-                disabled={!canRedo}
-                className={`p-2 rounded-lg transition-colors ${
-                  canRedo 
-                    ? 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' 
-                    : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
-                }`}
-                title="Rehacer"
-              >
-                <Redo2 className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setShowActivityLogModal(true)}
-                className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                title="Ver registro de actividad"
-              >
-                <History className="w-5 h-5" />
-              </button>
-            </div>
-
-            {repuestos.length === 0 && (
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => setShowImportModal(true)}
-                icon={<Upload className="w-4 h-4" />}
-              >
-                Importar
-              </Button>
-            )}
-
-            <div className="w-px h-8 bg-gray-200 dark:bg-gray-700" />
-
-            {/* Toggle tema */}
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors"
-              title={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-            >
-              {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </button>
+            {!isManualPanelOpen && desktopCoreActions}
 
             <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
               <span>{user?.email}</span>
@@ -1635,55 +1650,6 @@ export function Dashboard() {
                 flex-1 min-w-0 overflow-hidden flex flex-col
                 ${rightPanelMode !== 'hidden' ? 'hidden md:flex md:w-1/2 lg:w-3/5' : 'w-full'}
               `}>
-                {rightPanelMode !== 'hidden' && selectedRepuesto && (
-                  <div className="hidden md:block border-b border-gray-100 bg-gray-50 px-3 py-2">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="text-xs text-gray-500">Ubicaciones en manual</div>
-                        <div className="text-sm font-medium text-gray-800 truncate">
-                          {selectedRepuesto.codigoSAP} — {selectedRepuesto.textoBreve}
-                        </div>
-                      </div>
-                      {selectedRepuesto.vinculosManual?.length > 0 ? (
-                        <div className="text-xs text-gray-500 whitespace-nowrap">
-                          {selectedRepuesto.vinculosManual.length} marcador(es)
-                        </div>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => handleMarkInManual(selectedRepuesto)}
-                          title="Agregar marcador"
-                        >
-                          Marcar
-                        </Button>
-                      )}
-                    </div>
-
-                    {selectedRepuesto.vinculosManual?.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {selectedRepuesto.vinculosManual
-                          .slice()
-                          .sort((a, b) => a.pagina - b.pagina)
-                          .map((m) => (
-                            <button
-                              key={m.id}
-                              onClick={() => handleGoToMarker(m)}
-                              className={`px-2 py-1 text-xs rounded-lg border transition-colors ${
-                                currentMarker?.id === m.id
-                                  ? 'bg-white border-primary-300 text-primary-700'
-                                  : 'bg-white border-gray-200 text-gray-600 hover:text-gray-800'
-                              }`}
-                              title={m.descripcion || `Página ${m.pagina}`}
-                            >
-                              p.{m.pagina}
-                            </button>
-                          ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
                 <div className="flex-1 min-w-0 overflow-hidden">
                   <RepuestosTable
                   machineId={machineId}
