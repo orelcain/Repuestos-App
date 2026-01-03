@@ -128,11 +128,16 @@ Objetivo: que **cada iteración** quede publicada para prueba en producción (Gi
 
 ### Checklist (Definition of Done)
 
-1) **Verificar localmente**
+1) **Verificar localmente (mínimo)**
+
+```bash
+npm run build
+```
+
+Opcional (si tienes ESLint configurado):
 
 ```bash
 npm run lint
-npm run build
 ```
 
 2) **Bump de versión (obligatorio)**

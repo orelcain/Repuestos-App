@@ -4,14 +4,24 @@ import path from 'node:path';
 
 const repoRoot = path.resolve(process.cwd());
 
+function resolveCommand(command) {
+  if (process.platform === 'win32') {
+    if (command === 'npm') return 'npm.cmd';
+  }
+  return command;
+}
+
 function run(command, args, options = {}) {
+  const resolvedCommand = resolveCommand(command);
   const pretty = [command, ...args].join(' ');
   console.log(`\n▶ ${pretty}`);
 
-  const result = spawnSync(command, args, {
+  const shouldUseShell = process.platform === 'win32' && resolvedCommand.endsWith('.cmd');
+
+  const result = spawnSync(resolvedCommand, args, {
     cwd: repoRoot,
     stdio: 'inherit',
-    shell: false,
+    shell: shouldUseShell,
     ...options,
   });
 

@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
-        name: 'Repuestos - App v4.9.68',
-        short_name: 'Repuestos v4.9.68',
+        name: 'Repuestos - App v4.9.69',
+        short_name: 'Repuestos v4.9.69',
         description: 'Aplicación para gestión visual de repuestos multi-máquina',
         theme_color: '#1e40af',
         background_color: '#f8fafc',

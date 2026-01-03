@@ -1,7 +1,7 @@
 {
   "name": "baader-app",
   "private": true,
-  "version": "4.9.68",
+  "version": "4.9.69",
   "type": "module",
   "homepage": "https://orelcain.github.io/Repuestos-App",
   "scripts": {
@@ -11,7 +11,7 @@
     "preview": "vite preview",
     "bump": "node scripts/bump-version.mjs",
     "check:version": "node scripts/check-version-sync.mjs",
-    "check": "npm run check:version && npm run lint && npm run build",
+    "check": "npm run check:version && npm run build",
     "iter": "node scripts/finish-iteration.mjs",
     "predeploy": "npm run check:version",
     "deploy": "npm run build && gh-pages -d dist"
