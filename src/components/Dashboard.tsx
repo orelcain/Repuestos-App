@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense, useMemo } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useRepuestos } from '../hooks/useRepuestos';
 import { useStorage } from '../hooks/useStorage';
@@ -177,10 +177,33 @@ export function Dashboard() {
   const [mainView, setMainView] = useState<MainView>('repuestos');
 
   // Alcance del buscador (tabla): máquina actual vs catálogo completo
-  const [catalogScope, setCatalogScope] = useState<'machine' | 'global'>('machine');
+  const [catalogScope, setCatalogScope] = useState<'machine' | 'selected' | 'global'>('machine');
+  const [selectedCatalogMachineIds, setSelectedCatalogMachineIds] = useState<string[]>([]);
   const [focusRepuestoId, setFocusRepuestoId] = useState<string | null>(null);
 
-  const globalCatalog = useGlobalCatalog({ enabled: catalogScope === 'global', machines });
+  // Si activan "seleccionadas" y no hay selección, usar la máquina actual como default
+  useEffect(() => {
+    if (catalogScope !== 'selected') return;
+    if (selectedCatalogMachineIds.length > 0) return;
+    if (!currentMachine?.id) return;
+    setSelectedCatalogMachineIds([currentMachine.id]);
+  }, [catalogScope, selectedCatalogMachineIds.length, currentMachine?.id]);
+
+  // Mantener selección válida si cambian máquinas
+  useEffect(() => {
+    if (selectedCatalogMachineIds.length === 0) return;
+    const activeIds = new Set(machines.filter(m => m.activa).map(m => m.id));
+    const next = selectedCatalogMachineIds.filter(id => activeIds.has(id));
+    if (next.length !== selectedCatalogMachineIds.length) setSelectedCatalogMachineIds(next);
+  }, [machines, selectedCatalogMachineIds]);
+
+  const catalogMachines = useMemo(() => {
+    if (catalogScope === 'global') return machines;
+    if (catalogScope === 'selected') return machines.filter(m => selectedCatalogMachineIds.includes(m.id));
+    return [];
+  }, [catalogScope, machines, selectedCatalogMachineIds]);
+
+  const globalCatalog = useGlobalCatalog({ enabled: catalogScope !== 'machine', machines: catalogMachines });
   
   // Repuestos filtrados (para exportación)
   const [filteredRepuestos, setFilteredRepuestos] = useState<Repuesto[]>([]);
@@ -1310,6 +1333,9 @@ export function Dashboard() {
                   repuestos={repuestos}
                   catalogScope={catalogScope}
                   onCatalogScopeChange={setCatalogScope}
+                  machines={machines}
+                  selectedCatalogMachineIds={selectedCatalogMachineIds}
+                  onSelectedCatalogMachineIdsChange={setSelectedCatalogMachineIds}
                   globalRepuestos={globalCatalog.items}
                   globalLoading={globalCatalog.loading}
                   onJumpToMachineRepuesto={handleJumpToMachineRepuesto}

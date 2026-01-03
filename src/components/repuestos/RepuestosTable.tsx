@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Repuesto, HistorialCambio, isTagAsignado, getTagNombre, TagAsignado } from '../../types';
+import { Repuesto, HistorialCambio, isTagAsignado, getTagNombre, TagAsignado, Machine } from '../../types';
 import { useTableColumns } from '../../hooks/useTableColumns';
 import { useTags } from '../../hooks/useTags';
 import { AddToListModal } from './AddToListModal';
@@ -42,8 +42,11 @@ import {
 interface RepuestosTableProps {
   machineId: string | null;
   repuestos: Repuesto[];
-  catalogScope?: 'machine' | 'global';
-  onCatalogScopeChange?: (scope: 'machine' | 'global') => void;
+  catalogScope?: 'machine' | 'selected' | 'global';
+  onCatalogScopeChange?: (scope: 'machine' | 'selected' | 'global') => void;
+  machines?: Machine[];
+  selectedCatalogMachineIds?: string[];
+  onSelectedCatalogMachineIdsChange?: (ids: string[]) => void;
   globalRepuestos?: GlobalRepuesto[];
   globalLoading?: boolean;
   onJumpToMachineRepuesto?: (machineId: string, repuestoId: string) => void;
@@ -140,6 +143,9 @@ export function RepuestosTable({
   repuestos,
   catalogScope = 'machine',
   onCatalogScopeChange,
+  machines = [],
+  selectedCatalogMachineIds = [],
+  onSelectedCatalogMachineIdsChange,
   globalRepuestos = [],
   globalLoading = false,
   onJumpToMachineRepuesto,
@@ -183,8 +189,17 @@ export function RepuestosTable({
   const [precioMax, setPrecioMax] = useState<string>('');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
-  const isGlobalCatalog = catalogScope === 'global';
-  const sourceRepuestos: (Repuesto | GlobalRepuesto)[] = isGlobalCatalog ? globalRepuestos : repuestos;
+  const isGlobalCatalog = catalogScope === 'global' || catalogScope === 'selected';
+  const activeMachines = useMemo(() => machines.filter((m) => m.activa), [machines]);
+  const hasSelectedMachines = selectedCatalogMachineIds.length > 0;
+  const sourceRepuestos: (Repuesto | GlobalRepuesto)[] =
+    catalogScope === 'machine'
+      ? repuestos
+      : catalogScope === 'selected' && !hasSelectedMachines
+        ? []
+        : globalRepuestos;
+
+  const [showMachinePicker, setShowMachinePicker] = useState(false);
   
   // Estados para modales de contexto
   const [showAddToListModal, setShowAddToListModal] = useState(false);
@@ -1252,16 +1267,80 @@ export function RepuestosTable({
 
         {/* Barra de búsqueda con selector de alcance y botón de filtros avanzados */}
         <div className="flex gap-2">
-          <div className="hidden lg:flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <select
               value={catalogScope}
-              onChange={(e) => onCatalogScopeChange?.(e.target.value as 'machine' | 'global')}
-              className="px-3 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              onChange={(e) => {
+                setShowMachinePicker(false);
+                onCatalogScopeChange?.(e.target.value as 'machine' | 'selected' | 'global');
+              }}
+              className="px-3 py-2.5 lg:py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               title="Alcance del buscador"
             >
               <option value="machine">Máquina actual</option>
+              <option value="selected">Máquinas seleccionadas</option>
               <option value="global">Catálogo completo</option>
             </select>
+
+            {catalogScope === 'selected' && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowMachinePicker((v) => !v)}
+                  className="px-3 py-2.5 lg:py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl text-sm hover:bg-gray-50 dark:hover:bg-gray-600"
+                  title="Seleccionar máquinas"
+                >
+                  {selectedCatalogMachineIds.length > 0
+                    ? `Máquinas: ${selectedCatalogMachineIds.length}`
+                    : 'Elegir máquinas'}
+                </button>
+
+                {showMachinePicker && (
+                  <div className="absolute top-full left-0 mt-1 w-72 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-50 p-2">
+                    <div className="text-xs text-gray-600 dark:text-gray-300 px-2 py-1">
+                      Selecciona las máquinas donde buscar
+                    </div>
+                    <div className="max-h-60 overflow-y-auto">
+                      {activeMachines.map((m) => {
+                        const checked = selectedCatalogMachineIds.includes(m.id);
+                        return (
+                          <label key={m.id} className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(e) => {
+                                const next = e.target.checked
+                                  ? Array.from(new Set([...selectedCatalogMachineIds, m.id]))
+                                  : selectedCatalogMachineIds.filter((id) => id !== m.id);
+                                onSelectedCatalogMachineIdsChange?.(next);
+                              }}
+                            />
+                            <span className="text-sm text-gray-800 dark:text-gray-100 truncate">{m.nombre}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <div className="flex justify-between gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                      <button
+                        type="button"
+                        onClick={() => onSelectedCatalogMachineIdsChange?.([])}
+                        className="text-xs px-2 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
+                      >
+                        Limpiar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowMachinePicker(false)}
+                        className="text-xs px-2 py-1 rounded-lg bg-primary-600 text-white hover:bg-primary-700"
+                      >
+                        Listo
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {isGlobalCatalog && globalLoading && (
               <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-300">
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -1276,7 +1355,9 @@ export function RepuestosTable({
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder={isGlobalCatalog
-                ? 'Buscar en el catálogo completo...'
+                ? catalogScope === 'selected'
+                  ? 'Buscar en máquinas seleccionadas...'
+                  : 'Buscar en el catálogo completo...'
                 : hasAnyContext
                   ? 'Buscar en contextos activos...'
                   : 'Buscar por código SAP, Baader o descripción...'
@@ -1476,6 +1557,13 @@ export function RepuestosTable({
 
       {/* Tabla de repuestos - Vista Desktop */}
       <div className="flex-1 overflow-auto hidden lg:block">
+        {catalogScope === 'selected' && !hasSelectedMachines && (
+          <div className="p-4">
+            <div className="p-3 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 text-sm text-amber-800 dark:text-amber-200">
+              Selecciona al menos una máquina para buscar.
+            </div>
+          </div>
+        )}
         <table className="w-full">
           <thead className="sticky top-0">
             <tr>

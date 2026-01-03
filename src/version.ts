@@ -1,9 +1,17 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.62';
+export const APP_VERSION = '4.9.63';
 
 // Historial de versiones
 // ⚠️ Importante: agrega SIEMPRE la versión más nueva ARRIBA (al inicio del array)
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.63',
+    date: '2026-01-02',
+    changes: [
+      '✅ Buscador: nuevo alcance "Máquinas seleccionadas" (además de máquina actual / catálogo completo)',
+      '☑️ Buscador: selector inline para elegir máquinas incluidas'
+    ]
+  },
   {
     version: '4.9.62',
     date: '2026-01-02',
