@@ -1695,8 +1695,8 @@ export function Dashboard() {
         {/* Panel Derecho - Imágenes / Manual (40% en lg) */}
         {rightPanelMode !== 'hidden' && (
           <div className="w-full md:w-1/2 lg:w-2/5 border-l border-gray-200 flex flex-col">
-            {/* Tabs del panel derecho */}
-            <div className="flex border-b border-gray-200 bg-white">
+            {/* Tabs del panel derecho (en desktop se oculta en modo Manual para ganar altura) */}
+            <div className={`flex border-b border-gray-200 bg-white ${isManualPanelOpen ? 'md:hidden' : ''}`}>
               <button
                 onClick={() => setRightPanelMode('gallery')}
                 className={`flex-1 flex items-center justify-center gap-2 px-4 ${isManualPanelOpen ? 'py-2' : 'py-3'} text-sm font-medium border-b-2 transition-colors ${
