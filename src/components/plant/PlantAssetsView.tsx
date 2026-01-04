@@ -210,7 +210,11 @@ export function PlantAssetsView(props: { machineId: string | null }) {
     { key: 'subarea', label: 'Subárea', defaultEnabled: true, thClassName: 'hidden lg:table-cell', tdClassName: 'hidden lg:table-cell' },
     { key: 'codigoSAP', label: 'SAP', defaultEnabled: true },
     { key: 'marca', label: 'Marca', defaultEnabled: true, thClassName: 'hidden xl:table-cell', tdClassName: 'hidden xl:table-cell' },
-    { key: 'relacionReduccion', label: 'i', defaultEnabled: true, thClassName: 'hidden xl:table-cell', tdClassName: 'hidden xl:table-cell' },
+    { key: 'potencia', label: 'Potencia', defaultEnabled: false, thClassName: 'hidden xl:table-cell', tdClassName: 'hidden xl:table-cell' },
+    { key: 'voltaje', label: 'Voltaje', defaultEnabled: false, thClassName: 'hidden xl:table-cell', tdClassName: 'hidden xl:table-cell' },
+    { key: 'corriente', label: 'Corriente', defaultEnabled: false, thClassName: 'hidden xl:table-cell', tdClassName: 'hidden xl:table-cell' },
+    { key: 'eje', label: 'Eje', defaultEnabled: false, thClassName: 'hidden xl:table-cell', tdClassName: 'hidden xl:table-cell' },
+    { key: 'relacionReduccion', label: 'Relación de reducción (i)', defaultEnabled: true, thClassName: 'hidden xl:table-cell', tdClassName: 'hidden xl:table-cell' },
     { key: 'marcadores', label: 'Marcadores', defaultEnabled: true, thClassName: 'w-[320px]', tdClassName: 'w-[320px]' }
   ];
 
@@ -262,6 +266,8 @@ export function PlantAssetsView(props: { machineId: string | null }) {
   const [exportingPDF, setExportingPDF] = useState(false);
   const [pdfIncludePhotos, setPdfIncludePhotos] = useState(true);
   const [pdfIncludeLocations, setPdfIncludeLocations] = useState(true);
+  const [pdfScope, setPdfScope] = useState<'all' | 'selected'>('all');
+  const [pdfSelectedIds, setPdfSelectedIds] = useState<Record<string, boolean>>({});
 
   const [sortKey, setSortKey] = useState<'tipo' | 'area' | 'subarea' | 'codigoSAP' | 'marca' | 'relacionReduccion'>('area');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
@@ -305,6 +311,23 @@ export function PlantAssetsView(props: { machineId: string | null }) {
         return 0;
       });
   }, [filtered, sortDir, sortKey]);
+
+  useEffect(() => {
+    if (!showColumnsExport) return;
+    // Al abrir el modal, por defecto preseleccionamos los visibles actuales.
+    // (Permite exportar "seleccionados" sin tener que marcar todo a mano.)
+    setPdfSelectedIds((prev) => {
+      if (Object.keys(prev).length > 0) return prev;
+      const seed: Record<string, boolean> = {};
+      for (const a of sorted) seed[a.id] = true;
+      return seed;
+    });
+  }, [showColumnsExport, sorted]);
+
+  const pdfSelectedList = useMemo(() => {
+    if (pdfScope === 'all') return sorted;
+    return sorted.filter((a) => !!pdfSelectedIds[a.id]);
+  }, [pdfScope, pdfSelectedIds, sorted]);
 
   // === Mapas / marcadores ===
   const [selectedMapId, setSelectedMapId] = useState<string>('');
@@ -700,9 +723,21 @@ export function PlantAssetsView(props: { machineId: string | null }) {
                       <button type="button" className="hover:underline" onClick={() => toggleSort('marca')}>Marca</button>
                     </th>
                   )}
+                  {columnsEnabled.potencia && (
+                    <th className="text-left px-3 py-2 hidden xl:table-cell">Potencia</th>
+                  )}
+                  {columnsEnabled.voltaje && (
+                    <th className="text-left px-3 py-2 hidden xl:table-cell">Voltaje</th>
+                  )}
+                  {columnsEnabled.corriente && (
+                    <th className="text-left px-3 py-2 hidden xl:table-cell">Corriente</th>
+                  )}
+                  {columnsEnabled.eje && (
+                    <th className="text-left px-3 py-2 hidden xl:table-cell">Eje</th>
+                  )}
                   {columnsEnabled.relacionReduccion && (
                     <th className="text-left px-3 py-2 hidden xl:table-cell">
-                      <button type="button" className="hover:underline" onClick={() => toggleSort('relacionReduccion')}>i</button>
+                      <button type="button" className="hover:underline" onClick={() => toggleSort('relacionReduccion')}>Relación de reducción (i)</button>
                     </th>
                   )}
                   {columnsEnabled.marcadores && <th className="text-left px-3 py-2 w-[320px]">Marcadores</th>}
@@ -753,6 +788,34 @@ export function PlantAssetsView(props: { machineId: string | null }) {
                         <td className="px-3 py-2 hidden xl:table-cell">
                           <button type="button" className="text-left w-full truncate" onClick={() => setSelectedId(a.id)}>
                             {a.marca}
+                          </button>
+                        </td>
+                      )}
+                      {columnsEnabled.potencia && (
+                        <td className="px-3 py-2 hidden xl:table-cell">
+                          <button type="button" className="text-left w-full" onClick={() => setSelectedId(a.id)}>
+                            {a.potencia || 'pendiente'}
+                          </button>
+                        </td>
+                      )}
+                      {columnsEnabled.voltaje && (
+                        <td className="px-3 py-2 hidden xl:table-cell">
+                          <button type="button" className="text-left w-full" onClick={() => setSelectedId(a.id)}>
+                            {a.voltaje || 'pendiente'}
+                          </button>
+                        </td>
+                      )}
+                      {columnsEnabled.corriente && (
+                        <td className="px-3 py-2 hidden xl:table-cell">
+                          <button type="button" className="text-left w-full" onClick={() => setSelectedId(a.id)}>
+                            {a.corriente || 'pendiente'}
+                          </button>
+                        </td>
+                      )}
+                      {columnsEnabled.eje && (
+                        <td className="px-3 py-2 hidden xl:table-cell">
+                          <button type="button" className="text-left w-full" onClick={() => setSelectedId(a.id)}>
+                            {a.eje || 'pendiente'}
                           </button>
                         </td>
                       )}
@@ -1304,6 +1367,75 @@ export function PlantAssetsView(props: { machineId: string | null }) {
                 Incluir ubicaciones (plano + coordenadas)
               </label>
             </div>
+
+            <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+              <div className="text-xs font-semibold text-gray-700 dark:text-gray-200">Informe técnico</div>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <label className="inline-flex items-center gap-2 text-sm text-gray-800 dark:text-gray-100">
+                  <input
+                    type="radio"
+                    name="pdfScope"
+                    checked={pdfScope === 'all'}
+                    onChange={() => setPdfScope('all')}
+                  />
+                  Todos (según filtro/búsqueda)
+                </label>
+                <label className="inline-flex items-center gap-2 text-sm text-gray-800 dark:text-gray-100">
+                  <input
+                    type="radio"
+                    name="pdfScope"
+                    checked={pdfScope === 'selected'}
+                    onChange={() => setPdfScope('selected')}
+                  />
+                  Solo seleccionados
+                </label>
+
+                {pdfScope === 'selected' && (
+                  <div className="ml-auto flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="px-2 py-1 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
+                      onClick={() => {
+                        const next: Record<string, boolean> = {};
+                        for (const a of sorted) next[a.id] = true;
+                        setPdfSelectedIds(next);
+                      }}
+                    >
+                      Seleccionar todos
+                    </button>
+                    <button
+                      type="button"
+                      className="px-2 py-1 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
+                      onClick={() => setPdfSelectedIds({})}
+                    >
+                      Limpiar
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {pdfScope === 'selected' && (
+                <div className="mt-2 max-h-48 overflow-auto rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+                  {sorted.length === 0 ? (
+                    <div className="p-2 text-sm text-gray-500">No hay filas.</div>
+                  ) : (
+                    sorted.map((a) => (
+                      <label key={a.id} className="flex items-center gap-2 px-3 py-2 border-b border-gray-100 dark:border-gray-800 last:border-b-0">
+                        <input
+                          type="checkbox"
+                          checked={!!pdfSelectedIds[a.id]}
+                          onChange={(e) => setPdfSelectedIds((prev) => ({ ...prev, [a.id]: e.target.checked }))}
+                        />
+                        <div className="min-w-0">
+                          <div className="text-sm text-gray-800 dark:text-gray-100 truncate">{a.tipo.toUpperCase()} • {a.codigoSAP}</div>
+                          <div className="text-xs text-gray-500 truncate">{a.area} — {a.subarea}</div>
+                        </div>
+                      </label>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -1349,7 +1481,7 @@ export function PlantAssetsView(props: { machineId: string | null }) {
                     if (exportingPDF) return;
                     setExportingPDF(true);
                     const cols = visibleColumns.map((c) => c.key);
-                    await exportPlantAssetsToPDF(sorted, {
+                    await exportPlantAssetsToPDF(pdfSelectedList, {
                       filename: `motores_bombas_${new Date().toISOString().slice(0, 10)}`,
                       columns: cols,
                       getMarkersLabel,
@@ -1365,8 +1497,8 @@ export function PlantAssetsView(props: { machineId: string | null }) {
                   }
                 }}
                 loading={exportingPDF}
-                disabled={exportingPDF || visibleColumns.length === 0 || sorted.length === 0}
-                title={sorted.length === 0 ? 'No hay filas para exportar' : undefined}
+                disabled={exportingPDF || visibleColumns.length === 0 || pdfSelectedList.length === 0}
+                title={pdfSelectedList.length === 0 ? 'No hay filas para exportar' : undefined}
               >
                 Exportar PDF
               </Button>

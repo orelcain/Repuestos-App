@@ -24,6 +24,10 @@ export type PlantAssetsColumnKey =
   | 'subarea'
   | 'codigoSAP'
   | 'marca'
+  | 'potencia'
+  | 'voltaje'
+  | 'corriente'
+  | 'eje'
   | 'relacionReduccion'
   | 'marcadores';
 
@@ -42,7 +46,11 @@ const plantAssetsColumnHeader: Record<PlantAssetsColumnKey, string> = {
   subarea: 'Subárea',
   codigoSAP: 'SAP',
   marca: 'Marca',
-  relacionReduccion: 'i',
+  potencia: 'Potencia',
+  voltaje: 'Voltaje',
+  corriente: 'Corriente',
+  eje: 'Eje',
+  relacionReduccion: 'Relación de reducción (i)',
   marcadores: 'Marcadores'
 };
 
@@ -64,6 +72,12 @@ export async function exportPlantAssetsToExcel(assets: PlantAsset[], options: Pl
           ? 26
           : key === 'area'
             ? 22
+            : key === 'marca'
+              ? 18
+              : key === 'codigoSAP'
+                ? 16
+                : key === 'potencia' || key === 'voltaje' || key === 'corriente' || key === 'eje'
+                  ? 16
             : 16
   }));
 
