@@ -1,9 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.112';
+export const APP_VERSION = '4.9.113';
 
 // Historial de versiones
 // ⚠️ Importante: agrega SIEMPRE la versión más nueva ARRIBA (al inicio del array)
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.113',
+    date: '2026-01-04',
+    changes: [
+      'Mejorar marcador + ondas'
+    ]
+  },
   {
     version: '4.9.112',
     date: '2026-01-04',

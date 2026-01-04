@@ -767,6 +767,11 @@ export function PlantMapViewer(props: {
             const isPinned = pinnedMarkerId === m.id;
             const isFocused = focusMarkerId === m.id;
 
+            const isEmphasis = isPinned || isFocused || isSelected;
+            const markerDotClass = isPinned || isFocused ? 'bg-emerald-500' : 'bg-primary-600';
+            const haloClass = isPinned || isFocused ? 'bg-emerald-500/25' : 'bg-primary-600/25';
+            const waveClass = isPinned || isFocused ? 'bg-emerald-400/30' : 'bg-primary-400/30';
+
             // Mantener el tamaño del marcador prácticamente constante en pantalla,
             // compensando el zoom del contenedor (que escala todo el plano).
             // El tamaño se define en el espacio "sin escalar" para que al aplicarse scale()
@@ -785,9 +790,7 @@ export function PlantMapViewer(props: {
               return (
                 <div
                   key={m.id}
-                  className={
-                    `absolute pointer-events-none rounded-full bg-primary-600`
-                  }
+                  className="absolute pointer-events-none rounded-full bg-primary-600"
                   style={{ left: `${m.x * 100}%`, top: `${m.y * 100}%`, width: sizePx, height: sizePx, transform: 'translate(-50%, -50%)' }}
                 />
               );
@@ -829,13 +832,30 @@ export function PlantMapViewer(props: {
                   clearHoverSoon();
                 }}
                 className={
-                  `absolute rounded-full ` +
-                  (isPinned || isFocused ? 'bg-emerald-500' : 'bg-primary-600') +
-                  ' cursor-pointer transition-opacity hover:opacity-90'
+                  `absolute rounded-full cursor-pointer transition-opacity hover:opacity-90 focus:outline-none`
                 }
                 style={{ left: `${m.x * 100}%`, top: `${m.y * 100}%`, width: sizePx, height: sizePx, transform: 'translate(-50%, -50%)' }}
                 title={m.assetLabel}
-              />
+              >
+                {/* Onda (indicador de lo que se está mostrando) */}
+                {isEmphasis && (
+                  <span
+                    aria-hidden
+                    className={`absolute inset-0 rounded-full ${waveClass} animate-ping`}
+                    style={{ width: sizePx * 3.2, height: sizePx * 3.2, left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+                  />
+                )}
+
+                {/* Halo fijo */}
+                <span
+                  aria-hidden
+                  className={`absolute inset-0 rounded-full ${haloClass}`}
+                  style={{ width: sizePx * 2.2, height: sizePx * 2.2, left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+                />
+
+                {/* Punto principal */}
+                <span aria-hidden className={`absolute inset-0 rounded-full ${markerDotClass}`} />
+              </button>
             );
           })}
         </div>
