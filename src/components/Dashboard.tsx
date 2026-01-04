@@ -96,7 +96,7 @@ const PDFLoadingFallback = () => (
 
 type RightPanelMode = 'gallery' | 'pdf' | 'marker-editor' | 'hidden';
 type GalleryType = 'manual' | 'real';
-type MainView = 'catalogo' | 'motores' | 'manual' | 'reportes' | 'admin';
+type MainView = 'catalogo' | 'motores' | 'manual' | 'reportes';
 
 // Eliminar propiedades undefined para no romper Firestore
 const sanitizeImagen = (img: ImagenRepuesto): ImagenRepuesto => {
@@ -1018,6 +1018,17 @@ export function Dashboard() {
           <div className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
             <button
               onClick={() => {
+                setShowImportModal(true);
+                setModulesMenuOpen(false);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
+            >
+              <Upload className="w-4 h-4 text-gray-500 dark:text-gray-300" />
+              <span>Importar</span>
+            </button>
+
+            <button
+              onClick={() => {
                 setMainView('catalogo');
                 setRightPanelMode('pdf');
                 setModulesMenuOpen(false);
@@ -1090,6 +1101,17 @@ export function Dashboard() {
             >
               <GitCompare className="w-4 h-4 text-gray-500 dark:text-gray-300" />
               <span>Comparar</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setShowActivityLogModal(true);
+                setModulesMenuOpen(false);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
+            >
+              <History className="w-4 h-4 text-gray-500 dark:text-gray-300" />
+              <span>Activity Log</span>
             </button>
           </div>
         )}
@@ -1176,7 +1198,7 @@ export function Dashboard() {
             setRightPanelMode('hidden');
           }}
           className={`flex items-center gap-2 px-4 ${isManualPanelOpen ? 'py-2' : 'py-3'} text-sm font-medium border-b-2 transition-colors ${
-            mainView === 'catalogo'
+            mainView === 'catalogo' && !showContextComparator
               ? 'text-primary-600 border-primary-600'
               : 'text-gray-500 border-transparent hover:text-gray-700'
           }`}
@@ -1184,13 +1206,22 @@ export function Dashboard() {
           <Package className="w-4 h-4" />
           Catálogo
         </button>
+
+        <div className="px-2">
+          <MachineSelector
+            onEditMachine={(machine) => setEditingMachineModal(machine)}
+            displayLabel={catalogScopeBadge}
+            displaySubLabel={catalogScopeBadge ? (currentMachine?.nombre || null) : null}
+          />
+        </div>
+
         <button
           onClick={() => {
             setMainView('motores');
             setRightPanelMode('hidden');
           }}
           className={`flex items-center gap-2 px-4 ${isManualPanelOpen ? 'py-2' : 'py-3'} text-sm font-medium border-b-2 transition-colors ${
-            mainView === 'motores'
+            mainView === 'motores' && !showContextComparator
               ? 'text-primary-600 border-primary-600'
               : 'text-gray-500 border-transparent hover:text-gray-700'
           }`}
@@ -1204,7 +1235,7 @@ export function Dashboard() {
             setRightPanelMode('hidden');
           }}
           className={`flex items-center gap-2 px-4 ${isManualPanelOpen ? 'py-2' : 'py-3'} text-sm font-medium border-b-2 transition-colors ${
-            mainView === 'reportes'
+            mainView === 'reportes' && !showContextComparator
               ? 'text-primary-600 border-primary-600'
               : 'text-gray-500 border-transparent hover:text-gray-700'
           }`}
@@ -1212,19 +1243,19 @@ export function Dashboard() {
           <BarChart3 className="w-4 h-4" />
           Reportes
         </button>
+
         <button
           onClick={() => {
-            setMainView('admin');
-            setRightPanelMode('hidden');
+            setShowContextComparator(true);
           }}
           className={`flex items-center gap-2 px-4 ${isManualPanelOpen ? 'py-2' : 'py-3'} text-sm font-medium border-b-2 transition-colors ${
-            mainView === 'admin'
+            showContextComparator
               ? 'text-primary-600 border-primary-600'
               : 'text-gray-500 border-transparent hover:text-gray-700'
           }`}
         >
-          <Database className="w-4 h-4" />
-          Admin
+          <GitCompare className="w-4 h-4" />
+          Comparar
         </button>
       </div>
     </div>
@@ -1237,11 +1268,6 @@ export function Dashboard() {
         <div className={`px-4 ${isManualPanelOpen ? 'py-2' : 'py-3'} flex items-center justify-between flex-nowrap`}>
           {/* Selector de Máquina y versión */}
           <div className="flex items-center gap-4">
-            <MachineSelector
-              onEditMachine={(machine) => setEditingMachineModal(machine)}
-              displayLabel={catalogScopeBadge}
-              displaySubLabel={catalogScopeBadge ? (currentMachine?.nombre || null) : null}
-            />
             <span className="text-xs font-normal bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 px-2 py-0.5 rounded-full">
               v{APP_VERSION}
             </span>
@@ -1308,6 +1334,7 @@ export function Dashboard() {
                 <Package className="w-5 h-5 text-gray-500" />
                 <span>Catálogo</span>
               </button>
+
               <button
                 onClick={() => {
                   setMainView('motores');
@@ -1341,16 +1368,27 @@ export function Dashboard() {
                 <BarChart3 className="w-5 h-5 text-gray-500 dark:text-gray-400" />
                 <span>Reportes</span>
               </button>
+
               <button
                 onClick={() => {
-                  setMainView('admin');
-                  setRightPanelMode('hidden');
+                  setShowContextComparator(true);
                   setMobileMenuOpen(false);
                 }}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
               >
-                <Database className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-                <span>Admin</span>
+                <GitCompare className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                <span>Comparar</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowImportModal(true);
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100"
+              >
+                <Upload className="w-5 h-5 text-gray-500" />
+                <span>Importar</span>
               </button>
               <button
                 onClick={() => {
@@ -1391,6 +1429,17 @@ export function Dashboard() {
               >
                 <BarChart3 className="w-5 h-5 text-gray-500 dark:text-gray-400" />
                 <span>Reportes y Análisis</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowActivityLogModal(true);
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <History className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                <span>Activity Log</span>
               </button>
               <button
                 onClick={() => {
@@ -1697,42 +1746,6 @@ export function Dashboard() {
               ) : mainView === 'reportes' ? (
             <div className="flex-1 overflow-hidden">
               <StatsPanel repuestos={repuestos} />
-            </div>
-          ) : mainView === 'admin' ? (
-            <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900">
-              <div className="max-w-4xl mx-auto p-6">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Administración</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <Button
-                    variant="secondary"
-                    onClick={() => setShowImportModal(true)}
-                    icon={<Upload className="w-4 h-4" />}
-                  >
-                    Importar
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    onClick={() => setShowBackupModal(true)}
-                    icon={<Database className="w-4 h-4" />}
-                  >
-                    Backup/Restore
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    onClick={() => setShowReportsModal(true)}
-                    icon={<BarChart3 className="w-4 h-4" />}
-                  >
-                    Reportes y Análisis
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    onClick={() => setShowActivityLogModal(true)}
-                    icon={<History className="w-4 h-4" />}
-                  >
-                    Activity Log
-                  </Button>
-                </div>
-              </div>
             </div>
           ) : mainView === 'manual' ? (
             <>
