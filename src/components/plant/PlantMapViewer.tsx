@@ -786,8 +786,7 @@ export function PlantMapViewer(props: {
                 <div
                   key={m.id}
                   className={
-                    `absolute pointer-events-none rounded-full bg-primary-600 ring-2 ring-white dark:ring-gray-900 ` +
-                    (isSelected ? 'w-3 h-3' : 'w-2 h-2')
+                    `absolute pointer-events-none rounded-full bg-primary-600`
                   }
                   style={{ left: `${m.x * 100}%`, top: `${m.y * 100}%`, width: sizePx, height: sizePx, transform: 'translate(-50%, -50%)' }}
                 />
@@ -830,10 +829,8 @@ export function PlantMapViewer(props: {
                   clearHoverSoon();
                 }}
                 className={
-                  `absolute rounded-full ring-2 ring-white dark:ring-gray-900 ` +
+                  `absolute rounded-full ` +
                   (isPinned || isFocused ? 'bg-emerald-500' : 'bg-primary-600') +
-                  ' ' +
-                  (isSelected ? 'w-3 h-3' : 'w-2 h-2') +
                   ' cursor-pointer transition-opacity hover:opacity-90'
                 }
                 style={{ left: `${m.x * 100}%`, top: `${m.y * 100}%`, width: sizePx, height: sizePx, transform: 'translate(-50%, -50%)' }}
