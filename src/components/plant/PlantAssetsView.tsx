@@ -1077,6 +1077,7 @@ export function PlantAssetsView(props: { machineId: string | null }) {
                   addingMarker={addingMarker}
                   onAddMarker={handleMapClick}
                   onSelectAsset={(assetId) => setSelectedId(assetId)}
+                  focusMarkerId={markerMode === 'move' ? movingMarkerId : null}
                   clickTitle={markerMode === 'add' ? 'Click para agregar marcador' : markerMode === 'move' ? 'Click para mover marcador' : undefined}
                 />
                 <div className="mt-2 text-xs text-gray-500 dark:text-gray-300">
@@ -1835,6 +1836,7 @@ export function PlantAssetsView(props: { machineId: string | null }) {
               addingMarker={addingMarker}
               onAddMarker={handleMapClick}
               onSelectAsset={(assetId) => setSelectedId(assetId)}
+              focusMarkerId={markerMode === 'move' ? movingMarkerId : null}
               mode="fullscreen"
               clickTitle={markerMode === 'add' ? 'Click para agregar marcador' : markerMode === 'move' ? 'Click para mover marcador' : undefined}
             />

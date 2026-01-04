@@ -13,10 +13,11 @@ export function PlantMapViewer(props: {
   addingMarker: boolean;
   onAddMarker: (args: { mapId: string; x: number; y: number }) => void;
   onSelectAsset?: (assetId: string) => void;
+  focusMarkerId?: string | null;
   mode?: ViewerMode;
   clickTitle?: string;
 }) {
-  const { map, selectedAsset, allAssets, showAllMarkers, addingMarker, onAddMarker, onSelectAsset, mode = 'embedded', clickTitle } = props;
+  const { map, selectedAsset, allAssets, showAllMarkers, addingMarker, onAddMarker, onSelectAsset, focusMarkerId = null, mode = 'embedded', clickTitle } = props;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -171,6 +172,17 @@ export function PlantMapViewer(props: {
     if (!pinnedMarkerId) return null;
     return markers.find((m) => m.id === pinnedMarkerId) || null;
   }, [markers, pinnedMarkerId]);
+
+  const focusMarker = useMemo(() => {
+    if (!focusMarkerId) return null;
+    return markers.find((m) => m.id === focusMarkerId) || null;
+  }, [focusMarkerId, markers]);
+
+  useEffect(() => {
+    if (addingMarker) return;
+    if (!focusMarker) return;
+    focusOnMarker(focusMarker, { zoomInScale: 2.5 });
+  }, [addingMarker, focusMarker]);
 
   useEffect(() => {
     // Si el marcador fijado ya no existe (cambio de filtros/selección), soltarlo.
@@ -526,6 +538,7 @@ export function PlantMapViewer(props: {
             const isSelected = selectedAsset?.id === m.assetId;
             const canSelect = showAllMarkers && !!onSelectAsset;
             const isPinned = pinnedMarkerId === m.id;
+            const isFocused = focusMarkerId === m.id;
 
             // En modo agregar/mover, NO queremos que los marcadores intercepten clicks (mejora mover marcador).
             if (addingMarker) {
@@ -566,7 +579,7 @@ export function PlantMapViewer(props: {
                 onBlur={() => setHoveredMarkerId(null)}
                 className={
                   `absolute -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-white dark:ring-gray-900 ` +
-                  (isPinned ? 'bg-emerald-500' : 'bg-primary-600') +
+                  (isPinned || isFocused ? 'bg-emerald-500' : 'bg-primary-600') +
                   ' ' +
                   (isSelected ? 'w-3 h-3' : 'w-2 h-2') +
                   ' cursor-pointer hover:scale-110 transition-transform'
