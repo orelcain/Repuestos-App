@@ -86,6 +86,14 @@ const normalize = (v: string) => v.trim();
 
 const toPendiente = (v: string) => (v.trim() ? v.trim() : 'pendiente');
 
+const isPendienteLike = (v: unknown) => {
+  const s = String(v ?? '').trim();
+  if (!s) return true;
+  return s.toLowerCase() === 'pendiente';
+};
+
+const fromPendiente = (v: unknown) => (isPendienteLike(v) ? '' : String(v));
+
 const inferTipoFromComponente = (componente: string): PlantAssetTipo => {
   const c = componente.toLowerCase();
   if (c.includes('bomba')) return 'bomba';
@@ -464,23 +472,82 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
     id: '',
     tipo: 'motor',
     equipo: 'pendiente',
-    area: 'pendiente',
-    subarea: 'pendiente',
-    componente: 'pendiente',
-    codigoSAP: 'pendiente',
-    descripcionSAP: 'pendiente',
-    marca: 'pendiente',
-    modeloTipo: 'pendiente',
-    potencia: 'pendiente',
-    voltaje: 'pendiente',
-    relacionReduccion: 'pendiente',
-    corriente: 'pendiente',
-    eje: 'pendiente',
-    observaciones: 'pendiente',
+    area: '',
+    subarea: '',
+    componente: '',
+    codigoSAP: '',
+    descripcionSAP: '',
+    marca: '',
+    modeloTipo: '',
+    potencia: '',
+    voltaje: '',
+    relacionReduccion: '',
+    corriente: '',
+    eje: '',
+    observaciones: '',
     referencias: [],
     imagenes: [],
     marcadores: []
   });
+
+  const editOptions = useMemo(() => {
+    const byKey: Record<
+      'area' | 'subarea' | 'componente' | 'descripcionSAP' | 'marca' | 'modeloTipo' | 'potencia' | 'voltaje' | 'relacionReduccion' | 'corriente' | 'eje' | 'observaciones',
+      Set<string>
+    > = {
+      area: new Set(),
+      subarea: new Set(),
+      componente: new Set(),
+      descripcionSAP: new Set(),
+      marca: new Set(),
+      modeloTipo: new Set(),
+      potencia: new Set(),
+      voltaje: new Set(),
+      relacionReduccion: new Set(),
+      corriente: new Set(),
+      eje: new Set(),
+      observaciones: new Set()
+    };
+
+    const add = (k: keyof typeof byKey, v: unknown) => {
+      const s = String(v ?? '').trim();
+      if (!s) return;
+      if (s.toLowerCase() === 'pendiente') return;
+      byKey[k].add(s);
+    };
+
+    for (const a of assets) {
+      add('area', a.area);
+      add('subarea', a.subarea);
+      add('componente', a.componente);
+      add('descripcionSAP', a.descripcionSAP);
+      add('marca', a.marca);
+      add('modeloTipo', a.modeloTipo);
+      add('potencia', a.potencia);
+      add('voltaje', a.voltaje);
+      add('relacionReduccion', a.relacionReduccion);
+      add('corriente', a.corriente);
+      add('eje', a.eje);
+      add('observaciones', a.observaciones);
+    }
+
+    const toSorted = (set: Set<string>) => Array.from(set).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+
+    return {
+      area: toSorted(byKey.area),
+      subarea: toSorted(byKey.subarea),
+      componente: toSorted(byKey.componente),
+      descripcionSAP: toSorted(byKey.descripcionSAP),
+      marca: toSorted(byKey.marca),
+      modeloTipo: toSorted(byKey.modeloTipo),
+      potencia: toSorted(byKey.potencia),
+      voltaje: toSorted(byKey.voltaje),
+      relacionReduccion: toSorted(byKey.relacionReduccion),
+      corriente: toSorted(byKey.corriente),
+      eje: toSorted(byKey.eje),
+      observaciones: toSorted(byKey.observaciones)
+    };
+  }, [assets]);
 
   const openEdit = (asset: PlantAsset) => {
     setCreatingNew(false);
@@ -488,19 +555,19 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
       id: asset.id,
       tipo: asset.tipo,
       equipo: asset.equipo,
-      area: asset.area,
-      subarea: asset.subarea,
-      componente: asset.componente,
-      codigoSAP: asset.codigoSAP,
-      descripcionSAP: asset.descripcionSAP,
-      marca: asset.marca,
-      modeloTipo: asset.modeloTipo,
-      potencia: asset.potencia,
-      voltaje: asset.voltaje,
-      relacionReduccion: asset.relacionReduccion,
-      corriente: asset.corriente,
-      eje: asset.eje,
-      observaciones: asset.observaciones,
+      area: fromPendiente(asset.area),
+      subarea: fromPendiente(asset.subarea),
+      componente: fromPendiente(asset.componente),
+      codigoSAP: fromPendiente(asset.codigoSAP),
+      descripcionSAP: fromPendiente(asset.descripcionSAP),
+      marca: fromPendiente(asset.marca),
+      modeloTipo: fromPendiente(asset.modeloTipo),
+      potencia: fromPendiente(asset.potencia),
+      voltaje: fromPendiente(asset.voltaje),
+      relacionReduccion: fromPendiente(asset.relacionReduccion),
+      corriente: fromPendiente(asset.corriente),
+      eje: fromPendiente(asset.eje),
+      observaciones: fromPendiente(asset.observaciones),
       referencias: asset.referencias || [],
       imagenes: asset.imagenes || [],
       marcadores: asset.marcadores || []
@@ -514,19 +581,19 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
       id: '',
       tipo: 'motor',
       equipo: 'pendiente',
-      area: 'pendiente',
-      subarea: 'pendiente',
-      componente: 'pendiente',
-      codigoSAP: 'pendiente',
-      descripcionSAP: 'pendiente',
-      marca: 'pendiente',
-      modeloTipo: 'pendiente',
-      potencia: 'pendiente',
-      voltaje: 'pendiente',
-      relacionReduccion: 'pendiente',
-      corriente: 'pendiente',
-      eje: 'pendiente',
-      observaciones: 'pendiente',
+      area: '',
+      subarea: '',
+      componente: '',
+      codigoSAP: '',
+      descripcionSAP: '',
+      marca: '',
+      modeloTipo: '',
+      potencia: '',
+      voltaje: '',
+      relacionReduccion: '',
+      corriente: '',
+      eje: '',
+      observaciones: '',
       referencias: [],
       imagenes: [],
       marcadores: []
@@ -1334,21 +1401,55 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
               <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
                 <div className="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-2">Datos</div>
                 <div className="text-sm text-gray-700 dark:text-gray-200 space-y-1">
-                  <div><b>Descripción SAP:</b> {selected.descripcionSAP}</div>
-                  <div><b>Marca:</b> {selected.marca}</div>
-                  <div><b>Modelo/Tipo:</b> {selected.modeloTipo}</div>
-                  <div><b>Potencia:</b> {selected.potencia}</div>
-                  <div><b>Voltaje:</b> {selected.voltaje}</div>
-                  <div><b>Relación:</b> {selected.relacionReduccion}</div>
-                  <div><b>Corriente:</b> {selected.corriente}</div>
-                  <div><b>Eje:</b> {selected.eje}</div>
+                  {!isPendienteLike(selected.descripcionSAP) && (
+                    <div>
+                      <b>Descripción SAP:</b> {selected.descripcionSAP}
+                    </div>
+                  )}
+                  {!isPendienteLike(selected.marca) && (
+                    <div>
+                      <b>Marca:</b> {selected.marca}
+                    </div>
+                  )}
+                  {!isPendienteLike(selected.modeloTipo) && (
+                    <div>
+                      <b>Modelo/Tipo:</b> {selected.modeloTipo}
+                    </div>
+                  )}
+                  {!isPendienteLike(selected.potencia) && (
+                    <div>
+                      <b>Potencia:</b> {selected.potencia}
+                    </div>
+                  )}
+                  {!isPendienteLike(selected.voltaje) && (
+                    <div>
+                      <b>Voltaje:</b> {selected.voltaje}
+                    </div>
+                  )}
+                  {!isPendienteLike(selected.relacionReduccion) && (
+                    <div>
+                      <b>Relación:</b> {selected.relacionReduccion}
+                    </div>
+                  )}
+                  {!isPendienteLike(selected.corriente) && (
+                    <div>
+                      <b>Corriente:</b> {selected.corriente}
+                    </div>
+                  )}
+                  {!isPendienteLike(selected.eje) && (
+                    <div>
+                      <b>Eje:</b> {selected.eje}
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-                <div className="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-2">Observaciones</div>
-                <div className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">{selected.observaciones}</div>
-              </div>
+              {!isPendienteLike(selected.observaciones) && (
+                <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+                  <div className="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-2">Observaciones</div>
+                  <div className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">{selected.observaciones}</div>
+                </div>
+              )}
             </div>
 
             {/* Referencias */}
@@ -1875,6 +1976,7 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
               <input
                 value={editDraft.area}
                 onChange={(e) => setEditDraft((d) => ({ ...d, area: e.target.value }))}
+                list="plant-assets-opt-area"
                 className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
               />
             </div>
@@ -1883,6 +1985,7 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
               <input
                 value={editDraft.subarea}
                 onChange={(e) => setEditDraft((d) => ({ ...d, subarea: e.target.value }))}
+                list="plant-assets-opt-subarea"
                 className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
               />
             </div>
@@ -1892,6 +1995,7 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
               <input
                 value={editDraft.componente}
                 onChange={(e) => setEditDraft((d) => ({ ...d, componente: e.target.value }))}
+                list="plant-assets-opt-componente"
                 className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
               />
             </div>
@@ -1901,6 +2005,7 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
               <input
                 value={editDraft.descripcionSAP}
                 onChange={(e) => setEditDraft((d) => ({ ...d, descripcionSAP: e.target.value }))}
+                list="plant-assets-opt-descripcionSAP"
                 className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
               />
             </div>
@@ -1910,6 +2015,7 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
               <input
                 value={editDraft.marca}
                 onChange={(e) => setEditDraft((d) => ({ ...d, marca: e.target.value }))}
+                list="plant-assets-opt-marca"
                 className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
               />
             </div>
@@ -1918,6 +2024,7 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
               <input
                 value={editDraft.modeloTipo}
                 onChange={(e) => setEditDraft((d) => ({ ...d, modeloTipo: e.target.value }))}
+                list="plant-assets-opt-modeloTipo"
                 className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
               />
             </div>
@@ -1927,6 +2034,7 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
               <input
                 value={editDraft.potencia}
                 onChange={(e) => setEditDraft((d) => ({ ...d, potencia: e.target.value }))}
+                list="plant-assets-opt-potencia"
                 className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
               />
             </div>
@@ -1935,6 +2043,7 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
               <input
                 value={editDraft.voltaje}
                 onChange={(e) => setEditDraft((d) => ({ ...d, voltaje: e.target.value }))}
+                list="plant-assets-opt-voltaje"
                 className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
               />
             </div>
@@ -1944,6 +2053,7 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
               <input
                 value={editDraft.relacionReduccion}
                 onChange={(e) => setEditDraft((d) => ({ ...d, relacionReduccion: e.target.value }))}
+                list="plant-assets-opt-relacionReduccion"
                 className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
               />
             </div>
@@ -1952,6 +2062,7 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
               <input
                 value={editDraft.corriente}
                 onChange={(e) => setEditDraft((d) => ({ ...d, corriente: e.target.value }))}
+                list="plant-assets-opt-corriente"
                 className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
               />
             </div>
@@ -1961,6 +2072,7 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
               <input
                 value={editDraft.eje}
                 onChange={(e) => setEditDraft((d) => ({ ...d, eje: e.target.value }))}
+                list="plant-assets-opt-eje"
                 className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
               />
             </div>
@@ -1969,10 +2081,73 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
               <input
                 value={editDraft.observaciones}
                 onChange={(e) => setEditDraft((d) => ({ ...d, observaciones: e.target.value }))}
+                list="plant-assets-opt-observaciones"
                 className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
               />
             </div>
           </div>
+
+          {/* Sugerencias basadas en valores existentes. Permite escribir nuevos valores. */}
+          <datalist id="plant-assets-opt-area">
+            {editOptions.area.map((v) => (
+              <option key={v} value={v} />
+            ))}
+          </datalist>
+          <datalist id="plant-assets-opt-subarea">
+            {editOptions.subarea.map((v) => (
+              <option key={v} value={v} />
+            ))}
+          </datalist>
+          <datalist id="plant-assets-opt-componente">
+            {editOptions.componente.map((v) => (
+              <option key={v} value={v} />
+            ))}
+          </datalist>
+          <datalist id="plant-assets-opt-descripcionSAP">
+            {editOptions.descripcionSAP.map((v) => (
+              <option key={v} value={v} />
+            ))}
+          </datalist>
+          <datalist id="plant-assets-opt-marca">
+            {editOptions.marca.map((v) => (
+              <option key={v} value={v} />
+            ))}
+          </datalist>
+          <datalist id="plant-assets-opt-modeloTipo">
+            {editOptions.modeloTipo.map((v) => (
+              <option key={v} value={v} />
+            ))}
+          </datalist>
+          <datalist id="plant-assets-opt-potencia">
+            {editOptions.potencia.map((v) => (
+              <option key={v} value={v} />
+            ))}
+          </datalist>
+          <datalist id="plant-assets-opt-voltaje">
+            {editOptions.voltaje.map((v) => (
+              <option key={v} value={v} />
+            ))}
+          </datalist>
+          <datalist id="plant-assets-opt-relacionReduccion">
+            {editOptions.relacionReduccion.map((v) => (
+              <option key={v} value={v} />
+            ))}
+          </datalist>
+          <datalist id="plant-assets-opt-corriente">
+            {editOptions.corriente.map((v) => (
+              <option key={v} value={v} />
+            ))}
+          </datalist>
+          <datalist id="plant-assets-opt-eje">
+            {editOptions.eje.map((v) => (
+              <option key={v} value={v} />
+            ))}
+          </datalist>
+          <datalist id="plant-assets-opt-observaciones">
+            {editOptions.observaciones.map((v) => (
+              <option key={v} value={v} />
+            ))}
+          </datalist>
 
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setShowEdit(false)} disabled={savingEdit}>
