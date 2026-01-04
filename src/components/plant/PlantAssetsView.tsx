@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Maximize2, Pencil, Plus, Upload, Trash2, MapPin, X } from 'lucide-react';
 import type { PlantAsset, PlantAssetTipo, PlantMap } from '../../types';
 import { Button, Modal } from '../ui';
@@ -92,7 +92,16 @@ export function PlantAssetsView(props: { machineId: string | null }) {
   const [selectedMapId, setSelectedMapId] = useState<string>('');
   const selectedMap = useMemo(() => maps.find((m) => m.id === selectedMapId) || null, [maps, selectedMapId]);
   const [showAllMarkers, setShowAllMarkers] = useState(true);
-  const [addingMarker, setAddingMarker] = useState(false);
+  const [markerMode, setMarkerMode] = useState<'none' | 'add' | 'move'>('none');
+  const [movingMarkerId, setMovingMarkerId] = useState<string | null>(null);
+
+  const addingMarker = markerMode !== 'none';
+
+  useEffect(() => {
+    // Si cambian plano o selección, cortar cualquier modo de edición de marcador.
+    setMarkerMode('none');
+    setMovingMarkerId(null);
+  }, [selectedId, selectedMapId]);
 
   // === Modales ===
   const [showImport, setShowImport] = useState(false);
@@ -280,10 +289,22 @@ export function PlantAssetsView(props: { machineId: string | null }) {
     }
   };
 
-  const handleAddMarker = async (args: { mapId: string; x: number; y: number }) => {
+  const handleMapClick = async (args: { mapId: string; x: number; y: number }) => {
     if (!selected) return;
-    await addMarker(selected, { mapId: args.mapId, x: args.x, y: args.y });
-    setAddingMarker(false);
+
+    if (markerMode === 'add') {
+      await addMarker(selected, { mapId: args.mapId, x: args.x, y: args.y });
+      setMarkerMode('none');
+      return;
+    }
+
+    if (markerMode === 'move') {
+      if (!movingMarkerId) return;
+      const next = (selected.marcadores || []).map((m) => (m.id === movingMarkerId ? { ...m, x: args.x, y: args.y } : m));
+      await updateAsset(selected.id, { marcadores: next } as any);
+      setMarkerMode('none');
+      setMovingMarkerId(null);
+    }
   };
 
   const handleUploadAssetImage = async (file: File) => {
@@ -533,11 +554,36 @@ export function PlantAssetsView(props: { machineId: string | null }) {
               <Button
                 size="sm"
                 icon={<MapPin className="w-4 h-4" />}
-                onClick={() => setAddingMarker((v) => !v)}
+                onClick={() => {
+                  if (!selectedMapId || !selected) return;
+                  setMarkerMode((m) => (m === 'add' ? 'none' : 'add'));
+                  setMovingMarkerId(null);
+                }}
                 disabled={!selectedMapId || !selected}
                 title={!selected ? 'Selecciona un motor/bomba para agregar marcador' : undefined}
               >
-                {addingMarker ? 'Click en el plano...' : 'Agregar marcador'}
+                {markerMode === 'add' ? 'Click en el plano...' : 'Agregar marcador'}
+              </Button>
+
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  if (!selected || !selectedMapId) return;
+                  // Si solo tiene 1 marcador en este plano, lo preseleccionamos.
+                  const inMap = (selected.marcadores || []).filter((m) => m.mapId === selectedMapId);
+                  if (inMap.length === 1) {
+                    setMovingMarkerId(inMap[0].id);
+                    setMarkerMode('move');
+                    return;
+                  }
+                  // Si hay varios, dejamos que el usuario elija abajo.
+                  setMarkerMode('move');
+                }}
+                disabled={!selected || !selectedMapId || (selected?.marcadores || []).filter((m) => m.mapId === selectedMapId).length === 0}
+                title={!selected ? 'Selecciona un motor/bomba' : 'Mover marcador existente'}
+              >
+                {markerMode === 'move' ? 'Click para mover...' : 'Mover marcador'}
               </Button>
             </div>
 
@@ -549,18 +595,47 @@ export function PlantAssetsView(props: { machineId: string | null }) {
                   allAssets={assets}
                   showAllMarkers={showAllMarkers}
                   addingMarker={addingMarker}
-                  onAddMarker={handleAddMarker}
+                  onAddMarker={handleMapClick}
                   onSelectAsset={(assetId) => setSelectedId(assetId)}
+                  clickTitle={markerMode === 'add' ? 'Click para agregar marcador' : markerMode === 'move' ? 'Click para mover marcador' : undefined}
                 />
                 <div className="mt-2 text-xs text-gray-500 dark:text-gray-300">
-                  {addingMarker
+                  {markerMode === 'add'
                     ? 'Haz click en el plano para colocar el marcador. (Vuelve a apretar “Agregar marcador” para salir)'
+                    : markerMode === 'move'
+                      ? 'Haz click en el plano para mover el marcador seleccionado.'
                     : showAllMarkers
                       ? 'Tip: puedes hacer click en un marcador para seleccionar ese motor/bomba.'
                       : selected
                         ? 'Mostrando solo los marcadores del seleccionado.'
                         : 'Selecciona un motor/bomba para ver sus marcadores.'}
                 </div>
+
+                {markerMode === 'move' && selected && selectedMapId && (selected.marcadores || []).filter((m) => m.mapId === selectedMapId).length > 1 && (
+                  <div className="mt-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                    <div className="text-xs font-semibold text-gray-700 dark:text-gray-200">Elige qué marcador mover</div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {(selected.marcadores || [])
+                        .filter((m) => m.mapId === selectedMapId)
+                        .map((m, idx) => (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => setMovingMarkerId(m.id)}
+                            className={
+                              'px-2 py-1 rounded border text-xs ' +
+                              (movingMarkerId === m.id
+                                ? 'border-primary-300 dark:border-primary-600 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
+                                : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200')
+                            }
+                          >
+                            Marcador {idx + 1}
+                          </button>
+                        ))}
+                    </div>
+                    {!movingMarkerId && <div className="mt-2 text-xs text-gray-500">Selecciona un marcador arriba y luego haz click en el plano.</div>}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="mt-3 text-sm text-gray-500">Selecciona un plano para ubicar motores/bombas.</div>
@@ -1018,7 +1093,7 @@ export function PlantAssetsView(props: { machineId: string | null }) {
         isOpen={showMapFullscreen}
         onClose={() => setShowMapFullscreen(false)}
         title={selectedMap ? `Plano: ${selectedMap.nombre}` : 'Plano'}
-        size="xl"
+        size="full"
       >
         {selectedMap ? (
           <div className="space-y-3">
@@ -1028,9 +1103,10 @@ export function PlantAssetsView(props: { machineId: string | null }) {
               allAssets={assets}
               showAllMarkers={showAllMarkers}
               addingMarker={addingMarker}
-              onAddMarker={handleAddMarker}
+              onAddMarker={handleMapClick}
               onSelectAsset={(assetId) => setSelectedId(assetId)}
               mode="fullscreen"
+              clickTitle={markerMode === 'add' ? 'Click para agregar marcador' : markerMode === 'move' ? 'Click para mover marcador' : undefined}
             />
             <div className="text-xs text-gray-500 dark:text-gray-300">
               Zoom: rueda del mouse / pinch en móvil. Arrastra para mover. Doble click para reset.

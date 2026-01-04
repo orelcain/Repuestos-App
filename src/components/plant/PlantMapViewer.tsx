@@ -14,8 +14,9 @@ export function PlantMapViewer(props: {
   onAddMarker: (args: { mapId: string; x: number; y: number }) => void;
   onSelectAsset?: (assetId: string) => void;
   mode?: ViewerMode;
+  clickTitle?: string;
 }) {
-  const { map, selectedAsset, allAssets, showAllMarkers, addingMarker, onAddMarker, onSelectAsset, mode = 'embedded' } = props;
+  const { map, selectedAsset, allAssets, showAllMarkers, addingMarker, onAddMarker, onSelectAsset, mode = 'embedded', clickTitle } = props;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -208,8 +209,8 @@ export function PlantMapViewer(props: {
           `relative w-full overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-900 ` +
           (addingMarker ? 'cursor-crosshair' : 'cursor-grab active:cursor-grabbing')
         }
-        style={mode === 'embedded' ? { aspectRatio: '16 / 9', touchAction: 'none' } : { height: '75vh', touchAction: 'none' }}
-        title={addingMarker ? 'Click para agregar marcador' : 'Plano'}
+        style={mode === 'embedded' ? { aspectRatio: '16 / 9', touchAction: 'none' } : { height: '80vh', touchAction: 'none' }}
+        title={addingMarker ? (clickTitle || 'Click para colocar marcador') : 'Plano'}
       >
         <div
           className="absolute inset-0"

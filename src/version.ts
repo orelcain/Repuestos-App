@@ -1,9 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.89';
+export const APP_VERSION = '4.9.90';
 
 // Historial de versiones
 // ⚠️ Importante: agrega SIEMPRE la versión más nueva ARRIBA (al inicio del array)
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.90',
+    date: '2026-01-04',
+    changes: [
+      'Mapas: modal 80% + mover marcador'
+    ]
+  },
   {
     version: '4.9.89',
     date: '2026-01-04',
