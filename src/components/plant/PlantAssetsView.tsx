@@ -600,7 +600,13 @@ export function PlantAssetsView(props: { machineId: string | null }) {
       {/* Listado */}
       <div
         className="w-full md:flex-none bg-white dark:bg-gray-900 flex flex-col"
-        style={isDesktop && leftPaneWidthPx ? { width: leftPaneWidthPx } : undefined}
+        style={
+          isDesktop
+            ? leftPaneWidthPx
+              ? { width: leftPaneWidthPx }
+              : { width: '60%' }
+            : undefined
+        }
       >
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between gap-2">

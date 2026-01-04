@@ -18,9 +18,10 @@ interface MachineSelectorProps {
   onEditMachine?: (machine: Machine) => void;
   displayLabel?: string | null;
   displaySubLabel?: string | null;
+  variant?: 'default' | 'tab';
 }
 
-export function MachineSelector({ onEditMachine, displayLabel = null, displaySubLabel = null }: MachineSelectorProps) {
+export function MachineSelector({ onEditMachine, displayLabel = null, displaySubLabel = null, variant = 'default' }: MachineSelectorProps) {
   const { currentMachine, machines, setCurrentMachine, loading } = useMachineContext();
   
   const [isOpen, setIsOpen] = useState(false);
@@ -87,7 +88,11 @@ export function MachineSelector({ onEditMachine, displayLabel = null, displaySub
         {/* Botón principal del selector */}
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-3 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors min-w-[200px]"
+          className={
+            variant === 'tab'
+              ? 'flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100 transition-colors min-w-[200px]'
+              : 'flex items-center gap-3 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors min-w-[200px]'
+          }
         >
           {/* Color indicator */}
           <div
@@ -97,7 +102,11 @@ export function MachineSelector({ onEditMachine, displayLabel = null, displaySub
           
           {/* Nombre mostrado (puede ser override) */}
           <div className="flex-1 min-w-0 text-left">
-            <div className="font-medium text-gray-800 dark:text-gray-200 truncate">
+            <div className={
+              variant === 'tab'
+                ? 'truncate'
+                : 'font-medium text-gray-800 dark:text-gray-200 truncate'
+            }>
               {displayLabel || currentMachine?.nombre || 'Seleccionar máquina'}
             </div>
             {displaySubLabel && (
@@ -109,7 +118,7 @@ export function MachineSelector({ onEditMachine, displayLabel = null, displaySub
           
           {/* Chevron */}
           <ChevronDown 
-            className={`w-4 h-4 text-gray-500 dark:text-gray-300 transition-transform ${isOpen ? 'rotate-180' : ''}`} 
+            className={`w-4 h-4 ${variant === 'tab' ? 'text-gray-400 dark:text-gray-400' : 'text-gray-500 dark:text-gray-300'} transition-transform ${isOpen ? 'rotate-180' : ''}`} 
           />
         </button>
 

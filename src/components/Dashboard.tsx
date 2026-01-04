@@ -1191,31 +1191,8 @@ export function Dashboard() {
 
   const mainNavigation = (
     <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4">
-      <div className={`flex items-center gap-3 ${isManualPanelOpen ? 'py-2' : 'py-3'}`}>
-        {/* Acciones + versión (desktop), alineado a la izquierda */}
-        <div className="hidden md:flex items-center gap-3">
-          <span className="text-xs font-normal bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 px-2 py-0.5 rounded-full">
-            v{APP_VERSION}
-          </span>
-
-          {desktopCoreActions}
-
-          <div className="w-px h-8 bg-gray-200 dark:bg-gray-700" />
-
-          {desktopUserActions}
-
-          {canCloseManualFromHeader && (
-            <button
-              onClick={() => setRightPanelMode('hidden')}
-              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-300 transition-colors"
-              title="Cerrar manual"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          )}
-        </div>
-
-        {/* Tabs */}
+      <div className="flex items-center justify-between">
+        {/* Tabs (izquierda) */}
         <div className="flex items-center gap-1">
           <button
             onClick={() => {
@@ -1232,11 +1209,12 @@ export function Dashboard() {
             Catálogo
           </button>
 
-          <div className="px-2">
+          <div className="px-0">
             <MachineSelector
               onEditMachine={(machine) => setEditingMachineModal(machine)}
               displayLabel={catalogScopeBadge}
               displaySubLabel={catalogScopeBadge ? (currentMachine?.nombre || null) : null}
+              variant="tab"
             />
           </div>
 
@@ -1285,9 +1263,32 @@ export function Dashboard() {
           </button>
         </div>
 
-        {/* Menú móvil */}
+        {/* Acciones (derecha) */}
+        <div className={`hidden md:flex items-center gap-3 ${isManualPanelOpen ? 'py-2' : 'py-3'}`}>
+          {desktopCoreActions}
+
+          <div className="w-px h-8 bg-gray-200 dark:bg-gray-700" />
+
+          {desktopUserActions}
+
+          <span className="text-xs font-normal bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 px-2 py-0.5 rounded-full">
+            v{APP_VERSION}
+          </span>
+
+          {canCloseManualFromHeader && (
+            <button
+              onClick={() => setRightPanelMode('hidden')}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-300 transition-colors"
+              title="Cerrar manual"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
+        </div>
+
+        {/* Menú móvil (derecha) */}
         <button
-          className="md:hidden p-2 rounded-lg hover:bg-gray-100"
+          className={`md:hidden p-2 rounded-lg hover:bg-gray-100 ${isManualPanelOpen ? 'my-2' : 'my-3'}`}
           onClick={() => setMobileMenuOpen(true)}
           title="Menú"
         >
