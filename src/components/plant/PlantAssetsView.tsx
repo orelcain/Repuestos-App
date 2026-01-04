@@ -206,7 +206,6 @@ export function PlantAssetsView(props: { machineId: string | null }) {
   // === Columnas (persistentes) + Export ===
   const ALL_COLUMNS: Array<{ key: PlantAssetsColumnKey; label: string; defaultEnabled: boolean; thClassName?: string; tdClassName?: string }> = [
     { key: 'tipo', label: 'Tipo', defaultEnabled: true },
-    { key: 'equipo', label: 'Máquina/Cinta', defaultEnabled: true, thClassName: 'hidden lg:table-cell', tdClassName: 'hidden lg:table-cell' },
     { key: 'area', label: 'Área', defaultEnabled: true },
     { key: 'subarea', label: 'Subárea', defaultEnabled: true, thClassName: 'hidden lg:table-cell', tdClassName: 'hidden lg:table-cell' },
     { key: 'codigoSAP', label: 'SAP', defaultEnabled: true },
@@ -264,7 +263,7 @@ export function PlantAssetsView(props: { machineId: string | null }) {
   const [pdfIncludePhotos, setPdfIncludePhotos] = useState(true);
   const [pdfIncludeLocations, setPdfIncludeLocations] = useState(true);
 
-  const [sortKey, setSortKey] = useState<'tipo' | 'equipo' | 'area' | 'subarea' | 'codigoSAP' | 'marca' | 'relacionReduccion'>('area');
+  const [sortKey, setSortKey] = useState<'tipo' | 'area' | 'subarea' | 'codigoSAP' | 'marca' | 'relacionReduccion'>('area');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
   const toggleSort = (key: typeof sortKey) => {
@@ -280,7 +279,7 @@ export function PlantAssetsView(props: { machineId: string | null }) {
     const term = search.trim().toLowerCase();
     if (!term) return assets;
     return assets.filter((a) => {
-      const hay = `${a.tipo} ${a.equipo} ${a.area} ${a.subarea} ${a.codigoSAP} ${a.marca} ${a.potencia} ${a.descripcionSAP}`.toLowerCase();
+      const hay = `${a.tipo} ${a.area} ${a.subarea} ${a.codigoSAP} ${a.marca} ${a.potencia} ${a.descripcionSAP}`.toLowerCase();
       return hay.includes(term);
     });
   }, [assets, search]);
@@ -321,6 +320,19 @@ export function PlantAssetsView(props: { machineId: string | null }) {
     setMarkerMode('none');
     setMovingMarkerId(null);
   }, [selectedId, selectedMapId]);
+
+  useEffect(() => {
+    // Si el motor seleccionado tiene marcadores pero no en el plano actual,
+    // cambiar automáticamente al primer plano donde esté marcado.
+    if (!selected) return;
+    const ids = Array.from(new Set((selected.marcadores || []).map((mm) => mm.mapId).filter(Boolean)));
+    if (ids.length === 0) return;
+    if (!selectedMapId || !ids.includes(selectedMapId)) {
+      const firstExisting = ids.find((id) => maps.some((m) => m.id === id)) || ids[0];
+      setSelectedMapId(firstExisting);
+      setShowAllMarkers(false);
+    }
+  }, [maps, selected, selectedMapId]);
 
   // === Modales ===
   const [showImport, setShowImport] = useState(false);
@@ -646,7 +658,7 @@ export function PlantAssetsView(props: { machineId: string | null }) {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por máquina/cinta, área, SAP, marca..."
+            placeholder="Buscar por área, subárea, SAP, marca..."
             className="mt-3 w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
           />
         </div>
@@ -666,11 +678,6 @@ export function PlantAssetsView(props: { machineId: string | null }) {
                   {columnsEnabled.tipo && (
                     <th className="text-left px-3 py-2">
                       <button type="button" className="hover:underline" onClick={() => toggleSort('tipo')}>Tipo</button>
-                    </th>
-                  )}
-                  {columnsEnabled.equipo && (
-                    <th className="text-left px-3 py-2 hidden lg:table-cell">
-                      <button type="button" className="hover:underline" onClick={() => toggleSort('equipo')}>Máquina/Cinta</button>
                     </th>
                   )}
                   {columnsEnabled.area && (
@@ -718,13 +725,6 @@ export function PlantAssetsView(props: { machineId: string | null }) {
                         <td className="px-3 py-2">
                           <button type="button" className="text-left w-full" onClick={() => setSelectedId(a.id)}>
                             <Badge text={a.tipo.toUpperCase()} tone="strong" paletteKey={`tipo:${a.tipo}`} />
-                          </button>
-                        </td>
-                      )}
-                      {columnsEnabled.equipo && (
-                        <td className="px-3 py-2 hidden lg:table-cell">
-                          <button type="button" className="text-left w-full truncate" onClick={() => setSelectedId(a.id)}>
-                            {a.equipo}
                           </button>
                         </td>
                       )}

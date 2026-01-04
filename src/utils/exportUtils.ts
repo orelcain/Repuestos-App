@@ -5,11 +5,21 @@ import autoTable from 'jspdf-autotable';
 import { PlantAsset, Repuesto, getTagNombre, isTagAsignado } from '../types';
 import { preloadImagesWithDimensions, ImageData, imageUrlToBase64WithDimensions } from './imageUtils';
 
+const sanitizeWorksheetName = (name: string) => {
+  // Reglas Excel: no permite * ? : \ / [ ] y máximo 31 caracteres.
+  // Además, ExcelJS lanza error si el nombre es inválido.
+  const cleaned = String(name || '')
+    .replace(/[\\/*?:\[\]]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const limited = cleaned.slice(0, 31).trim();
+  return limited || 'Hoja';
+};
+
 // === EXPORT MOTORES / BOMBAS (ACTIVOS DE PLANTA) ===
 
 export type PlantAssetsColumnKey =
   | 'tipo'
-  | 'equipo'
   | 'area'
   | 'subarea'
   | 'codigoSAP'
@@ -28,7 +38,6 @@ export interface PlantAssetsExportOptions {
 
 const plantAssetsColumnHeader: Record<PlantAssetsColumnKey, string> = {
   tipo: 'Tipo',
-  equipo: 'Máquina/Cinta',
   area: 'Área',
   subarea: 'Subárea',
   codigoSAP: 'SAP',
@@ -44,7 +53,7 @@ export async function exportPlantAssetsToExcel(assets: PlantAsset[], options: Pl
   workbook.creator = 'Baader 200 App';
   workbook.created = new Date();
 
-  const ws = workbook.addWorksheet('Motores/Bombas');
+  const ws = workbook.addWorksheet(sanitizeWorksheetName('Motores/Bombas'));
   ws.columns = columns.map((key) => ({
     header: plantAssetsColumnHeader[key],
     key,
@@ -55,9 +64,7 @@ export async function exportPlantAssetsToExcel(assets: PlantAsset[], options: Pl
           ? 26
           : key === 'area'
             ? 22
-            : key === 'equipo'
-              ? 22
-              : 16
+            : 16
   }));
 
   const headerRow = ws.getRow(1);
@@ -374,7 +381,7 @@ async function exportToExcelInforme(
     ? contextTag.substring(0, 31) // Excel limita a 31 caracteres
     : (esSolicitud ? 'Cantidad Solicitada' : 'Stock Bodega');
 
-  const ws = workbook.addWorksheet(sheetName);
+  const ws = workbook.addWorksheet(sanitizeWorksheetName(sheetName));
 
   // === COLUMNAS EXACTAS DEL INFORME ===
   ws.columns = [

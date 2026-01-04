@@ -80,6 +80,20 @@ export function PlantMapViewer(props: {
     setTy(0);
   };
 
+  const focusOnMarker = (m: { x: number; y: number }, opts?: { zoomInScale?: number }) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+
+    const target = clamp(opts?.zoomInScale ?? 2.5, 1, 8);
+    const nextScale = clamp(Math.max(scale, target), 1, 8);
+    const nextTx = rect.width / 2 - m.x * rect.width * nextScale;
+    const nextTy = rect.height / 2 - m.y * rect.height * nextScale;
+    setScale(nextScale);
+    setTx(nextTx);
+    setTy(nextTy);
+  };
+
   const markers = useMemo(() => {
     const getPrimaryImageUrl = (asset: PlantAsset) => {
       const imgs = (asset.imagenes || []).slice();
@@ -99,7 +113,6 @@ export function PlantMapViewer(props: {
         assetLabel: string;
         codigoSAP: string;
         tipo: string;
-        equipo: string;
         area: string;
         subarea: string;
         componente?: string;
@@ -128,7 +141,6 @@ export function PlantMapViewer(props: {
           assetLabel: `${asset.tipo.toUpperCase()} • ${asset.codigoSAP}`,
           codigoSAP: asset.codigoSAP,
           tipo: asset.tipo.toUpperCase(),
-          equipo: asset.equipo,
           area: asset.area,
           subarea: asset.subarea,
           componente: asset.componente,
@@ -231,7 +243,6 @@ export function PlantMapViewer(props: {
 
   const handleWheel = (e: React.WheelEvent) => {
     if (!containerRef.current) return;
-    e.preventDefault();
     const delta = e.deltaY;
     const factor = delta > 0 ? 0.9 : 1.1;
     zoomAt(scale * factor, e.clientX, e.clientY);
@@ -356,7 +367,6 @@ export function PlantMapViewer(props: {
                     <div className="mt-1 text-gray-200">
                       {pinnedMarker.area} — {pinnedMarker.subarea}
                     </div>
-                    {formatField(pinnedMarker.equipo) && <div className="mt-1 text-gray-200">Máquina/Cinta: {pinnedMarker.equipo}</div>}
                   </div>
                   <button
                     type="button"
@@ -463,9 +473,6 @@ export function PlantMapViewer(props: {
                 <div className="mt-1 text-gray-200">
                   {hoveredMarker.area} — {hoveredMarker.subarea}
                 </div>
-                {String(hoveredMarker.equipo || '').trim() && String(hoveredMarker.equipo || '').toLowerCase() !== 'pendiente' && (
-                  <div className="mt-1 text-gray-200">Máquina/Cinta: {hoveredMarker.equipo}</div>
-                )}
                 <div className="mt-1 text-gray-200">
                   {[
                     hoveredMarker.marca,
@@ -518,6 +525,7 @@ export function PlantMapViewer(props: {
           {markers.map((m) => {
             const isSelected = selectedAsset?.id === m.assetId;
             const canSelect = showAllMarkers && !!onSelectAsset;
+            const isPinned = pinnedMarkerId === m.id;
 
             // En modo agregar/mover, NO queremos que los marcadores intercepten clicks (mejora mover marcador).
             if (addingMarker) {
@@ -526,7 +534,7 @@ export function PlantMapViewer(props: {
                   key={m.id}
                   className={
                     `absolute pointer-events-none -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary-600 ring-2 ring-white dark:ring-gray-900 ` +
-                    (isSelected ? 'w-4 h-4' : 'w-3 h-3')
+                    (isSelected ? 'w-3 h-3' : 'w-2 h-2')
                   }
                   style={{ left: `${m.x * 100}%`, top: `${m.y * 100}%` }}
                 />
@@ -543,6 +551,7 @@ export function PlantMapViewer(props: {
                   e.stopPropagation();
                   setPinnedMarkerId(m.id);
                   setPinnedPhotoIndex(0);
+                  focusOnMarker(m, { zoomInScale: 2.5 });
                   if (canSelect) {
                     onSelectAsset?.(m.assetId);
                   }
@@ -556,8 +565,10 @@ export function PlantMapViewer(props: {
                 }}
                 onBlur={() => setHoveredMarkerId(null)}
                 className={
-                  `absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary-600 ring-2 ring-white dark:ring-gray-900 ` +
-                  (isSelected ? 'w-4 h-4' : 'w-3 h-3') +
+                  `absolute -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-white dark:ring-gray-900 ` +
+                  (isPinned ? 'bg-emerald-500' : 'bg-primary-600') +
+                  ' ' +
+                  (isSelected ? 'w-3 h-3' : 'w-2 h-2') +
                   ' cursor-pointer hover:scale-110 transition-transform'
                 }
                 style={{ left: `${m.x * 100}%`, top: `${m.y * 100}%` }}
@@ -566,6 +577,21 @@ export function PlantMapViewer(props: {
             );
           })}
         </div>
+
+        {/* Botón Centrar / Reset */}
+        {(scale !== 1 || tx !== 0 || ty !== 0) && (
+          <button
+            type="button"
+            className="absolute top-2 right-2 z-10 px-3 py-1.5 rounded-lg text-xs border border-gray-200 dark:border-gray-700 bg-white/90 dark:bg-gray-900/80 text-gray-800 dark:text-gray-100 hover:bg-white dark:hover:bg-gray-900"
+            onClick={(e) => {
+              e.stopPropagation();
+              resetView();
+            }}
+            title="Centrar el plano"
+          >
+            Centrar
+          </button>
+        )}
 
         {!imgLoaded && (
           <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-500 dark:text-gray-300">

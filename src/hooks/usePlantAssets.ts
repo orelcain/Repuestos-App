@@ -100,6 +100,29 @@ const newId = () => {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 };
 
+const stripUndefinedDeep = (value: unknown): any => {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (value instanceof Date) return value;
+
+  if (Array.isArray(value)) {
+    return value
+      .map((v) => stripUndefinedDeep(v))
+      .filter((v) => v !== undefined);
+  }
+
+  if (typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      const cleaned = stripUndefinedDeep(v);
+      if (cleaned !== undefined) out[k] = cleaned;
+    }
+    return out;
+  }
+
+  return value;
+};
+
 export function usePlantAssets() {
   const [items, setItems] = useState<PlantAsset[]>([]);
   const [loading, setLoading] = useState(true);
@@ -140,8 +163,9 @@ export function usePlantAssets() {
   }, []);
 
   const updateAsset = useCallback(async (id: string, patch: Partial<Omit<PlantAsset, 'id' | 'createdAt'>>) => {
+    const cleanedPatch = stripUndefinedDeep(patch);
     await updateDoc(doc(db, COLLECTION_NAME, id), {
-      ...patch,
+      ...cleanedPatch,
       updatedAt: Timestamp.fromDate(new Date())
     } as any);
   }, []);
