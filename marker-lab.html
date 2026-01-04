@@ -1,0 +1,782 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Marker Lab (10 estilos)</title>
+    <style>
+      :root {
+        --bg: #0b1220;
+        --panel: rgba(255, 255, 255, 0.08);
+        --panel2: rgba(255, 255, 255, 0.06);
+        --border: rgba(255, 255, 255, 0.12);
+        --text: rgba(255, 255, 255, 0.92);
+        --muted: rgba(255, 255, 255, 0.65);
+        --accent: #3b82f6;
+        --ok: #10b981;
+        --warn: #f59e0b;
+        --danger: #ef4444;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+        background: radial-gradient(1200px 600px at 20% 0%, rgba(59,130,246,0.25), transparent 55%),
+          radial-gradient(900px 500px at 100% 20%, rgba(16,185,129,0.18), transparent 60%),
+          var(--bg);
+        color: var(--text);
+      }
+
+      .wrap {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 18px;
+        display: grid;
+        grid-template-columns: 380px 1fr;
+        gap: 16px;
+      }
+
+      @media (max-width: 980px) {
+        .wrap { grid-template-columns: 1fr; }
+      }
+
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        overflow: hidden;
+      }
+
+      .card > header {
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        gap: 10px;
+        align-items: baseline;
+        justify-content: space-between;
+      }
+
+      h1 {
+        font-size: 14px;
+        margin: 0;
+        font-weight: 750;
+        letter-spacing: 0.2px;
+      }
+
+      .sub {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .content { padding: 14px; }
+
+      .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+      label { font-size: 12px; color: var(--muted); }
+      select, button {
+        background: rgba(255,255,255,0.08);
+        color: var(--text);
+        border: 1px solid rgba(255,255,255,0.14);
+        border-radius: 10px;
+        padding: 8px 10px;
+        font-size: 12px;
+        outline: none;
+      }
+      button { cursor: pointer; }
+      button:active { transform: translateY(1px); }
+
+      .hint {
+        margin-top: 10px;
+        padding: 10px;
+        border-radius: 12px;
+        border: 1px dashed rgba(255,255,255,0.18);
+        background: rgba(255,255,255,0.04);
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+        margin-top: 12px;
+      }
+
+      .style-item {
+        display: grid;
+        grid-template-columns: 56px 1fr;
+        gap: 10px;
+        align-items: center;
+        padding: 10px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.05);
+      }
+
+      .style-item.active {
+        border-color: rgba(59,130,246,0.55);
+        background: rgba(59,130,246,0.08);
+      }
+
+      .style-name {
+        font-size: 12px;
+        font-weight: 700;
+        margin: 0;
+      }
+
+      .style-desc {
+        margin: 2px 0 0;
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.25;
+      }
+
+      /* Map area */
+      .map {
+        position: relative;
+        min-height: 560px;
+        background:
+          linear-gradient(0deg, rgba(255,255,255,0.02), rgba(255,255,255,0.02)),
+          repeating-linear-gradient(0deg, rgba(255,255,255,0.03) 0 1px, transparent 1px 36px),
+          repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0 1px, transparent 1px 36px),
+          radial-gradient(800px 380px at 30% 10%, rgba(255,255,255,0.05), transparent 55%),
+          #0a1020;
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        overflow: hidden;
+      }
+
+      .map .legend {
+        position: absolute;
+        left: 12px;
+        bottom: 12px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: rgba(0,0,0,0.40);
+        border: 1px solid rgba(255,255,255,0.12);
+        font-size: 12px;
+        color: rgba(255,255,255,0.75);
+        backdrop-filter: blur(8px);
+      }
+
+      .map .legend b { color: rgba(255,255,255,0.92); }
+
+      /* Tooltip */
+      .tooltip {
+        position: absolute;
+        z-index: 50;
+        min-width: 240px;
+        max-width: 320px;
+        background: rgba(17, 24, 39, 0.92);
+        border: 1px solid rgba(255,255,255,0.14);
+        border-radius: 12px;
+        padding: 10px;
+        font-size: 12px;
+        box-shadow: 0 16px 40px rgba(0,0,0,0.35);
+        backdrop-filter: blur(10px);
+        transform: translate(-50%, calc(-100% - 12px));
+      }
+
+      .tooltip.hidden { display: none; }
+
+      .tooltip .title {
+        font-weight: 800;
+        letter-spacing: 0.2px;
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .tooltip .meta { color: rgba(255,255,255,0.72); margin-top: 4px; line-height: 1.25; }
+
+      .tooltip .actions {
+        margin-top: 10px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
+      .chip {
+        border-radius: 999px;
+        padding: 2px 8px;
+        font-size: 11px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.08);
+        color: rgba(255,255,255,0.85);
+        white-space: nowrap;
+      }
+
+      .btn {
+        border-radius: 10px;
+        padding: 6px 10px;
+        font-size: 12px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.08);
+        color: rgba(255,255,255,0.9);
+        cursor: pointer;
+      }
+
+      .btn.primary { background: rgba(59,130,246,0.18); border-color: rgba(59,130,246,0.28); }
+      .btn.ok { background: rgba(16,185,129,0.16); border-color: rgba(16,185,129,0.26); }
+
+      .tooltip:after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 100%;
+        transform: translateX(-50%);
+        width: 0; height: 0;
+        border-left: 8px solid transparent;
+        border-right: 8px solid transparent;
+        border-top: 9px solid rgba(17, 24, 39, 0.92);
+        filter: drop-shadow(0 1px 0 rgba(255,255,255,0.16));
+      }
+
+      /* Marker base */
+      .marker {
+        position: absolute;
+        left: var(--x);
+        top: var(--y);
+        transform: translate(-50%, -50%);
+        width: 18px;
+        height: 18px;
+        border: 0;
+        padding: 0;
+        background: transparent;
+        cursor: pointer;
+        z-index: 10;
+        touch-action: none;
+      }
+
+      .marker:focus { outline: none; }
+
+      .layer { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+
+      @keyframes ping { 0% { transform: translate(-50%, -50%) scale(1); opacity: 0.95; } 100% { transform: translate(-50%, -50%) scale(2.6); opacity: 0; } }
+      @keyframes ripple { 0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.8; } 100% { transform: translate(-50%, -50%) scale(3.3); opacity: 0; } }
+
+      /* 10 styles */
+
+      /* 1) Dot */
+      .s-dot .dot { width: 14px; height: 14px; border-radius: 999px; background: var(--accent); box-shadow: 0 8px 18px rgba(0,0,0,0.35); }
+
+      /* 2) Dot + halo */
+      .s-halo .halo { width: 34px; height: 34px; border-radius: 999px; background: rgba(59,130,246,0.18); }
+      .s-halo .dot { width: 12px; height: 12px; border-radius: 999px; background: var(--accent); box-shadow: 0 10px 20px rgba(0,0,0,0.35); }
+
+      /* 3) Beacon (pulse fill) */
+      .s-beacon .pulse { width: 14px; height: 14px; border-radius: 999px; background: rgba(59,130,246,0.35); animation: ping 1.6s ease-out infinite; }
+      .s-beacon .dot { width: 12px; height: 12px; border-radius: 999px; background: var(--accent); }
+
+      /* 4) Ripple ring */
+      .s-ripple .ring { width: 14px; height: 14px; border-radius: 999px; border: 2px solid rgba(59,130,246,0.55); animation: ripple 1.8s ease-out infinite; }
+      .s-ripple .dot { width: 12px; height: 12px; border-radius: 999px; background: var(--accent); }
+
+      /* 5) Pin classic */
+      .s-pin { width: 18px; height: 22px; }
+      .s-pin .pin {
+        width: 18px;
+        height: 18px;
+        background: var(--accent);
+        border-radius: 18px 18px 18px 0;
+        transform: translate(-50%, -50%) rotate(-45deg);
+        box-shadow: 0 16px 30px rgba(0,0,0,0.35);
+      }
+      .s-pin .pin:after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 7px;
+        height: 7px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.92);
+        transform: translate(-50%, -50%);
+      }
+
+      /* 6) Target */
+      .s-target .o1 { width: 34px; height: 34px; border-radius: 999px; border: 2px solid rgba(59,130,246,0.25); }
+      .s-target .o2 { width: 22px; height: 22px; border-radius: 999px; border: 2px solid rgba(59,130,246,0.42); }
+      .s-target .dot { width: 10px; height: 10px; border-radius: 999px; background: var(--accent); }
+
+      /* 7) Badge number */
+      .s-badge .badge {
+        min-width: 26px;
+        height: 22px;
+        padding: 0 7px;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        background: rgba(255,255,255,0.92);
+        color: rgba(0,0,0,0.85);
+        font-weight: 800;
+        box-shadow: 0 16px 30px rgba(0,0,0,0.35);
+      }
+      .s-badge .badge:before {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 100%;
+        transform: translateX(-50%);
+        width: 0; height: 0;
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        border-top: 7px solid rgba(255,255,255,0.92);
+        filter: drop-shadow(0 2px 6px rgba(0,0,0,0.25));
+      }
+
+      /* 8) Flag label */
+      .s-flag { width: 24px; height: 24px; }
+      .s-flag .pole { width: 4px; height: 22px; border-radius: 3px; background: rgba(255,255,255,0.65); box-shadow: 0 10px 18px rgba(0,0,0,0.25); }
+      .s-flag .flag {
+        left: calc(50% + 12px);
+        top: calc(50% - 7px);
+        transform: translate(-50%, -50%);
+        height: 18px;
+        padding: 0 10px;
+        display: grid;
+        place-items: center;
+        border-radius: 8px;
+        border: 1px solid rgba(255,255,255,0.18);
+        background: rgba(59,130,246,0.18);
+        color: rgba(255,255,255,0.88);
+        font-size: 11px;
+        font-weight: 750;
+        white-space: nowrap;
+        backdrop-filter: blur(8px);
+      }
+
+      /* 9) Crosshair */
+      .s-cross .c {
+        width: 26px;
+        height: 26px;
+        border-radius: 999px;
+        border: 2px solid rgba(59,130,246,0.42);
+      }
+      .s-cross .c:before, .s-cross .c:after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(59,130,246,0.55);
+      }
+      .s-cross .c:before { width: 2px; height: 26px; }
+      .s-cross .c:after { height: 2px; width: 26px; }
+      .s-cross .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--accent); }
+
+      /* 10) Thumbnail */
+      .s-thumb { width: 30px; height: 30px; }
+      .s-thumb .thumb {
+        width: 30px;
+        height: 30px;
+        border-radius: 999px;
+        border: 2px solid rgba(255,255,255,0.75);
+        background: linear-gradient(135deg, rgba(59,130,246,0.35), rgba(16,185,129,0.35));
+        box-shadow: 0 18px 40px rgba(0,0,0,0.35);
+        overflow: hidden;
+      }
+      .s-thumb .thumb:after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.9);
+      }
+
+      /* Active state helpers */
+      .marker[data-active="true"] { z-index: 30; }
+      .marker[data-active="true"] .active-ring {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 52px;
+        height: 52px;
+        border-radius: 999px;
+        transform: translate(-50%, -50%);
+        border: 2px solid rgba(16,185,129,0.45);
+        animation: ripple 1.6s ease-out infinite;
+        pointer-events: none;
+      }
+
+      .preview-slot {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        background: rgba(0,0,0,0.18);
+        border: 1px solid rgba(255,255,255,0.10);
+        position: relative;
+        display: grid;
+        place-items: center;
+      }
+
+      .preview-slot .marker { position: relative; left: auto; top: auto; transform: none; }
+
+      .small {
+        font-size: 11px;
+        color: rgba(255,255,255,0.65);
+      }
+
+      .coords {
+        margin-left: auto;
+        font-variant-numeric: tabular-nums;
+        color: rgba(255,255,255,0.70);
+        font-size: 12px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="wrap">
+      <section class="card">
+        <header>
+          <div>
+            <h1>Marker Lab</h1>
+            <div class="sub">10 estilos + hover / fijar / mover</div>
+          </div>
+          <span class="chip" id="modeChip">Modo: normal</span>
+        </header>
+        <div class="content">
+          <div class="row">
+            <label for="styleSelect">Estilo:</label>
+            <select id="styleSelect"></select>
+            <button id="btnMove" class="btn">Mover: OFF</button>
+            <button id="btnReset" class="btn">Reset posiciones</button>
+            <div class="coords" id="coords">x: —  y: —</div>
+          </div>
+
+          <div class="hint">
+            <b>Interacciones:</b>
+            <ul style="margin: 8px 0 0; padding-left: 18px;">
+              <li>Hover: muestra tooltip.</li>
+              <li>Click: fija / suelta tooltip.</li>
+              <li><b>Mover: ON</b> + arrastrar marcador para reposicionar.</li>
+            </ul>
+            <div class="small" style="margin-top: 8px;">
+              Objetivo: elegir el look que se vea más profesional en plano.
+            </div>
+          </div>
+
+          <div class="grid" id="styleGrid"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <header>
+          <div>
+            <h1>Plano de prueba</h1>
+            <div class="sub">Los mismos marcadores, estilo seleccionable</div>
+          </div>
+        </header>
+        <div class="content">
+          <div class="map" id="map">
+            <div class="legend">
+              <div><b>Tips:</b></div>
+              <div>• Click fija tooltip</div>
+              <div>• Active: ripple verde (fijado)</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <template id="tooltipTpl">
+      <div class="tooltip hidden" role="dialog" aria-live="polite">
+        <div class="title">
+          <span id="ttTitle">Motor • SA5/7</span>
+          <span class="chip" id="ttState">hover</span>
+        </div>
+        <div class="meta" id="ttMeta">Área — Subárea · 2.2kW · 220/380</div>
+        <div class="actions">
+          <button class="btn ok" id="ttPin">Fijar</button>
+          <button class="btn primary" id="ttMove">Mover</button>
+        </div>
+      </div>
+    </template>
+
+    <script>
+      const styles = [
+        { id: 's-dot', name: '1) Dot', desc: 'Punto minimalista (simple)', build: (root) => {
+          root.innerHTML = `<span class="layer dot"></span>`;
+        }},
+        { id: 's-halo', name: '2) Dot + halo', desc: 'Punto con halo suave (muy legible)', build: (root) => {
+          root.innerHTML = `<span class="layer halo"></span><span class="layer dot"></span>`;
+        }},
+        { id: 's-beacon', name: '3) Beacon (pulse)', desc: 'Pulse sólido (llama atención)', build: (root) => {
+          root.innerHTML = `<span class="layer pulse"></span><span class="layer dot"></span>`;
+        }},
+        { id: 's-ripple', name: '4) Ripple (ring)', desc: 'Onda de borde (pro, no mancha)', build: (root) => {
+          root.innerHTML = `<span class="layer ring"></span><span class="layer dot"></span>`;
+        }},
+        { id: 's-pin', name: '5) Pin clásico', desc: 'Pin tipo Google (intuitivo)', build: (root) => {
+          root.innerHTML = `<span class="layer pin"></span>`;
+        }},
+        { id: 's-target', name: '6) Target', desc: 'Diana (preciso sobre plano)', build: (root) => {
+          root.innerHTML = `<span class="layer o1"></span><span class="layer o2"></span><span class="layer dot"></span>`;
+        }},
+        { id: 's-badge', name: '7) Badge número', desc: 'Útil si hay muchos marcadores', build: (root) => {
+          root.innerHTML = `<span class="layer badge">7</span>`;
+        }},
+        { id: 's-flag', name: '8) Flag label', desc: 'Etiqueta flotante (descriptivo)', build: (root) => {
+          root.innerHTML = `<span class="layer pole"></span><span class="layer flag">MOT-02</span>`;
+        }},
+        { id: 's-cross', name: '9) Crosshair', desc: 'Cruces + punto (técnico)', build: (root) => {
+          root.innerHTML = `<span class="layer c"></span><span class="layer dot"></span>`;
+        }},
+        { id: 's-thumb', name: '10) Thumbnail', desc: 'Avatar redondo (premium, pesado)', build: (root) => {
+          root.innerHTML = `<span class="layer thumb"></span>`;
+        }},
+      ];
+
+      const defaults = [
+        { id: 'A', x: 18, y: 25, title: 'Motor • SA5/7', meta: 'Zona A — Línea 1 · 2.2kW · 220/380' },
+        { id: 'B', x: 42, y: 35, title: 'Bomba • BK-01', meta: 'Zona B — Línea 2 · 1.5kW · 380' },
+        { id: 'C', x: 65, y: 22, title: 'Motor • TRN100L4', meta: 'Zona C — Reductor · 2.2kW' },
+        { id: 'D', x: 72, y: 60, title: 'Motor • SA5/7', meta: 'Zona D — Planta · 3.0kW' },
+        { id: 'E', x: 30, y: 68, title: 'Bomba • PB-02', meta: 'Zona E — Exteriores · 1.1kW' },
+      ];
+
+      const state = {
+        styleId: styles[3].id, // default: ripple
+        moveMode: false,
+        pinnedId: null,
+        draggingId: null,
+        pos: new Map(defaults.map((m) => [m.id, { x: m.x, y: m.y }]))
+      };
+
+      const mapEl = document.getElementById('map');
+      const styleSelect = document.getElementById('styleSelect');
+      const styleGrid = document.getElementById('styleGrid');
+      const btnMove = document.getElementById('btnMove');
+      const btnReset = document.getElementById('btnReset');
+      const coords = document.getElementById('coords');
+      const modeChip = document.getElementById('modeChip');
+
+      const tooltip = document.getElementById('tooltipTpl').content.firstElementChild.cloneNode(true);
+      mapEl.appendChild(tooltip);
+      const ttTitle = tooltip.querySelector('#ttTitle');
+      const ttMeta = tooltip.querySelector('#ttMeta');
+      const ttState = tooltip.querySelector('#ttState');
+      const ttPin = tooltip.querySelector('#ttPin');
+      const ttMove = tooltip.querySelector('#ttMove');
+
+      function setStyle(styleId) {
+        state.styleId = styleId;
+        styleSelect.value = styleId;
+        [...styleGrid.children].forEach((el) => {
+          el.classList.toggle('active', el.dataset.styleId === styleId);
+        });
+        renderMarkers();
+      }
+
+      function setMoveMode(on) {
+        state.moveMode = on;
+        btnMove.textContent = `Mover: ${on ? 'ON' : 'OFF'}`;
+        btnMove.classList.toggle('primary', on);
+        modeChip.textContent = `Modo: ${on ? 'mover' : 'normal'}`;
+        if (!on) state.draggingId = null;
+      }
+
+      function resetPositions() {
+        state.pos = new Map(defaults.map((m) => [m.id, { x: m.x, y: m.y }]))
+        state.pinnedId = null;
+        hideTooltip();
+        renderMarkers();
+      }
+
+      function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
+
+      function toPx(xPct, yPct) {
+        const rect = mapEl.getBoundingClientRect();
+        return { x: (xPct / 100) * rect.width, y: (yPct / 100) * rect.height };
+      }
+
+      function toPct(clientX, clientY) {
+        const rect = mapEl.getBoundingClientRect();
+        const x = ((clientX - rect.left) / rect.width) * 100;
+        const y = ((clientY - rect.top) / rect.height) * 100;
+        return { x: clamp(x, 0, 100), y: clamp(y, 0, 100) };
+      }
+
+      function showTooltip(marker) {
+        const pos = state.pos.get(marker.id);
+        const p = toPx(pos.x, pos.y);
+        tooltip.style.left = `${p.x}px`;
+        tooltip.style.top = `${p.y}px`;
+        ttTitle.textContent = marker.title;
+        ttMeta.textContent = marker.meta;
+        ttState.textContent = state.pinnedId === marker.id ? 'fijado' : 'hover';
+        ttPin.textContent = state.pinnedId === marker.id ? 'Soltar' : 'Fijar';
+        tooltip.classList.remove('hidden');
+        tooltip.dataset.markerId = marker.id;
+      }
+
+      function hideTooltip() {
+        tooltip.classList.add('hidden');
+        tooltip.dataset.markerId = '';
+      }
+
+      function getMarkerById(id) { return defaults.find((m) => m.id === id) || null; }
+
+      function renderMarkers() {
+        mapEl.querySelectorAll('.marker').forEach((n) => n.remove());
+
+        for (const m of defaults) {
+          const p = state.pos.get(m.id);
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = `marker ${state.styleId}`;
+          btn.style.setProperty('--x', `${p.x}%`);
+          btn.style.setProperty('--y', `${p.y}%`);
+          btn.dataset.id = m.id;
+          btn.dataset.active = String(state.pinnedId === m.id);
+
+          // Active ring (green) only when pinned
+          if (state.pinnedId === m.id) {
+            const ring = document.createElement('span');
+            ring.className = 'active-ring';
+            btn.appendChild(ring);
+          }
+
+          const root = document.createElement('span');
+          root.className = 'root';
+          styles.find((s) => s.id === state.styleId)?.build(root);
+          btn.appendChild(root);
+
+          btn.addEventListener('mouseenter', () => {
+            if (state.draggingId) return;
+            if (state.pinnedId && state.pinnedId !== m.id) return; // keep pinned tooltip
+            showTooltip(m);
+          });
+          btn.addEventListener('mouseleave', () => {
+            if (state.draggingId) return;
+            if (state.pinnedId === m.id) return;
+            hideTooltip();
+          });
+          btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (state.moveMode) return;
+            state.pinnedId = state.pinnedId === m.id ? null : m.id;
+            if (state.pinnedId) showTooltip(m);
+            else hideTooltip();
+            renderMarkers();
+          });
+
+          // Drag to move
+          btn.addEventListener('pointerdown', (e) => {
+            if (!state.moveMode) return;
+            state.draggingId = m.id;
+            btn.setPointerCapture(e.pointerId);
+            showTooltip(m);
+            ttState.textContent = 'mover';
+          });
+          btn.addEventListener('pointermove', (e) => {
+            if (!state.moveMode) return;
+            if (state.draggingId !== m.id) return;
+            const pct = toPct(e.clientX, e.clientY);
+            state.pos.set(m.id, pct);
+            btn.style.setProperty('--x', `${pct.x}%`);
+            btn.style.setProperty('--y', `${pct.y}%`);
+            coords.textContent = `x: ${pct.x.toFixed(1)}  y: ${pct.y.toFixed(1)}`;
+            showTooltip(m);
+          });
+          btn.addEventListener('pointerup', () => {
+            if (!state.moveMode) return;
+            if (state.draggingId !== m.id) return;
+            state.draggingId = null;
+            coords.textContent = `x: —  y: —`;
+          });
+
+          mapEl.appendChild(btn);
+        }
+
+        // If pinned exists, keep tooltip positioned
+        if (state.pinnedId) {
+          const pm = getMarkerById(state.pinnedId);
+          if (pm) showTooltip(pm);
+        }
+      }
+
+      function renderStyleList() {
+        styleSelect.innerHTML = '';
+        styleGrid.innerHTML = '';
+
+        for (const s of styles) {
+          const opt = document.createElement('option');
+          opt.value = s.id;
+          opt.textContent = s.name;
+          styleSelect.appendChild(opt);
+
+          const item = document.createElement('div');
+          item.className = 'style-item';
+          item.dataset.styleId = s.id;
+
+          const preview = document.createElement('div');
+          preview.className = 'preview-slot';
+          const pMarker = document.createElement('button');
+          pMarker.type = 'button';
+          pMarker.className = `marker ${s.id}`;
+          pMarker.style.setProperty('--x', `50%`);
+          pMarker.style.setProperty('--y', `50%`);
+          const root = document.createElement('span');
+          s.build(root);
+          pMarker.appendChild(root);
+          preview.appendChild(pMarker);
+
+          const txt = document.createElement('div');
+          txt.innerHTML = `<p class="style-name">${s.name}</p><p class="style-desc">${s.desc}</p>`;
+
+          item.appendChild(preview);
+          item.appendChild(txt);
+
+          item.addEventListener('click', () => setStyle(s.id));
+          styleGrid.appendChild(item);
+        }
+      }
+
+      // Tooltip actions
+      ttPin.addEventListener('click', (e) => {
+        e.preventDefault();
+        const id = tooltip.dataset.markerId;
+        if (!id) return;
+        state.pinnedId = state.pinnedId === id ? null : id;
+        if (!state.pinnedId) hideTooltip();
+        else {
+          const m = getMarkerById(state.pinnedId);
+          if (m) showTooltip(m);
+        }
+        renderMarkers();
+      });
+
+      ttMove.addEventListener('click', (e) => {
+        e.preventDefault();
+        setMoveMode(true);
+      });
+
+      styleSelect.addEventListener('change', (e) => {
+        setStyle(e.target.value);
+      });
+
+      btnMove.addEventListener('click', () => setMoveMode(!state.moveMode));
+      btnReset.addEventListener('click', () => resetPositions());
+
+      // Clicking empty map unfocuses tooltip if not pinned
+      mapEl.addEventListener('click', (e) => {
+        if (e.target.closest('.marker')) return;
+        if (state.pinnedId) return;
+        hideTooltip();
+      });
+
+      renderStyleList();
+      setStyle(state.styleId);
+      renderMarkers();
+      setMoveMode(false);
+    </script>
+  </body>
+</html>
