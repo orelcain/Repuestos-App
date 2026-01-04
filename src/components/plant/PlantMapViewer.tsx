@@ -891,6 +891,13 @@ export function PlantMapViewer(props: {
           <button
             type="button"
             className="absolute top-2 right-2 z-10 px-3 py-1.5 rounded-lg text-xs border border-gray-200 dark:border-gray-700 bg-white/90 dark:bg-gray-900/80 text-gray-800 dark:text-gray-100 hover:bg-white dark:hover:bg-gray-900"
+            onPointerDown={(e) => {
+              // El contenedor captura pointer para pan/zoom; si no frenamos esto,
+              // el botón puede iniciar drag y el click no llega.
+              e.stopPropagation();
+            }}
+            onPointerMove={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
               if (!showAllMarkers && selectedMarkerId) {
