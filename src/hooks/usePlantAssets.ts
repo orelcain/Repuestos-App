@@ -17,24 +17,32 @@ const COLLECTION_NAME = 'plantAssets';
 
 const toDate = (v: unknown): Date => (v as any)?.toDate?.() || new Date();
 
+const cleanText = (v: unknown, fallback = '') => {
+  const s = String(v ?? fallback);
+  const t = s.trim();
+  if (!t) return '';
+  if (t.toLowerCase() === 'pendiente') return '';
+  return s;
+};
+
 const fromDoc = (id: string, data: Record<string, unknown>): PlantAsset => {
   return {
     id,
     tipo: (data.tipo as PlantAssetTipo) || 'motor',
-    equipo: String(data.equipo ?? 'pendiente'),
-    area: String(data.area ?? ''),
-    subarea: String(data.subarea ?? ''),
-    componente: String(data.componente ?? ''),
-    codigoSAP: String(data.codigoSAP ?? 'pendiente'),
-    descripcionSAP: String(data.descripcionSAP ?? ''),
-    marca: String(data.marca ?? ''),
-    modeloTipo: String(data.modeloTipo ?? ''),
-    potencia: String(data.potencia ?? ''),
-    voltaje: String(data.voltaje ?? ''),
-    relacionReduccion: String(data.relacionReduccion ?? ''),
-    corriente: String(data.corriente ?? ''),
-    eje: String(data.eje ?? ''),
-    observaciones: String(data.observaciones ?? ''),
+    equipo: cleanText(data.equipo),
+    area: cleanText(data.area),
+    subarea: cleanText(data.subarea),
+    componente: cleanText(data.componente),
+    codigoSAP: cleanText(data.codigoSAP),
+    descripcionSAP: cleanText(data.descripcionSAP),
+    marca: cleanText(data.marca),
+    modeloTipo: cleanText(data.modeloTipo),
+    potencia: cleanText(data.potencia),
+    voltaje: cleanText(data.voltaje),
+    relacionReduccion: cleanText(data.relacionReduccion),
+    corriente: cleanText(data.corriente),
+    eje: cleanText(data.eje),
+    observaciones: cleanText(data.observaciones),
     referencias: Array.isArray(data.referencias)
       ? (data.referencias as any[]).map((r) => ({
           id: String(r.id ?? ''),

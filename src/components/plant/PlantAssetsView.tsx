@@ -84,8 +84,6 @@ const toText = (v: unknown) => {
 
 const normalize = (v: string) => v.trim();
 
-const toPendiente = (v: string) => (v.trim() ? v.trim() : 'pendiente');
-
 const isPendienteLike = (v: unknown) => {
   const s = String(v ?? '').trim();
   if (!s) return true;
@@ -93,6 +91,8 @@ const isPendienteLike = (v: unknown) => {
 };
 
 const fromPendiente = (v: unknown) => (isPendienteLike(v) ? '' : String(v));
+
+const toBlank = (v: string) => v.trim();
 
 const inferTipoFromComponente = (componente: string): PlantAssetTipo => {
   const c = componente.toLowerCase();
@@ -601,6 +601,21 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
     setShowEdit(true);
   };
 
+  const areaPaletteIndex = useMemo(() => {
+    // Evita colisiones tipo hash%N: asigna índices en orden de aparición (assets ya vienen ordenados por área).
+    const map = new Map<string, number>();
+    let idx = 0;
+    for (const a of assets) {
+      const key = String(a.area ?? '').trim();
+      if (!key) continue;
+      if (key.toLowerCase() === 'pendiente') continue;
+      if (map.has(key)) continue;
+      map.set(key, idx);
+      idx++;
+    }
+    return map;
+  }, [assets]);
+
   const mapById = useMemo(() => {
     const m = new Map<string, PlantMap>();
     for (const item of maps) m.set(item.id, item);
@@ -684,25 +699,25 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
 
         const area = normalize(toText(getCell(vals, 'Área')));
         const subarea = normalize(toText(getCell(vals, 'Subárea')));
-        const equipo = toPendiente(toText(getCellAny(vals, ['Máquina/Cinta', 'Maquina/Cinta', 'Máquina', 'Maquina', 'Cinta'])));
+        const equipo = toBlank(toText(getCellAny(vals, ['Máquina/Cinta', 'Maquina/Cinta', 'Máquina', 'Maquina', 'Cinta'])));
 
-        const codigoSAP = toPendiente(toText(getCell(vals, 'Codigo SAP')));
-        const descripcionSAP = toPendiente(toText(getCell(vals, 'Descripcion SAP')));
-        const marca = toPendiente(toText(getCell(vals, 'Marca')));
-        const modeloTipo = toPendiente(toText(getCell(vals, 'Modelo/Tipo')));
-        const potencia = toPendiente(toText(getCell(vals, 'Potencia')));
-        const voltaje = toPendiente(toText(getCell(vals, 'Voltaje')));
-        const relacionReduccion = toPendiente(toText(getCell(vals, 'Relacion de reduccion Y')));
-        const corriente = toPendiente(toText(getCell(vals, 'Corriente')));
-        const eje = toPendiente(toText(getCell(vals, 'Eje')));
-        const observaciones = toPendiente(toText(getCell(vals, 'Observaciones')));
+        const codigoSAP = toBlank(toText(getCell(vals, 'Codigo SAP')));
+        const descripcionSAP = toBlank(toText(getCell(vals, 'Descripcion SAP')));
+        const marca = toBlank(toText(getCell(vals, 'Marca')));
+        const modeloTipo = toBlank(toText(getCell(vals, 'Modelo/Tipo')));
+        const potencia = toBlank(toText(getCell(vals, 'Potencia')));
+        const voltaje = toBlank(toText(getCell(vals, 'Voltaje')));
+        const relacionReduccion = toBlank(toText(getCell(vals, 'Relacion de reduccion Y')));
+        const corriente = toBlank(toText(getCell(vals, 'Corriente')));
+        const eje = toBlank(toText(getCell(vals, 'Eje')));
+        const observaciones = toBlank(toText(getCell(vals, 'Observaciones')));
 
         rows.push({
           tipo: inferTipoFromComponente(componente),
           equipo,
-          area: toPendiente(area),
-          subarea: toPendiente(subarea),
-          componente: toPendiente(componente),
+          area: toBlank(area),
+          subarea: toBlank(subarea),
+          componente: toBlank(componente),
           codigoSAP,
           descripcionSAP,
           marca,
@@ -927,7 +942,14 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
                               setShowAllMarkers(false);
                             }}
                           >
-                            <Badge text={a.area} tone="strong" paletteKey={`area:${a.area}`} className="max-w-[220px]" />
+                            {!isPendienteLike(a.area) && (
+                              <Badge
+                                text={a.area}
+                                tone="strong"
+                                paletteKey={`area:${areaPaletteIndex.get(a.area) ?? 0}`}
+                                className="max-w-[220px]"
+                              />
+                            )}
                           </button>
                         </td>
                       )}
@@ -941,7 +963,14 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
                               setShowAllMarkers(false);
                             }}
                           >
-                            <Badge text={a.subarea} tone="soft" paletteKey={`area:${a.area}`} className="max-w-[260px]" />
+                            {!isPendienteLike(a.subarea) && (
+                              <Badge
+                                text={a.subarea}
+                                tone="soft"
+                                paletteKey={`area:${areaPaletteIndex.get(a.area) ?? 0}`}
+                                className="max-w-[260px]"
+                              />
+                            )}
                           </button>
                         </td>
                       )}
@@ -955,7 +984,7 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
                               setShowAllMarkers(false);
                             }}
                           >
-                            {a.codigoSAP}
+                            {fromPendiente(a.codigoSAP)}
                           </button>
                         </td>
                       )}
@@ -969,7 +998,7 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
                               setShowAllMarkers(false);
                             }}
                           >
-                            {a.marca}
+                            {fromPendiente(a.marca)}
                           </button>
                         </td>
                       )}
@@ -983,7 +1012,7 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
                               setShowAllMarkers(false);
                             }}
                           >
-                            {a.potencia || 'pendiente'}
+                            {fromPendiente(a.potencia)}
                           </button>
                         </td>
                       )}
@@ -997,7 +1026,7 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
                               setShowAllMarkers(false);
                             }}
                           >
-                            {a.voltaje || 'pendiente'}
+                            {fromPendiente(a.voltaje)}
                           </button>
                         </td>
                       )}
@@ -1011,7 +1040,7 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
                               setShowAllMarkers(false);
                             }}
                           >
-                            {a.corriente || 'pendiente'}
+                            {fromPendiente(a.corriente)}
                           </button>
                         </td>
                       )}
@@ -1025,7 +1054,7 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
                               setShowAllMarkers(false);
                             }}
                           >
-                            {a.eje || 'pendiente'}
+                            {fromPendiente(a.eje)}
                           </button>
                         </td>
                       )}
@@ -1039,7 +1068,7 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
                               setShowAllMarkers(false);
                             }}
                           >
-                            {a.relacionReduccion || 'pendiente'}
+                            {fromPendiente(a.relacionReduccion)}
                           </button>
                         </td>
                       )}
@@ -2160,20 +2189,20 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
                 try {
                   const payload = {
                     tipo: editDraft.tipo,
-                    equipo: toPendiente(editDraft.equipo),
-                    area: toPendiente(editDraft.area),
-                    subarea: toPendiente(editDraft.subarea),
-                    componente: toPendiente(editDraft.componente),
-                    codigoSAP: toPendiente(editDraft.codigoSAP),
-                    descripcionSAP: toPendiente(editDraft.descripcionSAP),
-                    marca: toPendiente(editDraft.marca),
-                    modeloTipo: toPendiente(editDraft.modeloTipo),
-                    potencia: toPendiente(editDraft.potencia),
-                    voltaje: toPendiente(editDraft.voltaje),
-                    relacionReduccion: toPendiente(editDraft.relacionReduccion),
-                    corriente: toPendiente(editDraft.corriente),
-                    eje: toPendiente(editDraft.eje),
-                    observaciones: toPendiente(editDraft.observaciones)
+                    equipo: toBlank(editDraft.equipo),
+                    area: toBlank(editDraft.area),
+                    subarea: toBlank(editDraft.subarea),
+                    componente: toBlank(editDraft.componente),
+                    codigoSAP: toBlank(editDraft.codigoSAP),
+                    descripcionSAP: toBlank(editDraft.descripcionSAP),
+                    marca: toBlank(editDraft.marca),
+                    modeloTipo: toBlank(editDraft.modeloTipo),
+                    potencia: toBlank(editDraft.potencia),
+                    voltaje: toBlank(editDraft.voltaje),
+                    relacionReduccion: toBlank(editDraft.relacionReduccion),
+                    corriente: toBlank(editDraft.corriente),
+                    eje: toBlank(editDraft.eje),
+                    observaciones: toBlank(editDraft.observaciones)
                   } as any;
 
                   if (creatingNew) {
