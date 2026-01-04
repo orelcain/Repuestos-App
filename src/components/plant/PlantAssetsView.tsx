@@ -416,6 +416,7 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
 
   const [showDeleteMap, setShowDeleteMap] = useState(false);
   const [deletingMap, setDeletingMap] = useState(false);
+  const [deleteMapConfirmText, setDeleteMapConfirmText] = useState('');
 
   const [showMapFullscreen, setShowMapFullscreen] = useState(false);
 
@@ -2045,6 +2046,7 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
         onClose={() => {
           if (deletingMap) return;
           setShowDeleteMap(false);
+          setDeleteMapConfirmText('');
         }}
         title="Eliminar plano"
         size="lg"
@@ -2056,6 +2058,19 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
               : 'Selecciona un plano primero.'}
           </div>
 
+          {selectedMap && (
+            <div>
+              <div className="text-xs text-gray-600 dark:text-gray-300 mb-1">
+                Escribe <b>{selectedMap.nombre}</b> para confirmar
+              </div>
+              <input
+                value={deleteMapConfirmText}
+                onChange={(e) => setDeleteMapConfirmText(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+              />
+            </div>
+          )}
+
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setShowDeleteMap(false)} disabled={deletingMap}>
               Cancelar
@@ -2063,7 +2078,7 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
             <Button
               variant="danger"
               loading={deletingMap}
-              disabled={!selectedMap}
+              disabled={!selectedMap || deleteMapConfirmText.trim() !== (selectedMap?.nombre || '').trim()}
               onClick={async () => {
                 if (!selectedMap) return;
                 setDeletingMap(true);
@@ -2079,6 +2094,7 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
                   setSelectedMapId('');
                   setMarkerMode('none');
                   setMovingMarkerId(null);
+                  setDeleteMapConfirmText('');
                   setShowDeleteMap(false);
                 } finally {
                   setDeletingMap(false);

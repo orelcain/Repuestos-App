@@ -49,18 +49,35 @@ export function PlantMapViewer(props: {
     return perMap ?? global ?? getDefaultFocusZoomForMapName(map.nombre);
   }, [map.id, map.nombre]);
   const [imgLoaded, setImgLoaded] = useState(false);
+  const [imgNatural, setImgNatural] = useState<{ w: number; h: number } | null>(null);
   const [pinnedMarkerId, setPinnedMarkerId] = useState<string | null>(null);
   const [pinnedPhotoIndex, setPinnedPhotoIndex] = useState(0);
 
   useEffect(() => {
     // Cuando cambia el plano, reseteamos el estado de carga.
     setImgLoaded(false);
+    setImgNatural(null);
     setPinnedMarkerId(null);
     setPinnedPhotoIndex(0);
   }, [map.id, map.imageUrl]);
 
   const [containerSize, setContainerSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
   const [hoveredMarkerId, setHoveredMarkerId] = useState<string | null>(null);
+
+  const fit = useMemo(() => {
+    const cw = containerSize.w;
+    const ch = containerSize.h;
+    if (!cw || !ch) return { w: 0, h: 0, offsetX: 0, offsetY: 0 };
+    if (!imgNatural?.w || !imgNatural?.h) {
+      return { w: cw, h: ch, offsetX: 0, offsetY: 0 };
+    }
+    const s = Math.min(cw / imgNatural.w, ch / imgNatural.h);
+    const w = imgNatural.w * s;
+    const h = imgNatural.h * s;
+    const offsetX = (cw - w) / 2;
+    const offsetY = (ch - h) / 2;
+    return { w, h, offsetX, offsetY };
+  }, [containerSize.h, containerSize.w, imgNatural?.h, imgNatural?.w]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -128,11 +145,12 @@ export function PlantMapViewer(props: {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
+    if (!fit.w || !fit.h) return;
 
     const target = clamp(opts?.zoomInScale ?? focusZoomScale, MIN_SCALE, MAX_SCALE);
     const nextScale = clamp(Math.max(scale, target), MIN_SCALE, MAX_SCALE);
-    const nextTx = rect.width / 2 - m.x * rect.width * nextScale;
-    const nextTy = rect.height / 2 - m.y * rect.height * nextScale;
+    const nextTx = rect.width / 2 - fit.offsetX - m.x * fit.w * nextScale;
+    const nextTy = rect.height / 2 - fit.offsetY - m.y * fit.h * nextScale;
     setScale(nextScale);
     setTx(nextTx);
     setTy(nextTy);
@@ -235,6 +253,18 @@ export function PlantMapViewer(props: {
     focusOnMarker(focusMarker);
   }, [addingMarker, focusMarker]);
 
+  const prevSelectedMarkerIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (addingMarker) return;
+    if (showAllMarkers) return;
+    if (!selectedMarkerId) return;
+    if (prevSelectedMarkerIdRef.current === selectedMarkerId) return;
+    const m = markers.find((mm) => mm.id === selectedMarkerId);
+    if (!m) return;
+    prevSelectedMarkerIdRef.current = selectedMarkerId;
+    focusOnMarker(m);
+  }, [addingMarker, markers, selectedMarkerId, showAllMarkers]);
+
   useEffect(() => {
     if (addingMarker) return;
     if (!focusMarkerId) return;
@@ -253,19 +283,19 @@ export function PlantMapViewer(props: {
 
   const hoveredMarkerPos = useMemo(() => {
     if (!hoveredMarker) return null;
-    if (!containerSize.w || !containerSize.h) return null;
-    const left = hoveredMarker.x * containerSize.w * scale + tx;
-    const top = hoveredMarker.y * containerSize.h * scale + ty;
+    if (!fit.w || !fit.h) return null;
+    const left = fit.offsetX + hoveredMarker.x * fit.w * scale + tx;
+    const top = fit.offsetY + hoveredMarker.y * fit.h * scale + ty;
     return { left, top };
-  }, [containerSize.h, containerSize.w, hoveredMarker, scale, tx, ty]);
+  }, [fit.h, fit.offsetX, fit.offsetY, fit.w, hoveredMarker, scale, tx, ty]);
 
   const pinnedMarkerPos = useMemo(() => {
     if (!pinnedMarker) return null;
-    if (!containerSize.w || !containerSize.h) return null;
-    const left = pinnedMarker.x * containerSize.w * scale + tx;
-    const top = pinnedMarker.y * containerSize.h * scale + ty;
+    if (!fit.w || !fit.h) return null;
+    const left = fit.offsetX + pinnedMarker.x * fit.w * scale + tx;
+    const top = fit.offsetY + pinnedMarker.y * fit.h * scale + ty;
     return { left, top };
-  }, [containerSize.h, containerSize.w, pinnedMarker, scale, tx, ty]);
+  }, [fit.h, fit.offsetX, fit.offsetY, fit.w, pinnedMarker, scale, tx, ty]);
 
   const formatField = (v?: string) => {
     const s = String(v ?? '').trim();
@@ -277,35 +307,41 @@ export function PlantMapViewer(props: {
   const handleClick = (e: React.MouseEvent) => {
     if (!addingMarker) return;
     if (!containerRef.current) return;
+    if (!fit.w || !fit.h) return;
 
     const rect = containerRef.current.getBoundingClientRect();
     // Convertir el click a coordenadas de "mundo" (antes del transform)
     const px = e.clientX - rect.left;
     const py = e.clientY - rect.top;
-    const worldX = (px - tx) / scale;
-    const worldY = (py - ty) / scale;
+    const localX = px - fit.offsetX;
+    const localY = py - fit.offsetY;
+    const worldX = (localX - tx) / scale;
+    const worldY = (localY - ty) / scale;
 
-    const x = worldX / rect.width;
-    const y = worldY / rect.height;
+    const x = worldX / fit.w;
+    const y = worldY / fit.h;
 
     onAddMarker({ mapId: map.id, x: clamp(x, 0, 1), y: clamp(y, 0, 1) });
   };
 
   const zoomAt = (nextScale: number, clientX: number, clientY: number) => {
     if (!containerRef.current) return;
+    if (!fit.w || !fit.h) return;
     const rect = containerRef.current.getBoundingClientRect();
     const px = clientX - rect.left;
     const py = clientY - rect.top;
+    const localX = px - fit.offsetX;
+    const localY = py - fit.offsetY;
 
     const s0 = scale;
     const s1 = clamp(nextScale, MIN_SCALE, MAX_SCALE);
     if (s1 === s0) return;
 
     // Mantener el punto bajo el cursor fijo al hacer zoom
-    const worldX = (px - tx) / s0;
-    const worldY = (py - ty) / s0;
-    const nextTx = px - worldX * s1;
-    const nextTy = py - worldY * s1;
+    const worldX = (localX - tx) / s0;
+    const worldY = (localY - ty) / s0;
+    const nextTx = localX - worldX * s1;
+    const nextTy = localY - worldY * s1;
 
     setScale(s1);
     setTx(nextTx);
@@ -374,10 +410,12 @@ export function PlantMapViewer(props: {
       const rect = containerRef.current.getBoundingClientRect();
       const cx = pinch.centerX - rect.left;
       const cy = pinch.centerY - rect.top;
-      const worldX = (cx - pinch.startTx) / pinch.startScale;
-      const worldY = (cy - pinch.startTy) / pinch.startScale;
-      const nextTx = cx - worldX * nextScale;
-      const nextTy = cy - worldY * nextScale;
+      const localX = cx - fit.offsetX;
+      const localY = cy - fit.offsetY;
+      const worldX = (localX - pinch.startTx) / pinch.startScale;
+      const worldY = (localY - pinch.startTy) / pinch.startScale;
+      const nextTx = localX - worldX * nextScale;
+      const nextTy = localY - worldY * nextScale;
 
       setScale(nextScale);
       setTx(nextTx);
@@ -592,6 +630,10 @@ export function PlantMapViewer(props: {
         <div
           className="absolute inset-0"
           style={{
+            left: fit.offsetX,
+            top: fit.offsetY,
+            width: fit.w,
+            height: fit.h,
             transform: `translate(${tx}px, ${ty}px) scale(${scale})`,
             transformOrigin: '0 0'
           }}
@@ -603,7 +645,13 @@ export function PlantMapViewer(props: {
               `absolute inset-0 w-full h-full object-contain transition-opacity ` +
               (imgLoaded ? 'opacity-100' : 'opacity-0')
             }
-            onLoad={() => setImgLoaded(true)}
+            onLoad={(e) => {
+              const img = e.currentTarget;
+              const nw = img.naturalWidth || 0;
+              const nh = img.naturalHeight || 0;
+              if (nw > 0 && nh > 0) setImgNatural({ w: nw, h: nh });
+              setImgLoaded(true);
+            }}
             draggable={false}
           />
 
@@ -679,9 +727,16 @@ export function PlantMapViewer(props: {
             className="absolute top-2 right-2 z-10 px-3 py-1.5 rounded-lg text-xs border border-gray-200 dark:border-gray-700 bg-white/90 dark:bg-gray-900/80 text-gray-800 dark:text-gray-100 hover:bg-white dark:hover:bg-gray-900"
             onClick={(e) => {
               e.stopPropagation();
+              if (!showAllMarkers && selectedMarkerId) {
+                const m = markers.find((mm) => mm.id === selectedMarkerId);
+                if (m) {
+                  focusOnMarker(m, { zoomInScale: focusZoomScale });
+                  return;
+                }
+              }
               resetView();
             }}
-            title="Centrar el plano"
+            title={!showAllMarkers && selectedMarkerId ? 'Centrar en el marcador' : 'Centrar el plano'}
           >
             Centrar
           </button>
