@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Marker Lab (10 estilos)</title>
+    <title>Marker Lab (10 estilos pro)</title>
     <style>
       :root {
         --bg: #0b1220;
@@ -16,6 +16,7 @@
         --ok: #10b981;
         --warn: #f59e0b;
         --danger: #ef4444;
+        --ms: 18px; /* marker size */
       }
 
       * { box-sizing: border-box; }
@@ -83,6 +84,18 @@
         font-size: 12px;
         outline: none;
       }
+
+      input[type="range"] {
+        width: 160px;
+        accent-color: var(--accent);
+      }
+
+      .sep {
+        width: 1px;
+        height: 22px;
+        background: rgba(255,255,255,0.18);
+        margin: 0 2px;
+      }
       button { cursor: pointer; }
       button:active { transform: translateY(1px); }
 
@@ -137,15 +150,40 @@
       .map {
         position: relative;
         min-height: 560px;
+        /* defaults per background mode below */
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        overflow: hidden;
+
+        --marker-stroke: rgba(255,255,255,0.92);
+        --marker-shadow: rgba(0,0,0,0.34);
+        --marker-ring: rgba(59,130,246,0.22);
+      }
+
+      .map[data-bg="paper"] {
+        background:
+          linear-gradient(0deg, rgba(2,6,23,0.03), rgba(2,6,23,0.03)),
+          repeating-linear-gradient(0deg, rgba(15,23,42,0.06) 0 1px, transparent 1px 36px),
+          repeating-linear-gradient(90deg, rgba(15,23,42,0.06) 0 1px, transparent 1px 36px),
+          radial-gradient(900px 420px at 40% 10%, rgba(2,6,23,0.05), transparent 55%),
+          #fbfbfc;
+
+        --marker-stroke: rgba(15,23,42,0.88);
+        --marker-shadow: rgba(2,6,23,0.26);
+        --marker-ring: rgba(59,130,246,0.18);
+      }
+
+      .map[data-bg="dark"] {
         background:
           linear-gradient(0deg, rgba(255,255,255,0.02), rgba(255,255,255,0.02)),
           repeating-linear-gradient(0deg, rgba(255,255,255,0.03) 0 1px, transparent 1px 36px),
           repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0 1px, transparent 1px 36px),
           radial-gradient(800px 380px at 30% 10%, rgba(255,255,255,0.05), transparent 55%),
           #0a1020;
-        border-radius: 14px;
-        border: 1px solid var(--border);
-        overflow: hidden;
+
+        --marker-stroke: rgba(255,255,255,0.92);
+        --marker-shadow: rgba(0,0,0,0.34);
+        --marker-ring: rgba(59,130,246,0.22);
       }
 
       .map .legend {
@@ -240,14 +278,17 @@
         left: var(--x);
         top: var(--y);
         transform: translate(-50%, -50%);
-        width: 18px;
-        height: 18px;
+        width: var(--ms);
+        height: var(--ms);
         border: 0;
         padding: 0;
         background: transparent;
         cursor: pointer;
         z-index: 10;
         touch-action: none;
+
+        /* local accent per marker */
+        --m: var(--accent);
       }
 
       .marker:focus { outline: none; }
@@ -256,104 +297,186 @@
 
       @keyframes ping { 0% { transform: translate(-50%, -50%) scale(1); opacity: 0.95; } 100% { transform: translate(-50%, -50%) scale(2.6); opacity: 0; } }
       @keyframes ripple { 0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.8; } 100% { transform: translate(-50%, -50%) scale(3.3); opacity: 0; } }
+      @keyframes ripple2 { 0% { transform: translate(-50%, -50%) scale(0.9); opacity: 0.55; } 100% { transform: translate(-50%, -50%) scale(2.9); opacity: 0; } }
 
       /* 10 styles */
 
-      /* 1) Dot */
-      .s-dot .dot { width: 14px; height: 14px; border-radius: 999px; background: var(--accent); box-shadow: 0 8px 18px rgba(0,0,0,0.35); }
-
-      /* 2) Dot + halo */
-      .s-halo .halo { width: 34px; height: 34px; border-radius: 999px; background: rgba(59,130,246,0.18); }
-      .s-halo .dot { width: 12px; height: 12px; border-radius: 999px; background: var(--accent); box-shadow: 0 10px 20px rgba(0,0,0,0.35); }
-
-      /* 3) Beacon (pulse fill) */
-      .s-beacon .pulse { width: 14px; height: 14px; border-radius: 999px; background: rgba(59,130,246,0.35); animation: ping 1.6s ease-out infinite; }
-      .s-beacon .dot { width: 12px; height: 12px; border-radius: 999px; background: var(--accent); }
-
-      /* 4) Ripple ring */
-      .s-ripple .ring { width: 14px; height: 14px; border-radius: 999px; border: 2px solid rgba(59,130,246,0.55); animation: ripple 1.8s ease-out infinite; }
-      .s-ripple .dot { width: 12px; height: 12px; border-radius: 999px; background: var(--accent); }
-
-      /* 5) Pin classic */
-      .s-pin { width: 18px; height: 22px; }
-      .s-pin .pin {
-        width: 18px;
-        height: 18px;
-        background: var(--accent);
-        border-radius: 18px 18px 18px 0;
-        transform: translate(-50%, -50%) rotate(-45deg);
-        box-shadow: 0 16px 30px rgba(0,0,0,0.35);
+      /* 1) Dot PRO */
+      .s-dot .dot {
+        width: calc(var(--ms) * 0.92);
+        height: calc(var(--ms) * 0.92);
+        border-radius: 999px;
+        position: relative;
+        background:
+          radial-gradient(circle at 30% 30%, rgba(255,255,255,0.62), rgba(255,255,255,0.00) 50%),
+          var(--m);
+        border: 2px solid var(--marker-stroke);
+        box-shadow: 0 12px 26px var(--marker-shadow);
       }
-      .s-pin .pin:after {
+      .s-dot .dot:after {
         content: "";
         position: absolute;
         left: 50%;
         top: 50%;
-        width: 7px;
-        height: 7px;
-        border-radius: 999px;
-        background: rgba(255,255,255,0.92);
         transform: translate(-50%, -50%);
+        width: calc(var(--ms) * 0.20);
+        height: calc(var(--ms) * 0.20);
+        border-radius: 999px;
+        background: rgba(255,255,255,0.90);
+        opacity: 0.65;
       }
 
-      /* 6) Target */
-      .s-target .o1 { width: 34px; height: 34px; border-radius: 999px; border: 2px solid rgba(59,130,246,0.25); }
-      .s-target .o2 { width: 22px; height: 22px; border-radius: 999px; border: 2px solid rgba(59,130,246,0.42); }
-      .s-target .dot { width: 10px; height: 10px; border-radius: 999px; background: var(--accent); }
+      /* 2) Halo ring (no mancha) */
+      .s-halo .halo {
+        width: calc(var(--ms) * 2.2);
+        height: calc(var(--ms) * 2.2);
+        border-radius: 999px;
+        border: 2px solid color-mix(in srgb, var(--m) 55%, transparent);
+        box-shadow: 0 0 0 6px color-mix(in srgb, var(--m) 12%, transparent);
+        opacity: 0.95;
+      }
+      .s-halo .dot {
+        width: calc(var(--ms) * 0.78);
+        height: calc(var(--ms) * 0.78);
+        border-radius: 999px;
+        background: var(--m);
+        border: 2px solid var(--marker-stroke);
+        box-shadow: 0 12px 26px var(--marker-shadow);
+      }
 
-      /* 7) Badge number */
+      /* 3) Beacon (pulse ring) */
+      .s-beacon .pulse {
+        width: calc(var(--ms) * 0.92);
+        height: calc(var(--ms) * 0.92);
+        border-radius: 999px;
+        border: 2px solid color-mix(in srgb, var(--m) 60%, transparent);
+        animation: ping 1.8s ease-out infinite;
+        filter: drop-shadow(0 10px 24px var(--marker-shadow));
+      }
+      .s-beacon .dot {
+        width: calc(var(--ms) * 0.78);
+        height: calc(var(--ms) * 0.78);
+        border-radius: 999px;
+        background: var(--m);
+        border: 2px solid var(--marker-stroke);
+      }
+
+      /* 4) Ripple ring (doble, pro) */
+      .s-ripple .ring {
+        width: calc(var(--ms) * 0.92);
+        height: calc(var(--ms) * 0.92);
+        border-radius: 999px;
+        border: 2px solid color-mix(in srgb, var(--m) 62%, transparent);
+        animation: ripple 1.8s ease-out infinite;
+      }
+      .s-ripple .ring2 {
+        width: calc(var(--ms) * 1.10);
+        height: calc(var(--ms) * 1.10);
+        border-radius: 999px;
+        border: 2px solid color-mix(in srgb, var(--m) 38%, transparent);
+        animation: ripple2 2.2s ease-out infinite;
+      }
+      .s-ripple .dot {
+        width: calc(var(--ms) * 0.78);
+        height: calc(var(--ms) * 0.78);
+        border-radius: 999px;
+        background: var(--m);
+        border: 2px solid var(--marker-stroke);
+        box-shadow: 0 12px 26px var(--marker-shadow);
+      }
+
+      /* 5) Pin pro (SVG, stroke limpio) */
+      .s-pin { width: calc(var(--ms) * 1.15); height: calc(var(--ms) * 1.55); }
+      .s-pin .pinSvg {
+        width: calc(var(--ms) * 1.15);
+        height: calc(var(--ms) * 1.55);
+        filter: drop-shadow(0 14px 28px var(--marker-shadow));
+      }
+
+      /* 6) Target pro (precisión + contraste) */
+      .s-target .o1 {
+        width: calc(var(--ms) * 2.35);
+        height: calc(var(--ms) * 2.35);
+        border-radius: 999px;
+        border: 2px solid color-mix(in srgb, var(--m) 28%, transparent);
+        box-shadow: 0 0 0 6px color-mix(in srgb, var(--m) 10%, transparent);
+      }
+      .s-target .o2 {
+        width: calc(var(--ms) * 1.45);
+        height: calc(var(--ms) * 1.45);
+        border-radius: 999px;
+        border: 2px solid color-mix(in srgb, var(--m) 55%, transparent);
+      }
+      .s-target .dot {
+        width: calc(var(--ms) * 0.55);
+        height: calc(var(--ms) * 0.55);
+        border-radius: 999px;
+        background: var(--m);
+        border: 2px solid var(--marker-stroke);
+        box-shadow: 0 12px 26px var(--marker-shadow);
+      }
+
+      /* 7) Cluster/badge (número, súper legible) */
       .s-badge .badge {
-        min-width: 26px;
-        height: 22px;
-        padding: 0 7px;
+        min-width: calc(var(--ms) * 1.35);
+        height: calc(var(--ms) * 1.15);
+        padding: 0 10px;
         border-radius: 999px;
         display: grid;
         place-items: center;
-        background: rgba(255,255,255,0.92);
-        color: rgba(0,0,0,0.85);
-        font-weight: 800;
-        box-shadow: 0 16px 30px rgba(0,0,0,0.35);
-      }
-      .s-badge .badge:before {
-        content: "";
-        position: absolute;
-        left: 50%;
-        top: 100%;
-        transform: translateX(-50%);
-        width: 0; height: 0;
-        border-left: 6px solid transparent;
-        border-right: 6px solid transparent;
-        border-top: 7px solid rgba(255,255,255,0.92);
-        filter: drop-shadow(0 2px 6px rgba(0,0,0,0.25));
+        background: rgba(255,255,255,0.96);
+        color: rgba(2,6,23,0.86);
+        border: 2px solid color-mix(in srgb, var(--m) 40%, rgba(255,255,255,0.96));
+        font-weight: 850;
+        box-shadow: 0 14px 28px var(--marker-shadow);
       }
 
-      /* 8) Flag label */
-      .s-flag { width: 24px; height: 24px; }
-      .s-flag .pole { width: 4px; height: 22px; border-radius: 3px; background: rgba(255,255,255,0.65); box-shadow: 0 10px 18px rgba(0,0,0,0.25); }
+      /* 8) Label pill (texto + pointer) */
+      .s-flag { width: calc(var(--ms) * 2.1); height: calc(var(--ms) * 1.3); }
       .s-flag .flag {
-        left: calc(50% + 12px);
-        top: calc(50% - 7px);
+        left: calc(50% + calc(var(--ms) * 0.95));
+        top: calc(50% - calc(var(--ms) * 0.55));
         transform: translate(-50%, -50%);
-        height: 18px;
+        height: calc(var(--ms) * 1.05);
         padding: 0 10px;
         display: grid;
         place-items: center;
-        border-radius: 8px;
-        border: 1px solid rgba(255,255,255,0.18);
-        background: rgba(59,130,246,0.18);
-        color: rgba(255,255,255,0.88);
+        border-radius: 999px;
+        border: 2px solid var(--marker-stroke);
+        background: color-mix(in srgb, var(--m) 75%, rgba(255,255,255,0.00));
+        color: rgba(255,255,255,0.94);
         font-size: 11px;
-        font-weight: 750;
+        font-weight: 800;
         white-space: nowrap;
-        backdrop-filter: blur(8px);
+        box-shadow: 0 14px 28px var(--marker-shadow);
+      }
+      .s-flag .flag:before {
+        content: "";
+        position: absolute;
+        left: -6px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 0; height: 0;
+        border-top: 6px solid transparent;
+        border-bottom: 6px solid transparent;
+        border-right: 8px solid color-mix(in srgb, var(--m) 75%, rgba(255,255,255,0.00));
+      }
+      .s-flag .dot {
+        width: calc(var(--ms) * 0.78);
+        height: calc(var(--ms) * 0.78);
+        border-radius: 999px;
+        background: var(--m);
+        border: 2px solid var(--marker-stroke);
+        box-shadow: 0 12px 26px var(--marker-shadow);
       }
 
-      /* 9) Crosshair */
+      /* 9) Crosshair pro */
       .s-cross .c {
-        width: 26px;
-        height: 26px;
+        width: calc(var(--ms) * 1.55);
+        height: calc(var(--ms) * 1.55);
         border-radius: 999px;
-        border: 2px solid rgba(59,130,246,0.42);
+        border: 2px solid color-mix(in srgb, var(--m) 55%, transparent);
+        box-shadow: 0 0 0 6px color-mix(in srgb, var(--m) 10%, transparent);
       }
       .s-cross .c:before, .s-cross .c:after {
         content: "";
@@ -361,22 +484,32 @@
         left: 50%;
         top: 50%;
         transform: translate(-50%, -50%);
-        background: rgba(59,130,246,0.55);
+        background: color-mix(in srgb, var(--m) 72%, transparent);
       }
-      .s-cross .c:before { width: 2px; height: 26px; }
-      .s-cross .c:after { height: 2px; width: 26px; }
-      .s-cross .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--accent); }
-
-      /* 10) Thumbnail */
-      .s-thumb { width: 30px; height: 30px; }
-      .s-thumb .thumb {
-        width: 30px;
-        height: 30px;
+      .s-cross .c:before { width: 2px; height: calc(var(--ms) * 1.65); }
+      .s-cross .c:after { height: 2px; width: calc(var(--ms) * 1.65); }
+      .s-cross .dot {
+        width: calc(var(--ms) * 0.52);
+        height: calc(var(--ms) * 0.52);
         border-radius: 999px;
-        border: 2px solid rgba(255,255,255,0.75);
-        background: linear-gradient(135deg, rgba(59,130,246,0.35), rgba(16,185,129,0.35));
-        box-shadow: 0 18px 40px rgba(0,0,0,0.35);
+        background: var(--m);
+        border: 2px solid var(--marker-stroke);
+        box-shadow: 0 12px 26px var(--marker-shadow);
+      }
+
+      /* 10) Photo/thumbnail pro (ligero, premium) */
+      .s-thumb { width: calc(var(--ms) * 1.35); height: calc(var(--ms) * 1.35); }
+      .s-thumb .thumb {
+        width: calc(var(--ms) * 1.35);
+        height: calc(var(--ms) * 1.35);
+        border-radius: 999px;
+        border: 2px solid var(--marker-stroke);
+        background:
+          radial-gradient(circle at 30% 30%, rgba(255,255,255,0.50), rgba(255,255,255,0.00) 55%),
+          linear-gradient(135deg, color-mix(in srgb, var(--m) 40%, transparent), color-mix(in srgb, var(--m) 10%, transparent));
+        box-shadow: 0 16px 34px var(--marker-shadow);
         overflow: hidden;
+        position: relative;
       }
       .s-thumb .thumb:after {
         content: "";
@@ -384,10 +517,11 @@
         left: 50%;
         top: 50%;
         transform: translate(-50%, -50%);
-        width: 10px;
-        height: 10px;
-        border-radius: 999px;
-        background: rgba(255,255,255,0.9);
+        width: calc(var(--ms) * 0.42);
+        height: calc(var(--ms) * 0.42);
+        border-radius: 10px;
+        background: rgba(255,255,255,0.85);
+        opacity: 0.50;
       }
 
       /* Active state helpers */
@@ -438,7 +572,7 @@
         <header>
           <div>
             <h1>Marker Lab</h1>
-            <div class="sub">10 estilos + hover / fijar / mover</div>
+            <div class="sub">10 estilos pro + hover / fijar / mover</div>
           </div>
           <span class="chip" id="modeChip">Modo: normal</span>
         </header>
@@ -446,6 +580,18 @@
           <div class="row">
             <label for="styleSelect">Estilo:</label>
             <select id="styleSelect"></select>
+
+            <span class="sep"></span>
+
+            <label for="bgSelect">Fondo:</label>
+            <select id="bgSelect">
+              <option value="paper">Papel</option>
+              <option value="dark">Oscuro</option>
+            </select>
+
+            <label for="sizeRange">Tamaño:</label>
+            <input id="sizeRange" type="range" min="14" max="28" step="1" value="18" />
+
             <button id="btnMove" class="btn">Mover: OFF</button>
             <button id="btnReset" class="btn">Reset posiciones</button>
             <div class="coords" id="coords">x: —  y: —</div>
@@ -475,7 +621,7 @@
           </div>
         </header>
         <div class="content">
-          <div class="map" id="map">
+          <div class="map" id="map" data-bg="paper">
             <div class="legend">
               <div><b>Tips:</b></div>
               <div>• Click fija tooltip</div>
@@ -502,37 +648,43 @@
 
     <script>
       const styles = [
-        { id: 's-dot', name: '1) Dot', desc: 'Punto minimalista (simple)', build: (root) => {
+        { id: 'ss-dot', legacyId: 's-dot', name: '1) Dot PRO', desc: 'Contraste + stroke (sirve en plano blanco)', build: (root) => {
           root.innerHTML = `<span class="layer dot"></span>`;
         }},
-        { id: 's-halo', name: '2) Dot + halo', desc: 'Punto con halo suave (muy legible)', build: (root) => {
+        { id: 'Ss-halo', legacyId: 's-halo', name: '2) Halo ring', desc: 'Ring suave sin manchar (muy legible)', build: (root) => {
           root.innerHTML = `<span class="layer halo"></span><span class="layer dot"></span>`;
         }},
-        { id: 's-beacon', name: '3) Beacon (pulse)', desc: 'Pulse sólido (llama atención)', build: (root) => {
+        { id: 'Ss-beacon', legacyId: 's-beacon', name: '3) Beacon ring', desc: 'Pulso discreto (llama atención sin gritar)', build: (root) => {
           root.innerHTML = `<span class="layer pulse"></span><span class="layer dot"></span>`;
         }},
-        { id: 's-ripple', name: '4) Ripple (ring)', desc: 'Onda de borde (pro, no mancha)', build: (root) => {
-          root.innerHTML = `<span class="layer ring"></span><span class="layer dot"></span>`;
+        { id: 'Ss-ripple', legacyId: 's-ripple', name: '4) Ripple doble', desc: 'Doble onda, look pro (buen foco)', build: (root) => {
+          root.innerHTML = `<span class="layer ring"></span><span class="layer ring2"></span><span class="layer dot"></span>`;
         }},
-        { id: 's-pin', name: '5) Pin clásico', desc: 'Pin tipo Google (intuitivo)', build: (root) => {
-          root.innerHTML = `<span class="layer pin"></span>`;
+        { id: 'Ss-pin', legacyId: 's-pin', name: '5) Pin PRO', desc: 'Pin real con stroke (intuitivo y limpio)', build: (root) => {
+          root.innerHTML = `
+            <span class="layer">
+              <svg class="pinSvg" viewBox="0 0 24 32" aria-hidden="true">
+                <path d="M12 31c0 0 9-10.6 9-18A9 9 0 0 0 3 13c0 7.4 9 18 9 18Z" fill="var(--m)" stroke="var(--marker-stroke)" stroke-width="2" />
+                <circle cx="12" cy="13" r="4" fill="rgba(255,255,255,0.92)" />
+              </svg>
+            </span>`;
         }},
-        { id: 's-target', name: '6) Target', desc: 'Diana (preciso sobre plano)', build: (root) => {
+        { id: 'Ss-target', legacyId: 's-target', name: '6) Target PRO', desc: 'Preciso para señalar un punto exacto', build: (root) => {
           root.innerHTML = `<span class="layer o1"></span><span class="layer o2"></span><span class="layer dot"></span>`;
         }},
-        { id: 's-badge', name: '7) Badge número', desc: 'Útil si hay muchos marcadores', build: (root) => {
+        { id: 'Ss-badge', legacyId: 's-badge', name: '7) Cluster número', desc: 'Perfecto si hay muchos marcadores', build: (root) => {
           root.innerHTML = `<span class="layer badge">7</span>`;
         }},
-        { id: 's-flag', name: '8) Flag label', desc: 'Etiqueta flotante (descriptivo)', build: (root) => {
-          root.innerHTML = `<span class="layer pole"></span><span class="layer flag">MOT-02</span>`;
+        { id: 'Ss-flag', legacyId: 's-flag', name: '8) Label pill', desc: 'Texto compacto (para equipos/zonas)', build: (root) => {
+          root.innerHTML = `<span class="layer dot"></span><span class="layer flag">MOT-02</span>`;
         }},
-        { id: 's-cross', name: '9) Crosshair', desc: 'Cruces + punto (técnico)', build: (root) => {
+        { id: 'Ss-cross', legacyId: 's-cross', name: '9) Crosshair PRO', desc: 'Técnico, buen contraste, no tapa', build: (root) => {
           root.innerHTML = `<span class="layer c"></span><span class="layer dot"></span>`;
         }},
-        { id: 's-thumb', name: '10) Thumbnail', desc: 'Avatar redondo (premium, pesado)', build: (root) => {
+        { id: 'Ss-thumb', legacyId: 's-thumb', name: '10) Photo PRO', desc: 'Premium, útil si algún día hay mini-foto', build: (root) => {
           root.innerHTML = `<span class="layer thumb"></span>`;
         }},
-      ];
+      ].map((s) => ({ id: s.legacyId, name: s.name, desc: s.desc, build: s.build }));
 
       const defaults = [
         { id: 'A', x: 18, y: 25, title: 'Motor • SA5/7', meta: 'Zona A — Línea 1 · 2.2kW · 220/380' },
@@ -553,6 +705,8 @@
       const mapEl = document.getElementById('map');
       const styleSelect = document.getElementById('styleSelect');
       const styleGrid = document.getElementById('styleGrid');
+      const bgSelect = document.getElementById('bgSelect');
+      const sizeRange = document.getElementById('sizeRange');
       const btnMove = document.getElementById('btnMove');
       const btnReset = document.getElementById('btnReset');
       const coords = document.getElementById('coords');
@@ -573,6 +727,26 @@
           el.classList.toggle('active', el.dataset.styleId === styleId);
         });
         renderMarkers();
+      }
+
+      function setBackground(bg) {
+        mapEl.dataset.bg = bg;
+        bgSelect.value = bg;
+        // Reposiciona tooltip para que no “salte” por cambios de layout
+        if (state.pinnedId) {
+          const pm = getMarkerById(state.pinnedId);
+          if (pm) showTooltip(pm);
+        }
+      }
+
+      function setMarkerSize(px) {
+        document.documentElement.style.setProperty('--ms', `${px}px`);
+        sizeRange.value = String(px);
+        // Mantiene tooltip alineado
+        if (state.pinnedId) {
+          const pm = getMarkerById(state.pinnedId);
+          if (pm) showTooltip(pm);
+        }
       }
 
       function setMoveMode(on) {
@@ -636,6 +810,13 @@
           btn.style.setProperty('--y', `${p.y}%`);
           btn.dataset.id = m.id;
           btn.dataset.active = String(state.pinnedId === m.id);
+
+          // Color por tipo para testear contraste (sin inventar paleta)
+          const title = (m.title || '').toLowerCase();
+          const color = title.includes('bomba') ? 'var(--ok)'
+            : title.includes('motor') ? 'var(--accent)'
+            : 'var(--warn)';
+          btn.style.setProperty('--m', color);
 
           // Active ring (green) only when pinned
           if (state.pinnedId === m.id) {
@@ -763,6 +944,14 @@
         setStyle(e.target.value);
       });
 
+      bgSelect.addEventListener('change', (e) => {
+        setBackground(e.target.value);
+      });
+
+      sizeRange.addEventListener('input', (e) => {
+        setMarkerSize(Number(e.target.value));
+      });
+
       btnMove.addEventListener('click', () => setMoveMode(!state.moveMode));
       btnReset.addEventListener('click', () => resetPositions());
 
@@ -777,6 +966,8 @@
       setStyle(state.styleId);
       renderMarkers();
       setMoveMode(false);
+      setBackground('paper');
+      setMarkerSize(18);
     </script>
   </body>
 </html>

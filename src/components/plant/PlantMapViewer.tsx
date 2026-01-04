@@ -152,16 +152,6 @@ export function PlantMapViewer(props: {
     return n.includes('exteriores') && n.includes('general');
   }, [map.nombre]);
 
-  // Factor visual del marcador en relación al zoom del mapa.
-  // El mapa escala completo; este factor hace que el marcador crezca mucho menos que el plano.
-  const markerVisualScaleBase = useMemo(() => {
-    // Compensación del zoom del plano para que el marcador no tape el dibujo.
-    const exponent = 1;
-    const base = Math.pow(clamp(scale, MIN_SCALE, MAX_SCALE), -exponent);
-    const exterioresFactor = isExterioresGeneral ? 0.35 : 1;
-    return clamp(base * exterioresFactor, 0.2, 2);
-  }, [isExterioresGeneral, scale]);
-
   const focusOnMarker = (m: { x: number; y: number }, opts?: { zoomInScale?: number }) => {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
@@ -769,7 +759,6 @@ export function PlantMapViewer(props: {
 
             const showWave = isPinned || isFocused;
             const showHalo = isPinned || isFocused || isSelected;
-            const markerDotClass = isPinned || isFocused ? 'bg-emerald-500' : 'bg-primary-600';
             const haloClass = isPinned || isFocused ? 'bg-emerald-500/20' : 'bg-primary-600/20';
             const waveBorderClass = isPinned || isFocused ? 'border-emerald-400/45' : 'border-primary-400/45';
 
@@ -786,14 +775,30 @@ export function PlantMapViewer(props: {
             const maxUnscaledPx = 24 / clamp(scale, MIN_SCALE, MAX_SCALE);
             const sizePx = clamp(unscaledTargetPx, minUnscaledPx, maxUnscaledPx);
 
+            // Pin PRO: el sizePx es el "tamaño base" (antes era un dot). Escalamos el pin para que sea legible.
+            // IMPORTANTE: mantenemos el ancla centrada (translate -50%,-50%) para no mover marcadores existentes.
+            const pinW = sizePx * 1.8;
+            const pinH = sizePx * 2.4;
+            const aura = Math.max(pinW, pinH);
+            const headTop = '40.625%'; // cy=13 en viewBox 0..32 => 13/32 (centro de la "cabeza")
+
             // En modo agregar/mover, NO queremos que los marcadores intercepten clicks (mejora mover marcador).
             if (addingMarker) {
               return (
                 <div
                   key={m.id}
-                  className="absolute pointer-events-none rounded-full bg-primary-600"
-                  style={{ left: `${m.x * 100}%`, top: `${m.y * 100}%`, width: sizePx, height: sizePx, transform: 'translate(-50%, -50%)' }}
-                />
+                  className="absolute pointer-events-none"
+                  style={{ left: `${m.x * 100}%`, top: `${m.y * 100}%`, width: pinW, height: pinH, transform: 'translate(-50%, -50%)' }}
+                >
+                  <svg viewBox="0 0 24 32" className="w-full h-full drop-shadow-sm" aria-hidden>
+                    <path
+                      d="M12 31c0 0 9-10.6 9-18A9 9 0 0 0 3 13c0 7.4 9 18 9 18Z"
+                      className="fill-primary-600 stroke-slate-900/80 dark:stroke-white/90"
+                      strokeWidth={2}
+                    />
+                    <circle cx={12} cy={13} r={4} className="fill-white/90" />
+                  </svg>
+                </div>
               );
             }
 
@@ -832,8 +837,8 @@ export function PlantMapViewer(props: {
                 onBlur={() => {
                   clearHoverSoon();
                 }}
-                className="absolute rounded-full cursor-pointer transition-opacity hover:opacity-90 focus:outline-none"
-                style={{ left: `${m.x * 100}%`, top: `${m.y * 100}%`, width: sizePx, height: sizePx, transform: 'translate(-50%, -50%)' }}
+                className="absolute cursor-pointer transition-opacity hover:opacity-90 focus:outline-none"
+                style={{ left: `${m.x * 100}%`, top: `${m.y * 100}%`, width: pinW, height: pinH, transform: 'translate(-50%, -50%)' }}
                 title={m.assetLabel}
               >
                 {/* Onda tipo ripple: solo para el que se está mostrando (fijado/enfocado) */}
@@ -841,7 +846,7 @@ export function PlantMapViewer(props: {
                   <span
                     aria-hidden
                     className={`pointer-events-none absolute rounded-full border-2 ${waveBorderClass} animate-ping`}
-                    style={{ width: sizePx * 3.0, height: sizePx * 3.0, left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+                    style={{ width: aura * 1.55, height: aura * 1.55, left: '50%', top: headTop, transform: 'translate(-50%, -50%)' }}
                   />
                 )}
 
@@ -850,17 +855,19 @@ export function PlantMapViewer(props: {
                   <span
                     aria-hidden
                     className={`pointer-events-none absolute rounded-full ${haloClass}`}
-                    style={{ width: sizePx * 2.1, height: sizePx * 2.1, left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+                    style={{ width: aura * 1.05, height: aura * 1.05, left: '50%', top: headTop, transform: 'translate(-50%, -50%)' }}
                   />
                 )}
 
-                {/* Punto principal + highlight para look más pro */}
-                <span aria-hidden className={`absolute inset-0 rounded-full ${markerDotClass} shadow-sm`} />
-                <span
-                  aria-hidden
-                  className="pointer-events-none absolute rounded-full bg-white/85"
-                  style={{ width: '38%', height: '38%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
-                />
+                {/* Pin PRO (SVG con stroke limpio) */}
+                <svg viewBox="0 0 24 32" className="w-full h-full drop-shadow-sm" aria-hidden>
+                  <path
+                    d="M12 31c0 0 9-10.6 9-18A9 9 0 0 0 3 13c0 7.4 9 18 9 18Z"
+                    className={`${isPinned || isFocused ? 'fill-emerald-500' : 'fill-primary-600'} stroke-slate-900/80 dark:stroke-white/90`}
+                    strokeWidth={2}
+                  />
+                  <circle cx={12} cy={13} r={4} className="fill-white/90" />
+                </svg>
               </button>
             );
           })}
