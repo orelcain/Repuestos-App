@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { AlertCircle, Maximize2, Plus, Upload, Trash2, MapPin, X } from 'lucide-react';
-import type { PlantAsset, PlantAssetTipo } from '../../types';
+import { AlertCircle, Maximize2, Pencil, Plus, Upload, Trash2, MapPin, X } from 'lucide-react';
+import type { PlantAsset, PlantAssetTipo, PlantMap } from '../../types';
 import { Button, Modal } from '../ui';
 import { usePlantAssets } from '../../hooks/usePlantAssets';
 import { usePlantMaps } from '../../hooks/usePlantMaps';
@@ -36,7 +36,7 @@ const isValidComponentRow = (componente: string) => {
 
 export function PlantAssetsView(props: { machineId: string | null }) {
   const { machineId } = props;
-  const { assets, loading, error, upsertMany, addMarker, addReferencia, deleteReferencia, addImagen, deleteImagen } = usePlantAssets();
+  const { assets, loading, error, upsertMany, addMarker, addReferencia, deleteReferencia, addImagen, deleteImagen, updateAsset } = usePlantAssets();
   const { maps, createMap, updateMap, deleteMap } = usePlantMaps();
   const { uploadPlantMapImage, uploadPlantAssetImage, deleteByUrl } = usePlantStorage(machineId);
 
@@ -44,6 +44,18 @@ export function PlantAssetsView(props: { machineId: string | null }) {
   const selected = useMemo(() => assets.find((a) => a.id === selectedId) || null, [assets, selectedId]);
 
   const [search, setSearch] = useState('');
+
+  const [sortKey, setSortKey] = useState<'tipo' | 'area' | 'subarea' | 'codigoSAP' | 'marca' | 'relacionReduccion'>('area');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const toggleSort = (key: typeof sortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setSortKey(key);
+    setSortDir('asc');
+  };
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -53,6 +65,28 @@ export function PlantAssetsView(props: { machineId: string | null }) {
       return hay.includes(term);
     });
   }, [assets, search]);
+
+  const sorted = useMemo(() => {
+    const dir = sortDir === 'asc' ? 1 : -1;
+    const get = (a: PlantAsset) => {
+      const v = (a as any)[sortKey];
+      return (v == null ? '' : String(v)).toLowerCase();
+    };
+    return filtered
+      .slice()
+      .sort((a, b) => {
+        const av = get(a);
+        const bv = get(b);
+        if (av < bv) return -1 * dir;
+        if (av > bv) return 1 * dir;
+        // desempate estable por SAP
+        const as = (a.codigoSAP || '').toLowerCase();
+        const bs = (b.codigoSAP || '').toLowerCase();
+        if (as < bs) return -1;
+        if (as > bs) return 1;
+        return 0;
+      });
+  }, [filtered, sortDir, sortKey]);
 
   // === Mapas / marcadores ===
   const [selectedMapId, setSelectedMapId] = useState<string>('');
@@ -74,6 +108,68 @@ export function PlantAssetsView(props: { machineId: string | null }) {
   const [deletingMap, setDeletingMap] = useState(false);
 
   const [showMapFullscreen, setShowMapFullscreen] = useState(false);
+
+  // === Editar activo ===
+  const [showEdit, setShowEdit] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editDraft, setEditDraft] = useState<Omit<PlantAsset, 'createdAt' | 'updatedAt'>>({
+    id: '',
+    tipo: 'motor',
+    area: 'pendiente',
+    subarea: 'pendiente',
+    componente: 'pendiente',
+    codigoSAP: 'pendiente',
+    descripcionSAP: 'pendiente',
+    marca: 'pendiente',
+    modeloTipo: 'pendiente',
+    potencia: 'pendiente',
+    voltaje: 'pendiente',
+    relacionReduccion: 'pendiente',
+    corriente: 'pendiente',
+    eje: 'pendiente',
+    observaciones: 'pendiente',
+    referencias: [],
+    imagenes: [],
+    marcadores: []
+  });
+
+  const openEdit = (asset: PlantAsset) => {
+    setEditDraft({
+      id: asset.id,
+      tipo: asset.tipo,
+      area: asset.area,
+      subarea: asset.subarea,
+      componente: asset.componente,
+      codigoSAP: asset.codigoSAP,
+      descripcionSAP: asset.descripcionSAP,
+      marca: asset.marca,
+      modeloTipo: asset.modeloTipo,
+      potencia: asset.potencia,
+      voltaje: asset.voltaje,
+      relacionReduccion: asset.relacionReduccion,
+      corriente: asset.corriente,
+      eje: asset.eje,
+      observaciones: asset.observaciones,
+      referencias: asset.referencias || [],
+      imagenes: asset.imagenes || [],
+      marcadores: asset.marcadores || []
+    });
+    setShowEdit(true);
+  };
+
+  const mapById = useMemo(() => {
+    const m = new Map<string, PlantMap>();
+    for (const item of maps) m.set(item.id, item);
+    return m;
+  }, [maps]);
+
+  const getMarkerMapNames = (asset: PlantAsset): Array<{ id: string; nombre: string; missing?: boolean }> => {
+    const ids = Array.from(new Set((asset.marcadores || []).map((mm) => mm.mapId).filter(Boolean)));
+    return ids.map((id) => {
+      const map = mapById.get(id);
+      return map ? { id, nombre: map.nombre } : { id, nombre: 'Plano eliminado', missing: true };
+    });
+  };
 
   const [newRefTitle, setNewRefTitle] = useState('');
   const [newRefUrl, setNewRefUrl] = useState('');
@@ -236,27 +332,122 @@ export function PlantAssetsView(props: { machineId: string | null }) {
           </div>
         ) : (
           <div className="flex-1 overflow-auto">
-            {filtered.map((a) => (
-              <button
-                key={a.id}
-                onClick={() => setSelectedId(a.id)}
-                className={
-                  'w-full text-left px-4 py-3 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ' +
-                  (selectedId === a.id ? 'bg-primary-50 dark:bg-primary-900/20' : '')
-                }
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {a.tipo.toUpperCase()} • {a.codigoSAP}
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-300">{a.area}</div>
-                </div>
-                <div className="text-xs text-gray-600 dark:text-gray-300 mt-1 truncate">
-                  {a.subarea} — {a.marca} — {a.potencia}
-                </div>
-              </button>
-            ))}
-            {filtered.length === 0 && <div className="p-6 text-sm text-gray-500">Sin resultados.</div>}
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+                <tr className="text-xs text-gray-600 dark:text-gray-300">
+                  <th className="text-left px-3 py-2">
+                    <button type="button" className="hover:underline" onClick={() => toggleSort('tipo')}>Tipo</button>
+                  </th>
+                  <th className="text-left px-3 py-2">
+                    <button type="button" className="hover:underline" onClick={() => toggleSort('area')}>Área</button>
+                  </th>
+                  <th className="text-left px-3 py-2 hidden lg:table-cell">
+                    <button type="button" className="hover:underline" onClick={() => toggleSort('subarea')}>Subárea</button>
+                  </th>
+                  <th className="text-left px-3 py-2">
+                    <button type="button" className="hover:underline" onClick={() => toggleSort('codigoSAP')}>SAP</button>
+                  </th>
+                  <th className="text-left px-3 py-2 hidden xl:table-cell">
+                    <button type="button" className="hover:underline" onClick={() => toggleSort('marca')}>Marca</button>
+                  </th>
+                  <th className="text-left px-3 py-2 hidden xl:table-cell">
+                    <button type="button" className="hover:underline" onClick={() => toggleSort('relacionReduccion')}>i</button>
+                  </th>
+                  <th className="text-left px-3 py-2">Marcadores</th>
+                  <th className="px-3 py-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {sorted.map((a) => {
+                  const isSelected = selectedId === a.id;
+                  const markerMaps = getMarkerMapNames(a);
+                  return (
+                    <tr
+                      key={a.id}
+                      className={
+                        'border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 ' +
+                        (isSelected ? 'bg-primary-50 dark:bg-primary-900/20' : '')
+                      }
+                    >
+                      <td className="px-3 py-2">
+                        <button type="button" className="text-left w-full" onClick={() => setSelectedId(a.id)}>
+                          {a.tipo.toUpperCase()}
+                        </button>
+                      </td>
+                      <td className="px-3 py-2">
+                        <button type="button" className="text-left w-full" onClick={() => setSelectedId(a.id)}>
+                          {a.area}
+                        </button>
+                      </td>
+                      <td className="px-3 py-2 hidden lg:table-cell">
+                        <button type="button" className="text-left w-full truncate" onClick={() => setSelectedId(a.id)}>
+                          {a.subarea}
+                        </button>
+                      </td>
+                      <td className="px-3 py-2">
+                        <button type="button" className="text-left w-full" onClick={() => setSelectedId(a.id)}>
+                          {a.codigoSAP}
+                        </button>
+                      </td>
+                      <td className="px-3 py-2 hidden xl:table-cell">
+                        <button type="button" className="text-left w-full truncate" onClick={() => setSelectedId(a.id)}>
+                          {a.marca}
+                        </button>
+                      </td>
+                      <td className="px-3 py-2 hidden xl:table-cell">
+                        <button type="button" className="text-left w-full" onClick={() => setSelectedId(a.id)}>
+                          {a.relacionReduccion || 'pendiente'}
+                        </button>
+                      </td>
+                      <td className="px-3 py-2">
+                        {markerMaps.length === 0 ? (
+                          <span className="text-gray-500">—</span>
+                        ) : (
+                          <div className="flex flex-wrap gap-1">
+                            {markerMaps.map((mm) => (
+                              <button
+                                key={mm.id}
+                                type="button"
+                                className={
+                                  'px-2 py-0.5 rounded border text-xs ' +
+                                  (mm.missing
+                                    ? 'border-gray-200 dark:border-gray-700 text-gray-500'
+                                    : 'border-primary-200 dark:border-primary-700 text-primary-700 dark:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/20')
+                                }
+                                onClick={() => {
+                                  setSelectedId(a.id);
+                                  if (!mm.missing) {
+                                    setSelectedMapId(mm.id);
+                                    setShowAllMarkers(false);
+                                    setAddingMarker(false);
+                                  }
+                                }}
+                                title={mm.missing ? 'Plano eliminado' : 'Abrir plano y ver ubicación'}
+                                disabled={mm.missing}
+                              >
+                                {mm.nombre}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <button
+                          type="button"
+                          className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300"
+                          onClick={() => openEdit(a)}
+                          title="Editar"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            {sorted.length === 0 && <div className="p-6 text-sm text-gray-500">Sin resultados.</div>}
           </div>
         )}
       </div>
@@ -404,6 +595,10 @@ export function PlantAssetsView(props: { machineId: string | null }) {
                     title={selected.codigoSAP.toLowerCase() === 'pendiente' ? 'Código SAP pendiente' : 'Copiar código SAP'}
                   >
                     Copiar SAP
+                  </Button>
+
+                  <Button size="sm" variant="secondary" onClick={() => openEdit(selected)}>
+                    Editar
                   </Button>
                 </div>
               </div>
@@ -588,6 +783,180 @@ export function PlantAssetsView(props: { machineId: string | null }) {
             </Button>
             <Button onClick={handleCreateMap} loading={creatingMap} disabled={!newMapName.trim() || !newMapFile}>
               Crear
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal Edit Asset */}
+      <Modal
+        isOpen={showEdit}
+        onClose={() => {
+          if (savingEdit) return;
+          setShowEdit(false);
+        }}
+        title="Editar motor/bomba"
+        size="xl"
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <div className="text-xs text-gray-600 dark:text-gray-300 mb-1">Tipo</div>
+              <select
+                value={editDraft.tipo}
+                onChange={(e) => setEditDraft((d) => ({ ...d, tipo: e.target.value as PlantAssetTipo }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+              >
+                <option value="motor">Motor</option>
+                <option value="bomba">Bomba</option>
+              </select>
+            </div>
+            <div>
+              <div className="text-xs text-gray-600 dark:text-gray-300 mb-1">Código SAP</div>
+              <input
+                value={editDraft.codigoSAP}
+                onChange={(e) => setEditDraft((d) => ({ ...d, codigoSAP: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+              />
+            </div>
+
+            <div>
+              <div className="text-xs text-gray-600 dark:text-gray-300 mb-1">Área</div>
+              <input
+                value={editDraft.area}
+                onChange={(e) => setEditDraft((d) => ({ ...d, area: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+              />
+            </div>
+            <div>
+              <div className="text-xs text-gray-600 dark:text-gray-300 mb-1">Subárea</div>
+              <input
+                value={editDraft.subarea}
+                onChange={(e) => setEditDraft((d) => ({ ...d, subarea: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <div className="text-xs text-gray-600 dark:text-gray-300 mb-1">Componente</div>
+              <input
+                value={editDraft.componente}
+                onChange={(e) => setEditDraft((d) => ({ ...d, componente: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <div className="text-xs text-gray-600 dark:text-gray-300 mb-1">Descripción SAP</div>
+              <input
+                value={editDraft.descripcionSAP}
+                onChange={(e) => setEditDraft((d) => ({ ...d, descripcionSAP: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+              />
+            </div>
+
+            <div>
+              <div className="text-xs text-gray-600 dark:text-gray-300 mb-1">Marca</div>
+              <input
+                value={editDraft.marca}
+                onChange={(e) => setEditDraft((d) => ({ ...d, marca: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+              />
+            </div>
+            <div>
+              <div className="text-xs text-gray-600 dark:text-gray-300 mb-1">Modelo/Tipo</div>
+              <input
+                value={editDraft.modeloTipo}
+                onChange={(e) => setEditDraft((d) => ({ ...d, modeloTipo: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+              />
+            </div>
+
+            <div>
+              <div className="text-xs text-gray-600 dark:text-gray-300 mb-1">Potencia</div>
+              <input
+                value={editDraft.potencia}
+                onChange={(e) => setEditDraft((d) => ({ ...d, potencia: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+              />
+            </div>
+            <div>
+              <div className="text-xs text-gray-600 dark:text-gray-300 mb-1">Voltaje</div>
+              <input
+                value={editDraft.voltaje}
+                onChange={(e) => setEditDraft((d) => ({ ...d, voltaje: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+              />
+            </div>
+
+            <div>
+              <div className="text-xs text-gray-600 dark:text-gray-300 mb-1">Relación de reducción (i)</div>
+              <input
+                value={editDraft.relacionReduccion}
+                onChange={(e) => setEditDraft((d) => ({ ...d, relacionReduccion: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+              />
+            </div>
+            <div>
+              <div className="text-xs text-gray-600 dark:text-gray-300 mb-1">Corriente</div>
+              <input
+                value={editDraft.corriente}
+                onChange={(e) => setEditDraft((d) => ({ ...d, corriente: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+              />
+            </div>
+
+            <div>
+              <div className="text-xs text-gray-600 dark:text-gray-300 mb-1">Eje</div>
+              <input
+                value={editDraft.eje}
+                onChange={(e) => setEditDraft((d) => ({ ...d, eje: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+              />
+            </div>
+            <div>
+              <div className="text-xs text-gray-600 dark:text-gray-300 mb-1">Observaciones</div>
+              <input
+                value={editDraft.observaciones}
+                onChange={(e) => setEditDraft((d) => ({ ...d, observaciones: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setShowEdit(false)} disabled={savingEdit}>
+              Cancelar
+            </Button>
+            <Button
+              loading={savingEdit}
+              onClick={async () => {
+                if (!editDraft.id) return;
+                setSavingEdit(true);
+                try {
+                  await updateAsset(editDraft.id, {
+                    tipo: editDraft.tipo,
+                    area: toPendiente(editDraft.area),
+                    subarea: toPendiente(editDraft.subarea),
+                    componente: toPendiente(editDraft.componente),
+                    codigoSAP: toPendiente(editDraft.codigoSAP),
+                    descripcionSAP: toPendiente(editDraft.descripcionSAP),
+                    marca: toPendiente(editDraft.marca),
+                    modeloTipo: toPendiente(editDraft.modeloTipo),
+                    potencia: toPendiente(editDraft.potencia),
+                    voltaje: toPendiente(editDraft.voltaje),
+                    relacionReduccion: toPendiente(editDraft.relacionReduccion),
+                    corriente: toPendiente(editDraft.corriente),
+                    eje: toPendiente(editDraft.eje),
+                    observaciones: toPendiente(editDraft.observaciones)
+                  } as any);
+                  setShowEdit(false);
+                } finally {
+                  setSavingEdit(false);
+                }
+              }}
+            >
+              Guardar
             </Button>
           </div>
         </div>

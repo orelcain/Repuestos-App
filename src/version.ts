@@ -1,9 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.88';
+export const APP_VERSION = '4.9.89';
 
 // Historial de versiones
 // ⚠️ Importante: agrega SIEMPRE la versión más nueva ARRIBA (al inicio del array)
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.89',
+    date: '2026-01-04',
+    changes: [
+      'Motores: tabla + ordenar + editar + marcadores'
+    ]
+  },
   {
     version: '4.9.88',
     date: '2026-01-04',
