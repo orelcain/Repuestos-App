@@ -35,6 +35,7 @@ export function PlantMapViewer(props: {
   addingMarker: boolean;
   onAddMarker: (args: { mapId: string; x: number; y: number; fitW: number; fitH: number }) => void;
   onHoverWorld?: (args: { mapId: string; x: number; y: number; fitW: number; fitH: number }) => void;
+  onOpenAssetImages?: (args: { assetId: string; index: number }) => void;
   areas?: PlantMapArea[];
   draftArea?: { shape: PlantMapAreaShape; fillOpacity?: number; strokeOpacity?: number } | null;
   areaEdit?: {
@@ -51,7 +52,7 @@ export function PlantMapViewer(props: {
   mode?: ViewerMode;
   clickTitle?: string;
 }) {
-  const { map, selectedAsset, allAssets, showAllMarkers, addingMarker, onAddMarker, onHoverWorld, areas = [], draftArea = null, areaEdit, onSelectAsset, focusMarkerId = null, selectedMarkerId = null, onRequestMoveMarker, mode = 'embedded', clickTitle } = props;
+  const { map, selectedAsset, allAssets, showAllMarkers, addingMarker, onAddMarker, onHoverWorld, onOpenAssetImages, areas = [], draftArea = null, areaEdit, onSelectAsset, focusMarkerId = null, selectedMarkerId = null, onRequestMoveMarker, mode = 'embedded', clickTitle } = props;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const focusZoomScale = useMemo(() => {
@@ -326,7 +327,13 @@ export function PlantMapViewer(props: {
   };
 
   const handleClick = (e: React.MouseEvent) => {
-    if (!addingMarker) return;
+    if (!addingMarker) {
+      if (pinnedMarkerId) {
+        setPinnedMarkerId(null);
+        setPinnedPhotoIndex(0);
+      }
+      return;
+    }
     if (!containerRef.current) return;
     if (!fit.w || !fit.h) return;
 
@@ -640,6 +647,17 @@ export function PlantMapViewer(props: {
                     <div className="mt-1 text-gray-200">
                       {pinnedMarker.area} — {pinnedMarker.subarea}
                     </div>
+                    <div className="mt-1 text-gray-200">
+                      {[
+                        pinnedMarker.marca,
+                        pinnedMarker.modeloTipo,
+                        pinnedMarker.potencia,
+                        pinnedMarker.voltaje
+                      ]
+                        .map((v) => (v || '').trim())
+                        .filter((v) => v && v.toLowerCase() !== 'pendiente')
+                        .join(' • ')}
+                    </div>
                   </div>
                   {onRequestMoveMarker && selectedAsset?.id === pinnedMarker.assetId && (
                     <button
@@ -671,8 +689,17 @@ export function PlantMapViewer(props: {
                       <img
                         src={pinnedMarker.images[Math.max(0, Math.min(pinnedMarker.images.length - 1, pinnedPhotoIndex))].url}
                         alt=""
-                        className="w-full h-36 object-cover"
+                        className={
+                          `w-full h-36 object-cover ` +
+                          (onOpenAssetImages ? 'cursor-zoom-in' : '')
+                        }
                         draggable={false}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (!onOpenAssetImages) return;
+                          onOpenAssetImages({ assetId: pinnedMarker.assetId, index: Math.max(0, pinnedPhotoIndex) });
+                        }}
                       />
                       {pinnedMarker.images.length > 1 && (
                         <div className="absolute inset-x-0 bottom-0 flex items-center justify-between p-1 bg-black/40">
@@ -702,7 +729,20 @@ export function PlantMapViewer(props: {
                 )}
 
                 {/* Info ordenada */}
-                <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-gray-200">
+                <div className="mt-2 space-y-1 text-gray-200">
+                  {formatField(pinnedMarker.componente) && (
+                    <div className="text-gray-300">{pinnedMarker.componente}</div>
+                  )}
+                  {formatField(pinnedMarker.descripcionSAP) && (
+                    <div className="text-gray-300 line-clamp-2">{pinnedMarker.descripcionSAP}</div>
+                  )}
+
+                  {(formatField(pinnedMarker.potencia) ||
+                    formatField(pinnedMarker.voltaje) ||
+                    formatField((pinnedMarker as any).corriente) ||
+                    formatField((pinnedMarker as any).eje) ||
+                    formatField((pinnedMarker as any).relacionReduccion)) && (
+                    <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-gray-200">
                   {formatField(pinnedMarker.potencia) && (
                     <div>
                       <span className="text-gray-400">Potencia:</span> {pinnedMarker.potencia}
@@ -728,24 +768,6 @@ export function PlantMapViewer(props: {
                       <span className="text-gray-400">Relación de reducción (i):</span> {(pinnedMarker as any).relacionReduccion}
                     </div>
                   )}
-                  {formatField(pinnedMarker.marca) && (
-                    <div>
-                      <span className="text-gray-400">Marca:</span> {pinnedMarker.marca}
-                    </div>
-                  )}
-                  {formatField(pinnedMarker.modeloTipo) && (
-                    <div>
-                      <span className="text-gray-400">Modelo:</span> {pinnedMarker.modeloTipo}
-                    </div>
-                  )}
-                  {formatField(pinnedMarker.componente) && (
-                    <div className="col-span-2">
-                      <span className="text-gray-400">Componente:</span> {pinnedMarker.componente}
-                    </div>
-                  )}
-                  {formatField(pinnedMarker.descripcionSAP) && (
-                    <div className="col-span-2">
-                      <span className="text-gray-400">SAP:</span> <span className="line-clamp-2">{pinnedMarker.descripcionSAP}</span>
                     </div>
                   )}
                 </div>
@@ -810,8 +832,17 @@ export function PlantMapViewer(props: {
                       <img
                         src={hoveredMarker.images[Math.max(0, Math.min(hoveredMarker.images.length - 1, hoveredPhotoIndex))].url}
                         alt=""
-                        className="w-full h-24 object-cover"
+                        className={
+                          `w-full h-24 object-cover ` +
+                          (onOpenAssetImages ? 'cursor-zoom-in' : '')
+                        }
                         draggable={false}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (!onOpenAssetImages) return;
+                          onOpenAssetImages({ assetId: hoveredMarker.assetId, index: Math.max(0, hoveredPhotoIndex) });
+                        }}
                       />
                       {hoveredMarker.images.length > 1 && (
                         <div className="absolute inset-x-0 bottom-0 flex items-center justify-between p-1 bg-black/40">
@@ -1177,9 +1208,9 @@ export function PlantMapViewer(props: {
                   // Click fija el globo. Si además estamos en "ver todos", selecciona el activo.
                   e.preventDefault();
                   e.stopPropagation();
-                  const willPin = pinnedMarkerId !== m.id;
-                  setPinnedMarkerId(willPin ? m.id : null);
-                  if (willPin) {
+                  const isSame = pinnedMarkerId === m.id;
+                  setPinnedMarkerId(m.id);
+                  if (!isSame) {
                     setPinnedPhotoIndex(0);
                     focusOnMarker(m);
                   }

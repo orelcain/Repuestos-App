@@ -264,6 +264,12 @@ export function PlantAssetsView(props: {
     return [...imgs].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
   }, [imagesViewerTarget]);
 
+  const openImagesViewerForAsset = (args: { assetId: string; index: number }) => {
+    setImagesViewerTargetId(args.assetId);
+    setImagesViewerIndex(Math.max(0, args.index || 0));
+    setShowImagesViewer(true);
+  };
+
   useEffect(() => {
     if (!showImagesViewer) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -1614,6 +1620,7 @@ export function PlantAssetsView(props: {
                   addingMarker={addingMarker}
                   onAddMarker={handleMapClick}
                   onHoverWorld={(p) => setAreaCursor(p)}
+                  onOpenAssetImages={openImagesViewerForAsset}
                   areas={mapAreas}
                   draftArea={draftAreaForViewer}
                   onSelectAsset={(assetId) => setSelectedId(assetId)}
@@ -2758,6 +2765,41 @@ export function PlantAssetsView(props: {
       >
         {selectedMap ? (
           <div className="space-y-3">
+            {/* Toggle Ver todos / Solo seleccionado (en fullscreen) */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setShowAllMarkers(true)}
+                  className={
+                    `px-3 py-2 text-sm transition-colors ` +
+                    (showAllMarkers
+                      ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
+                      : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800')
+                  }
+                  title="Ver todos los marcadores"
+                >
+                  Ver todos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAllMarkers(false)}
+                  className={
+                    `px-3 py-2 text-sm transition-colors border-l border-gray-200 dark:border-gray-700 ` +
+                    (!showAllMarkers
+                      ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
+                      : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800')
+                  }
+                  title="Ver solo el seleccionado"
+                >
+                  Solo este
+                </button>
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-300">
+                {showAllMarkers ? 'Mostrando todos los marcadores del plano.' : 'Mostrando solo el motor/bomba seleccionado.'}
+              </div>
+            </div>
+
             {/* Toolbar editor de áreas (solo admins/flag) */}
             {canEditMapAreas && (
               <div className="flex flex-wrap items-center gap-2">
@@ -2958,6 +3000,7 @@ export function PlantAssetsView(props: {
                   addingMarker={addingMarker}
                   onAddMarker={handleMapClick}
                   onHoverWorld={(p) => setAreaCursor(p)}
+                  onOpenAssetImages={openImagesViewerForAsset}
                   areas={areasForViewer}
                   draftArea={draftAreaForViewer}
                   areaEdit={
