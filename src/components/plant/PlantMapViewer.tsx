@@ -767,10 +767,11 @@ export function PlantMapViewer(props: {
             const isPinned = pinnedMarkerId === m.id;
             const isFocused = focusMarkerId === m.id;
 
-            const isEmphasis = isPinned || isFocused || isSelected;
+            const showWave = isPinned || isFocused;
+            const showHalo = isPinned || isFocused || isSelected;
             const markerDotClass = isPinned || isFocused ? 'bg-emerald-500' : 'bg-primary-600';
-            const haloClass = isPinned || isFocused ? 'bg-emerald-500/25' : 'bg-primary-600/25';
-            const waveClass = isPinned || isFocused ? 'bg-emerald-400/30' : 'bg-primary-400/30';
+            const haloClass = isPinned || isFocused ? 'bg-emerald-500/20' : 'bg-primary-600/20';
+            const waveBorderClass = isPinned || isFocused ? 'border-emerald-400/45' : 'border-primary-400/45';
 
             // Mantener el tamaño del marcador prácticamente constante en pantalla,
             // compensando el zoom del contenedor (que escala todo el plano).
@@ -831,30 +832,35 @@ export function PlantMapViewer(props: {
                 onBlur={() => {
                   clearHoverSoon();
                 }}
-                className={
-                  `absolute rounded-full cursor-pointer transition-opacity hover:opacity-90 focus:outline-none`
-                }
+                className="absolute rounded-full cursor-pointer transition-opacity hover:opacity-90 focus:outline-none"
                 style={{ left: `${m.x * 100}%`, top: `${m.y * 100}%`, width: sizePx, height: sizePx, transform: 'translate(-50%, -50%)' }}
                 title={m.assetLabel}
               >
-                {/* Onda (indicador de lo que se está mostrando) */}
-                {isEmphasis && (
+                {/* Onda tipo ripple: solo para el que se está mostrando (fijado/enfocado) */}
+                {showWave && (
                   <span
                     aria-hidden
-                    className={`absolute inset-0 rounded-full ${waveClass} animate-ping`}
-                    style={{ width: sizePx * 3.2, height: sizePx * 3.2, left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+                    className={`pointer-events-none absolute rounded-full border-2 ${waveBorderClass} animate-ping`}
+                    style={{ width: sizePx * 3.0, height: sizePx * 3.0, left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
                   />
                 )}
 
-                {/* Halo fijo */}
+                {/* Halo suave para selección */}
+                {showHalo && (
+                  <span
+                    aria-hidden
+                    className={`pointer-events-none absolute rounded-full ${haloClass}`}
+                    style={{ width: sizePx * 2.1, height: sizePx * 2.1, left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+                  />
+                )}
+
+                {/* Punto principal + highlight para look más pro */}
+                <span aria-hidden className={`absolute inset-0 rounded-full ${markerDotClass} shadow-sm`} />
                 <span
                   aria-hidden
-                  className={`absolute inset-0 rounded-full ${haloClass}`}
-                  style={{ width: sizePx * 2.2, height: sizePx * 2.2, left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+                  className="pointer-events-none absolute rounded-full bg-white/85"
+                  style={{ width: '38%', height: '38%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
                 />
-
-                {/* Punto principal */}
-                <span aria-hidden className={`absolute inset-0 rounded-full ${markerDotClass}`} />
               </button>
             );
           })}
