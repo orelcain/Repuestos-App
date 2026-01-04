@@ -8,6 +8,72 @@ import { usePlantStorage } from '../../hooks/usePlantStorage';
 import ExcelJS from 'exceljs';
 import { PlantMapViewer } from './PlantMapViewer';
 
+type BadgeTone = 'strong' | 'soft';
+
+const hashString = (input: string) => {
+  // FNV-1a (simple y estable)
+  let h = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+};
+
+const badgePalettes: Array<{ strong: string; soft: string }> = [
+  {
+    strong: 'bg-blue-500/20 border-blue-500/30 text-blue-200',
+    soft: 'bg-blue-500/10 border-blue-500/20 text-blue-200'
+  },
+  {
+    strong: 'bg-emerald-500/20 border-emerald-500/30 text-emerald-200',
+    soft: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-200'
+  },
+  {
+    strong: 'bg-amber-500/20 border-amber-500/30 text-amber-200',
+    soft: 'bg-amber-500/10 border-amber-500/20 text-amber-200'
+  },
+  {
+    strong: 'bg-purple-500/20 border-purple-500/30 text-purple-200',
+    soft: 'bg-purple-500/10 border-purple-500/20 text-purple-200'
+  },
+  {
+    strong: 'bg-cyan-500/20 border-cyan-500/30 text-cyan-200',
+    soft: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-200'
+  },
+  {
+    strong: 'bg-rose-500/20 border-rose-500/30 text-rose-200',
+    soft: 'bg-rose-500/10 border-rose-500/20 text-rose-200'
+  }
+];
+
+const getBadgePalette = (key: string) => {
+  const s = (key || '').trim().toLowerCase();
+  if (s === 'tipo:motor') return badgePalettes[0];
+  if (s === 'tipo:bomba') return badgePalettes[1];
+  const idx = s ? hashString(s) % badgePalettes.length : 0;
+  return badgePalettes[idx];
+};
+
+function Badge(props: { text: string; tone?: BadgeTone; className?: string; paletteKey?: string }) {
+  const { text, tone = 'strong', className = '', paletteKey } = props;
+  const palette = getBadgePalette(paletteKey ?? text);
+  const colors = tone === 'strong' ? palette.strong : palette.soft;
+  return (
+    <span
+      className={
+        'inline-flex items-center max-w-full px-2 py-0.5 rounded border text-xs font-medium whitespace-nowrap ' +
+        colors +
+        ' ' +
+        className
+      }
+      title={text}
+    >
+      <span className="truncate">{text}</span>
+    </span>
+  );
+}
+
 const toText = (v: unknown) => {
   if (v == null) return '';
   if (typeof v === 'string') return v;
@@ -118,6 +184,10 @@ export function PlantAssetsView(props: { machineId: string | null }) {
 
   const [showMapFullscreen, setShowMapFullscreen] = useState(false);
 
+  // === Fotos (ver en grande) ===
+  const [showPhoto, setShowPhoto] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState<string>('');
+
   // === Editar activo ===
   const [showEdit, setShowEdit] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
@@ -179,6 +249,7 @@ export function PlantAssetsView(props: { machineId: string | null }) {
       return map ? { id, nombre: map.nombre } : { id, nombre: 'Plano eliminado', missing: true };
     });
   };
+
 
   const [newRefTitle, setNewRefTitle] = useState('');
   const [newRefUrl, setNewRefUrl] = useState('');
@@ -374,7 +445,7 @@ export function PlantAssetsView(props: { machineId: string | null }) {
                   <th className="text-left px-3 py-2 hidden xl:table-cell">
                     <button type="button" className="hover:underline" onClick={() => toggleSort('relacionReduccion')}>i</button>
                   </th>
-                  <th className="text-left px-3 py-2">Marcadores</th>
+                  <th className="text-left px-3 py-2 w-[320px]">Marcadores</th>
                   <th className="px-3 py-2" />
                 </tr>
               </thead>
@@ -392,17 +463,17 @@ export function PlantAssetsView(props: { machineId: string | null }) {
                     >
                       <td className="px-3 py-2">
                         <button type="button" className="text-left w-full" onClick={() => setSelectedId(a.id)}>
-                          {a.tipo.toUpperCase()}
+                          <Badge text={a.tipo.toUpperCase()} tone="strong" paletteKey={`tipo:${a.tipo}`} />
                         </button>
                       </td>
                       <td className="px-3 py-2">
                         <button type="button" className="text-left w-full" onClick={() => setSelectedId(a.id)}>
-                          {a.area}
+                          <Badge text={a.area} tone="strong" paletteKey={`area:${a.area}`} className="max-w-[220px]" />
                         </button>
                       </td>
                       <td className="px-3 py-2 hidden lg:table-cell">
                         <button type="button" className="text-left w-full truncate" onClick={() => setSelectedId(a.id)}>
-                          {a.subarea}
+                          <Badge text={a.subarea} tone="soft" paletteKey={`area:${a.area}`} className="max-w-[260px]" />
                         </button>
                       </td>
                       <td className="px-3 py-2">
@@ -420,7 +491,7 @@ export function PlantAssetsView(props: { machineId: string | null }) {
                           {a.relacionReduccion || 'pendiente'}
                         </button>
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2 w-[320px]">
                         {markerMaps.length === 0 ? (
                           <span className="text-gray-500">—</span>
                         ) : (
@@ -440,7 +511,8 @@ export function PlantAssetsView(props: { machineId: string | null }) {
                                   if (!mm.missing) {
                                     setSelectedMapId(mm.id);
                                     setShowAllMarkers(false);
-                                    setAddingMarker(false);
+                                    setMarkerMode('none');
+                                    setMovingMarkerId(null);
                                   }
                                 }}
                                 title={mm.missing ? 'Plano eliminado' : 'Abrir plano y ver ubicación'}
@@ -587,6 +659,37 @@ export function PlantAssetsView(props: { machineId: string | null }) {
               </Button>
             </div>
 
+            {selected && (selected.marcadores || []).length > 0 && (
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                <span className="text-gray-600 dark:text-gray-300">Este motor/bomba está marcado en:</span>
+                {getMarkerMapNames(selected).map((mm) => (
+                  <button
+                    key={mm.id}
+                    type="button"
+                    className={
+                      'px-2 py-0.5 rounded border ' +
+                      (mm.missing
+                        ? 'border-gray-200 dark:border-gray-700 text-gray-500'
+                        : selectedMapId === mm.id
+                          ? 'border-primary-300 dark:border-primary-600 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
+                          : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800')
+                    }
+                    disabled={mm.missing}
+                    title={mm.missing ? 'Plano eliminado' : 'Cambiar al plano de este marcador'}
+                    onClick={() => {
+                      if (mm.missing) return;
+                      setSelectedMapId(mm.id);
+                      setShowAllMarkers(false);
+                      setMarkerMode('none');
+                      setMovingMarkerId(null);
+                    }}
+                  >
+                    {mm.nombre}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {selectedMap ? (
               <div className="mt-4">
                 <PlantMapViewer
@@ -633,7 +736,27 @@ export function PlantAssetsView(props: { machineId: string | null }) {
                           </button>
                         ))}
                     </div>
-                    {!movingMarkerId && <div className="mt-2 text-xs text-gray-500">Selecciona un marcador arriba y luego haz click en el plano.</div>}
+                    <div className="mt-2 flex items-center gap-2">
+                      {!movingMarkerId && <div className="text-xs text-gray-500">Selecciona un marcador arriba y luego haz click en el plano.</div>}
+                      {movingMarkerId && (
+                        <button
+                          type="button"
+                          className="ml-auto px-2 py-1 rounded border border-red-200 dark:border-red-700 text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 text-xs hover:bg-red-100 dark:hover:bg-red-900/30"
+                          onClick={async () => {
+                            if (!selected) return;
+                            const ok = window.confirm('¿Eliminar este marcador?');
+                            if (!ok) return;
+                            const next = (selected.marcadores || []).filter((m) => m.id !== movingMarkerId);
+                            await updateAsset(selected.id, { marcadores: next } as any);
+                            setMovingMarkerId(null);
+                            setMarkerMode('none');
+                          }}
+                          title="Eliminar el marcador seleccionado"
+                        >
+                          Eliminar marcador
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -781,7 +904,17 @@ export function PlantAssetsView(props: { machineId: string | null }) {
                   .sort((a, b) => a.orden - b.orden)
                   .map((img) => (
                     <div key={img.id} className="relative rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-100">
-                      <img src={img.url} alt="" className="w-full h-28 object-cover" />
+                      <button
+                        type="button"
+                        className="block w-full"
+                        onClick={() => {
+                          setPhotoUrl(img.url);
+                          setShowPhoto(true);
+                        }}
+                        title="Ver foto en grande"
+                      >
+                        <img src={img.url} alt="" className="w-full h-28 object-cover" />
+                      </button>
                       <button
                         onClick={() => deleteImagen(selected, img.id)}
                         className="absolute top-1 right-1 p-1 rounded bg-white/80 hover:bg-white text-gray-700"
@@ -827,6 +960,24 @@ export function PlantAssetsView(props: { machineId: string | null }) {
 
           <div className="flex justify-end">
             <Button variant="secondary" onClick={() => setShowImport(false)} disabled={importing}>
+              Cerrar
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal Foto en grande */}
+      <Modal isOpen={showPhoto} onClose={() => setShowPhoto(false)} title="Foto" size="full">
+        <div className="w-full">
+          {photoUrl ? (
+            <div className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-black/5 dark:bg-black/20 overflow-hidden">
+              <img src={photoUrl} alt="" className="w-full" style={{ maxHeight: '80vh', objectFit: 'contain' }} />
+            </div>
+          ) : (
+            <div className="text-sm text-gray-500">Sin foto.</div>
+          )}
+          <div className="mt-3 flex justify-end">
+            <Button variant="secondary" onClick={() => setShowPhoto(false)}>
               Cerrar
             </Button>
           </div>
@@ -1075,7 +1226,8 @@ export function PlantAssetsView(props: { machineId: string | null }) {
                   }
                   await deleteMap(selectedMap.id);
                   setSelectedMapId('');
-                  setAddingMarker(false);
+                  setMarkerMode('none');
+                  setMovingMarkerId(null);
                   setShowDeleteMap(false);
                 } finally {
                   setDeletingMap(false);
