@@ -754,7 +754,8 @@ export function PlantMapViewer(props: {
             const showWave = isPinned || isFocused || isSelectedMarker || (showAllMarkers && isSelected);
             const showHalo = isPinned || isFocused || isSelectedMarker || isSelected;
             const haloClass = isPinned || isFocused ? 'bg-emerald-500/20' : 'bg-primary-600/20';
-            const waveBorderClass = isPinned || isFocused ? 'border-emerald-400/45' : 'border-primary-400/45';
+            const waveBorderClass = isPinned || isFocused ? 'border-emerald-400/55' : 'border-primary-400/55';
+            const waveBorderSoftClass = isPinned || isFocused ? 'border-emerald-400/35' : 'border-primary-400/35';
 
             // Mantener el tamaño del marcador prácticamente constante en pantalla,
             // compensando el zoom del contenedor (que escala todo el plano).
@@ -842,11 +843,18 @@ export function PlantMapViewer(props: {
               >
                 {/* Onda tipo ripple: solo para el que se está mostrando (fijado/enfocado) */}
                 {showWave && (
-                  <span
-                    aria-hidden
-                    className={`pointer-events-none absolute rounded-full border-2 ${waveBorderClass} animate-ping`}
-                    style={{ width: aura * 1.55, height: aura * 1.55, left: '50%', top: headTop, transform: 'translate(-50%, -50%)' }}
-                  />
+                  <>
+                    <span
+                      aria-hidden
+                      className={`pointer-events-none absolute rounded-full border-2 ${waveBorderClass} animate-[marker-ripple_1.8s_ease-out_infinite]`}
+                      style={{ width: aura * 0.62, height: aura * 0.62, left: '50%', top: headTop }}
+                    />
+                    <span
+                      aria-hidden
+                      className={`pointer-events-none absolute rounded-full border-2 ${waveBorderSoftClass} animate-[marker-ripple2_2.2s_ease-out_infinite]`}
+                      style={{ width: aura * 0.74, height: aura * 0.74, left: '50%', top: headTop }}
+                    />
+                  </>
                 )}
 
                 {/* Halo suave para selección */}

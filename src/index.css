@@ -177,6 +177,17 @@ html, body, #root {
   }
 }
 
+/* Marcadores: Ripple doble (opción 4 del lab) */
+@keyframes marker-ripple {
+  0% { transform: translate(-50%, -50%) scale(0.85); opacity: 0.70; }
+  100% { transform: translate(-50%, -50%) scale(3.30); opacity: 0; }
+}
+
+@keyframes marker-ripple2 {
+  0% { transform: translate(-50%, -50%) scale(0.95); opacity: 0.55; }
+  100% { transform: translate(-50%, -50%) scale(2.90); opacity: 0; }
+}
+
 .animate-fadeIn {
   animation: fadeIn 0.2s ease-out;
 }
