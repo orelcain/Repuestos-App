@@ -90,8 +90,15 @@ export function PlantMapViewer(props: {
         assetLabel: string;
         codigoSAP: string;
         tipo: string;
+        equipo: string;
         area: string;
         subarea: string;
+        componente?: string;
+        descripcionSAP?: string;
+        marca?: string;
+        modeloTipo?: string;
+        potencia?: string;
+        voltaje?: string;
         imageUrl?: string;
       }
     > => {
@@ -104,8 +111,15 @@ export function PlantMapViewer(props: {
           assetLabel: `${asset.tipo.toUpperCase()} • ${asset.codigoSAP}`,
           codigoSAP: asset.codigoSAP,
           tipo: asset.tipo.toUpperCase(),
+          equipo: asset.equipo,
           area: asset.area,
           subarea: asset.subarea,
+          componente: asset.componente,
+          descripcionSAP: asset.descripcionSAP,
+          marca: asset.marca,
+          modeloTipo: asset.modeloTipo,
+          potencia: asset.potencia,
+          voltaje: asset.voltaje,
           imageUrl: imageUrl || undefined
         }));
     };
@@ -289,6 +303,26 @@ export function PlantMapViewer(props: {
                 <div className="mt-1 text-gray-200">
                   {hoveredMarker.area} — {hoveredMarker.subarea}
                 </div>
+                {String(hoveredMarker.equipo || '').trim() && String(hoveredMarker.equipo || '').toLowerCase() !== 'pendiente' && (
+                  <div className="mt-1 text-gray-200">Máquina/Cinta: {hoveredMarker.equipo}</div>
+                )}
+                <div className="mt-1 text-gray-200">
+                  {[
+                    hoveredMarker.marca,
+                    hoveredMarker.modeloTipo,
+                    hoveredMarker.potencia,
+                    hoveredMarker.voltaje
+                  ]
+                    .map((v) => (v || '').trim())
+                    .filter((v) => v && v.toLowerCase() !== 'pendiente')
+                    .join(' • ')}
+                </div>
+                {String(hoveredMarker.componente || '').trim() && String(hoveredMarker.componente || '').toLowerCase() !== 'pendiente' && (
+                  <div className="mt-1 text-gray-300">{hoveredMarker.componente}</div>
+                )}
+                {String(hoveredMarker.descripcionSAP || '').trim() && String(hoveredMarker.descripcionSAP || '').toLowerCase() !== 'pendiente' && (
+                  <div className="mt-1 text-gray-300 line-clamp-2">{hoveredMarker.descripcionSAP}</div>
+                )}
                 {hoveredMarker.imageUrl && (
                   <div className="mt-2 rounded border border-gray-700 overflow-hidden bg-black/20">
                     <img src={hoveredMarker.imageUrl} alt="" className="w-full h-24 object-cover" draggable={false} />

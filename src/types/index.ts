@@ -230,6 +230,9 @@ export interface PlantMap {
 export interface PlantAsset {
   id: string;
   tipo: PlantAssetTipo;
+  // Identificador libre para asociar el activo a una máquina/cinta/equipo cuando aplique.
+  // Ej: "Cinta 3", "Baader 200", "Transportador zona empaque".
+  equipo: string;
   area: string;
   subarea: string;
   componente: string;

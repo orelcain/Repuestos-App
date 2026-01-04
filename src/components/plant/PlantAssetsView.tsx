@@ -103,7 +103,7 @@ const isValidComponentRow = (componente: string) => {
 
 export function PlantAssetsView(props: { machineId: string | null }) {
   const { machineId } = props;
-  const { assets, loading, error, upsertMany, addMarker, addReferencia, deleteReferencia, addImagen, deleteImagen, updateAsset } = usePlantAssets();
+  const { assets, loading, error, upsertMany, addMarker, addReferencia, deleteReferencia, addImagen, deleteImagen, updateAsset, createAsset } = usePlantAssets();
   const { maps, createMap, updateMap, deleteMap } = usePlantMaps();
   const { uploadPlantMapImage, uploadPlantAssetImage, deleteByUrl } = usePlantStorage(machineId);
 
@@ -115,6 +115,7 @@ export function PlantAssetsView(props: { machineId: string | null }) {
   // === Columnas (persistentes) + Export ===
   const ALL_COLUMNS: Array<{ key: PlantAssetsColumnKey; label: string; defaultEnabled: boolean; thClassName?: string; tdClassName?: string }> = [
     { key: 'tipo', label: 'Tipo', defaultEnabled: true },
+    { key: 'equipo', label: 'Máquina/Cinta', defaultEnabled: true, thClassName: 'hidden lg:table-cell', tdClassName: 'hidden lg:table-cell' },
     { key: 'area', label: 'Área', defaultEnabled: true },
     { key: 'subarea', label: 'Subárea', defaultEnabled: true, thClassName: 'hidden lg:table-cell', tdClassName: 'hidden lg:table-cell' },
     { key: 'codigoSAP', label: 'SAP', defaultEnabled: true },
@@ -167,8 +168,12 @@ export function PlantAssetsView(props: { machineId: string | null }) {
 
   const visibleColumns = useMemo(() => ALL_COLUMNS.filter((c) => columnsEnabled[c.key]), [ALL_COLUMNS, columnsEnabled]);
   const [showColumnsExport, setShowColumnsExport] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
+  const [exportingPDF, setExportingPDF] = useState(false);
+  const [pdfIncludePhotos, setPdfIncludePhotos] = useState(true);
+  const [pdfIncludeLocations, setPdfIncludeLocations] = useState(true);
 
-  const [sortKey, setSortKey] = useState<'tipo' | 'area' | 'subarea' | 'codigoSAP' | 'marca' | 'relacionReduccion'>('area');
+  const [sortKey, setSortKey] = useState<'tipo' | 'equipo' | 'area' | 'subarea' | 'codigoSAP' | 'marca' | 'relacionReduccion'>('area');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
   const toggleSort = (key: typeof sortKey) => {
@@ -184,7 +189,7 @@ export function PlantAssetsView(props: { machineId: string | null }) {
     const term = search.trim().toLowerCase();
     if (!term) return assets;
     return assets.filter((a) => {
-      const hay = `${a.tipo} ${a.area} ${a.subarea} ${a.codigoSAP} ${a.marca} ${a.potencia} ${a.descripcionSAP}`.toLowerCase();
+      const hay = `${a.tipo} ${a.equipo} ${a.area} ${a.subarea} ${a.codigoSAP} ${a.marca} ${a.potencia} ${a.descripcionSAP}`.toLowerCase();
       return hay.includes(term);
     });
   }, [assets, search]);
@@ -248,9 +253,11 @@ export function PlantAssetsView(props: { machineId: string | null }) {
   // === Editar activo ===
   const [showEdit, setShowEdit] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [creatingNew, setCreatingNew] = useState(false);
   const [editDraft, setEditDraft] = useState<Omit<PlantAsset, 'createdAt' | 'updatedAt'>>({
     id: '',
     tipo: 'motor',
+    equipo: 'pendiente',
     area: 'pendiente',
     subarea: 'pendiente',
     componente: 'pendiente',
@@ -270,9 +277,11 @@ export function PlantAssetsView(props: { machineId: string | null }) {
   });
 
   const openEdit = (asset: PlantAsset) => {
+    setCreatingNew(false);
     setEditDraft({
       id: asset.id,
       tipo: asset.tipo,
+      equipo: asset.equipo,
       area: asset.area,
       subarea: asset.subarea,
       componente: asset.componente,
@@ -289,6 +298,32 @@ export function PlantAssetsView(props: { machineId: string | null }) {
       referencias: asset.referencias || [],
       imagenes: asset.imagenes || [],
       marcadores: asset.marcadores || []
+    });
+    setShowEdit(true);
+  };
+
+  const openCreate = () => {
+    setCreatingNew(true);
+    setEditDraft({
+      id: '',
+      tipo: 'motor',
+      equipo: 'pendiente',
+      area: 'pendiente',
+      subarea: 'pendiente',
+      componente: 'pendiente',
+      codigoSAP: 'pendiente',
+      descripcionSAP: 'pendiente',
+      marca: 'pendiente',
+      modeloTipo: 'pendiente',
+      potencia: 'pendiente',
+      voltaje: 'pendiente',
+      relacionReduccion: 'pendiente',
+      corriente: 'pendiente',
+      eje: 'pendiente',
+      observaciones: 'pendiente',
+      referencias: [],
+      imagenes: [],
+      marcadores: []
     });
     setShowEdit(true);
   };
@@ -315,6 +350,26 @@ export function PlantAssetsView(props: { machineId: string | null }) {
       .join(' | ');
   };
 
+  const getLocationsLabel = (asset: PlantAsset) => {
+    const groups = new Map<string, Array<{ x: number; y: number }>>();
+    for (const m of asset.marcadores || []) {
+      if (!m.mapId) continue;
+      const arr = groups.get(m.mapId) || [];
+      arr.push({ x: m.x, y: m.y });
+      groups.set(m.mapId, arr);
+    }
+
+    const parts: string[] = [];
+    for (const [mapId, coords] of groups.entries()) {
+      const mapName = mapById.get(mapId)?.nombre || 'Plano eliminado';
+      const c = coords
+        .map((p) => `(${Math.round(p.x * 100)}%,${Math.round(p.y * 100)}%)`)
+        .join(' ');
+      parts.push(`${mapName} ${c}`.trim());
+    }
+    return parts.join(' | ');
+  };
+
 
   const [newRefTitle, setNewRefTitle] = useState('');
   const [newRefUrl, setNewRefUrl] = useState('');
@@ -339,6 +394,14 @@ export function PlantAssetsView(props: { machineId: string | null }) {
         return rowVals[idx + 1];
       };
 
+      const getCellAny = (rowVals: any[], headerNames: string[]) => {
+        for (const name of headerNames) {
+          const idx = idxOf(name);
+          if (idx >= 0) return rowVals[idx + 1];
+        }
+        return '';
+      };
+
       const rows: Array<Omit<PlantAsset, 'id' | 'createdAt' | 'updatedAt'>> = [];
 
       for (let r = 2; r <= ws.rowCount; r++) {
@@ -348,6 +411,7 @@ export function PlantAssetsView(props: { machineId: string | null }) {
 
         const area = normalize(toText(getCell(vals, 'Área')));
         const subarea = normalize(toText(getCell(vals, 'Subárea')));
+        const equipo = toPendiente(toText(getCellAny(vals, ['Máquina/Cinta', 'Maquina/Cinta', 'Máquina', 'Maquina', 'Cinta'])));
 
         const codigoSAP = toPendiente(toText(getCell(vals, 'Codigo SAP')));
         const descripcionSAP = toPendiente(toText(getCell(vals, 'Descripcion SAP')));
@@ -362,6 +426,7 @@ export function PlantAssetsView(props: { machineId: string | null }) {
 
         rows.push({
           tipo: inferTipoFromComponente(componente),
+          equipo,
           area: toPendiente(area),
           subarea: toPendiente(subarea),
           componente: toPendiente(componente),
@@ -462,11 +527,14 @@ export function PlantAssetsView(props: { machineId: string | null }) {
   return (
     <div className="flex-1 flex overflow-hidden">
       {/* Listado */}
-      <div className="w-full md:w-2/5 lg:w-2/5 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex flex-col">
+      <div className="w-full md:w-3/5 lg:w-3/5 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex flex-col">
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between gap-2">
             <div className="font-semibold text-gray-900 dark:text-gray-100">Motores / Bombas</div>
             <div className="flex items-center gap-2">
+              <Button size="sm" icon={<Plus className="w-4 h-4" />} onClick={openCreate}>
+                Nuevo
+              </Button>
               <Button size="sm" variant="secondary" icon={<Upload className="w-4 h-4" />} onClick={() => setShowImport(true)}>
                 Importar Excel
               </Button>
@@ -478,7 +546,7 @@ export function PlantAssetsView(props: { machineId: string | null }) {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por área, SAP, marca..."
+            placeholder="Buscar por máquina/cinta, área, SAP, marca..."
             className="mt-3 w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
           />
         </div>
@@ -498,6 +566,11 @@ export function PlantAssetsView(props: { machineId: string | null }) {
                   {columnsEnabled.tipo && (
                     <th className="text-left px-3 py-2">
                       <button type="button" className="hover:underline" onClick={() => toggleSort('tipo')}>Tipo</button>
+                    </th>
+                  )}
+                  {columnsEnabled.equipo && (
+                    <th className="text-left px-3 py-2 hidden lg:table-cell">
+                      <button type="button" className="hover:underline" onClick={() => toggleSort('equipo')}>Máquina/Cinta</button>
                     </th>
                   )}
                   {columnsEnabled.area && (
@@ -545,6 +618,13 @@ export function PlantAssetsView(props: { machineId: string | null }) {
                         <td className="px-3 py-2">
                           <button type="button" className="text-left w-full" onClick={() => setSelectedId(a.id)}>
                             <Badge text={a.tipo.toUpperCase()} tone="strong" paletteKey={`tipo:${a.tipo}`} />
+                          </button>
+                        </td>
+                      )}
+                      {columnsEnabled.equipo && (
+                        <td className="px-3 py-2 hidden lg:table-cell">
+                          <button type="button" className="text-left w-full truncate" onClick={() => setSelectedId(a.id)}>
+                            {a.equipo}
                           </button>
                         </td>
                       )}
@@ -901,6 +981,7 @@ export function PlantAssetsView(props: { machineId: string | null }) {
                 <div className="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-2">Datos</div>
                 <div className="text-sm text-gray-700 dark:text-gray-200 space-y-1">
                   <div><b>Descripción SAP:</b> {selected.descripcionSAP}</div>
+                  <div><b>Máquina/Cinta:</b> {selected.equipo}</div>
                   <div><b>Marca:</b> {selected.marca}</div>
                   <div><b>Modelo/Tipo:</b> {selected.modeloTipo}</div>
                   <div><b>Potencia:</b> {selected.potencia}</div>
@@ -1080,6 +1161,20 @@ export function PlantAssetsView(props: { machineId: string | null }) {
             ))}
           </div>
 
+          <div className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+            <div className="text-xs font-semibold text-gray-700 dark:text-gray-200">PDF</div>
+            <div className="mt-2 flex flex-col gap-2">
+              <label className="inline-flex items-center gap-2 text-sm text-gray-800 dark:text-gray-100">
+                <input type="checkbox" checked={pdfIncludePhotos} onChange={(e) => setPdfIncludePhotos(e.target.checked)} />
+                Incluir fotos (miniaturas)
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm text-gray-800 dark:text-gray-100">
+                <input type="checkbox" checked={pdfIncludeLocations} onChange={(e) => setPdfIncludeLocations(e.target.checked)} />
+                Incluir ubicaciones (plano + coordenadas)
+              </label>
+            </div>
+          </div>
+
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <Button
               variant="secondary"
@@ -1093,14 +1188,24 @@ export function PlantAssetsView(props: { machineId: string | null }) {
               <Button
                 variant="secondary"
                 onClick={async () => {
-                  const cols = visibleColumns.map((c) => c.key);
-                  await exportPlantAssetsToExcel(sorted, {
-                    filename: `motores_bombas_${new Date().toISOString().slice(0, 10)}`,
-                    columns: cols,
-                    getMarkersLabel
-                  });
+                  try {
+                    if (exportingExcel) return;
+                    setExportingExcel(true);
+                    const cols = visibleColumns.map((c) => c.key);
+                    await exportPlantAssetsToExcel(sorted, {
+                      filename: `motores_bombas_${new Date().toISOString().slice(0, 10)}`,
+                      columns: cols,
+                      getMarkersLabel
+                    });
+                  } catch (e) {
+                    console.error('Error exportando Excel (Motores/Bombas):', e);
+                    window.alert(e instanceof Error ? e.message : 'Error exportando Excel');
+                  } finally {
+                    setExportingExcel(false);
+                  }
                 }}
-                disabled={visibleColumns.length === 0 || sorted.length === 0}
+                loading={exportingExcel}
+                disabled={exportingExcel || visibleColumns.length === 0 || sorted.length === 0}
                 title={sorted.length === 0 ? 'No hay filas para exportar' : undefined}
               >
                 Exportar Excel
@@ -1109,14 +1214,27 @@ export function PlantAssetsView(props: { machineId: string | null }) {
               <Button
                 variant="secondary"
                 onClick={async () => {
-                  const cols = visibleColumns.map((c) => c.key);
-                  await exportPlantAssetsToPDF(sorted, {
-                    filename: `motores_bombas_${new Date().toISOString().slice(0, 10)}`,
-                    columns: cols,
-                    getMarkersLabel
-                  });
+                  try {
+                    if (exportingPDF) return;
+                    setExportingPDF(true);
+                    const cols = visibleColumns.map((c) => c.key);
+                    await exportPlantAssetsToPDF(sorted, {
+                      filename: `motores_bombas_${new Date().toISOString().slice(0, 10)}`,
+                      columns: cols,
+                      getMarkersLabel,
+                      getLocationsLabel,
+                      includePhotos: pdfIncludePhotos,
+                      includeLocations: pdfIncludeLocations
+                    });
+                  } catch (e) {
+                    console.error('Error exportando PDF (Motores/Bombas):', e);
+                    window.alert(e instanceof Error ? e.message : 'Error exportando PDF');
+                  } finally {
+                    setExportingPDF(false);
+                  }
                 }}
-                disabled={visibleColumns.length === 0 || sorted.length === 0}
+                loading={exportingPDF}
+                disabled={exportingPDF || visibleColumns.length === 0 || sorted.length === 0}
                 title={sorted.length === 0 ? 'No hay filas para exportar' : undefined}
               >
                 Exportar PDF
@@ -1208,6 +1326,15 @@ export function PlantAssetsView(props: { machineId: string | null }) {
               <input
                 value={editDraft.codigoSAP}
                 onChange={(e) => setEditDraft((d) => ({ ...d, codigoSAP: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <div className="text-xs text-gray-600 dark:text-gray-300 mb-1">Máquina/Cinta (si aplica)</div>
+              <input
+                value={editDraft.equipo}
+                onChange={(e) => setEditDraft((d) => ({ ...d, equipo: e.target.value }))}
                 className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
               />
             </div>
@@ -1323,11 +1450,11 @@ export function PlantAssetsView(props: { machineId: string | null }) {
             <Button
               loading={savingEdit}
               onClick={async () => {
-                if (!editDraft.id) return;
                 setSavingEdit(true);
                 try {
-                  await updateAsset(editDraft.id, {
+                  const payload = {
                     tipo: editDraft.tipo,
+                    equipo: toPendiente(editDraft.equipo),
                     area: toPendiente(editDraft.area),
                     subarea: toPendiente(editDraft.subarea),
                     componente: toPendiente(editDraft.componente),
@@ -1341,7 +1468,20 @@ export function PlantAssetsView(props: { machineId: string | null }) {
                     corriente: toPendiente(editDraft.corriente),
                     eje: toPendiente(editDraft.eje),
                     observaciones: toPendiente(editDraft.observaciones)
-                  } as any);
+                  } as any;
+
+                  if (creatingNew) {
+                    const newId = await createAsset({
+                      ...payload,
+                      referencias: editDraft.referencias || [],
+                      imagenes: editDraft.imagenes || [],
+                      marcadores: editDraft.marcadores || []
+                    } as any);
+                    setSelectedId(newId);
+                  } else {
+                    if (!editDraft.id) return;
+                    await updateAsset(editDraft.id, payload);
+                  }
                   setShowEdit(false);
                 } finally {
                   setSavingEdit(false);

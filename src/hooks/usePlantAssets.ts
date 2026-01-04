@@ -21,6 +21,7 @@ const fromDoc = (id: string, data: Record<string, unknown>): PlantAsset => {
   return {
     id,
     tipo: (data.tipo as PlantAssetTipo) || 'motor',
+    equipo: String(data.equipo ?? 'pendiente'),
     area: String(data.area ?? ''),
     subarea: String(data.subarea ?? ''),
     componente: String(data.componente ?? ''),
@@ -84,11 +85,11 @@ const hashDjb2 = (str: string) => {
   return (hash >>> 0).toString(16);
 };
 
-export const makePlantAssetKey = (asset: Pick<PlantAsset, 'tipo' | 'codigoSAP' | 'area' | 'subarea' | 'descripcionSAP' | 'marca' | 'modeloTipo' | 'potencia' | 'voltaje'>) => {
+export const makePlantAssetKey = (asset: Pick<PlantAsset, 'tipo' | 'codigoSAP' | 'equipo' | 'area' | 'subarea' | 'descripcionSAP' | 'marca' | 'modeloTipo' | 'potencia' | 'voltaje'>) => {
   const sap = (asset.codigoSAP || '').trim();
   if (sap && sap.toLowerCase() !== 'pendiente') return `${asset.tipo}:${normalizeKey(sap)}`;
   const base = normalizeText(
-    `${asset.tipo}|${asset.area}|${asset.subarea}|${asset.descripcionSAP}|${asset.marca}|${asset.modeloTipo}|${asset.potencia}|${asset.voltaje}`
+    `${asset.tipo}|${asset.equipo || ''}|${asset.area}|${asset.subarea}|${asset.descripcionSAP}|${asset.marca}|${asset.modeloTipo}|${asset.potencia}|${asset.voltaje}`
   );
   return `${asset.tipo}:hash:${hashDjb2(base)}`;
 };

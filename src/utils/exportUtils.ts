@@ -3,12 +3,13 @@ import { saveAs } from 'file-saver';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { PlantAsset, Repuesto, getTagNombre, isTagAsignado } from '../types';
-import { preloadImagesWithDimensions, ImageData } from './imageUtils';
+import { preloadImagesWithDimensions, ImageData, imageUrlToBase64WithDimensions } from './imageUtils';
 
 // === EXPORT MOTORES / BOMBAS (ACTIVOS DE PLANTA) ===
 
 export type PlantAssetsColumnKey =
   | 'tipo'
+  | 'equipo'
   | 'area'
   | 'subarea'
   | 'codigoSAP'
@@ -20,10 +21,14 @@ export interface PlantAssetsExportOptions {
   filename?: string;
   columns: PlantAssetsColumnKey[];
   getMarkersLabel?: (asset: PlantAsset) => string;
+  getLocationsLabel?: (asset: PlantAsset) => string;
+  includePhotos?: boolean;
+  includeLocations?: boolean;
 }
 
 const plantAssetsColumnHeader: Record<PlantAssetsColumnKey, string> = {
   tipo: 'Tipo',
+  equipo: 'Máquina/Cinta',
   area: 'Área',
   subarea: 'Subárea',
   codigoSAP: 'SAP',
@@ -43,7 +48,16 @@ export async function exportPlantAssetsToExcel(assets: PlantAsset[], options: Pl
   ws.columns = columns.map((key) => ({
     header: plantAssetsColumnHeader[key],
     key,
-    width: key === 'marcadores' ? 45 : key === 'subarea' ? 26 : key === 'area' ? 22 : 16
+    width:
+      key === 'marcadores'
+        ? 45
+        : key === 'subarea'
+          ? 26
+          : key === 'area'
+            ? 22
+            : key === 'equipo'
+              ? 22
+              : 16
   }));
 
   const headerRow = ws.getRow(1);
@@ -92,11 +106,31 @@ export async function exportPlantAssetsToExcel(assets: PlantAsset[], options: Pl
 
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  saveAs(blob, `${filename}.xlsx`);
+  try {
+    saveAs(blob, `${filename}.xlsx`);
+  } catch {
+    // Fallback (mejor compatibilidad en algunos navegadores/PWA)
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${filename}.xlsx`;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  }
 }
 
 export async function exportPlantAssetsToPDF(assets: PlantAsset[], options: PlantAssetsExportOptions) {
-  const { filename = 'motores_bombas', columns, getMarkersLabel } = options;
+  const {
+    filename = 'motores_bombas',
+    columns,
+    getMarkersLabel,
+    getLocationsLabel,
+    includePhotos = true,
+    includeLocations = true
+  } = options;
 
   const doc = new jsPDF('l', 'mm', 'a4');
   const title = 'Motores / Bombas';
@@ -109,9 +143,47 @@ export async function exportPlantAssetsToPDF(assets: PlantAsset[], options: Plan
   doc.setTextColor(100, 100, 100);
   doc.text(`Fecha: ${new Date().toLocaleDateString('es-CL')}`, 14, 20);
 
-  const head = [columns.map((c) => plantAssetsColumnHeader[c])];
+  const headRow: string[] = columns.map((c) => plantAssetsColumnHeader[c]);
+  const locationsColIndex = includeLocations ? headRow.length : -1;
+  if (includeLocations) headRow.push('Ubicaciones');
+  const photoColIndex = includePhotos ? headRow.length : -1;
+  if (includePhotos) headRow.push('Foto');
+
+  const primaryPhotoUrlByAssetId = new Map<string, string>();
+  if (includePhotos) {
+    for (const a of assets) {
+      const imgs = (a.imagenes || []).slice();
+      if (imgs.length === 0) continue;
+      imgs.sort((x, y) => {
+        if (!!x.esPrincipal !== !!y.esPrincipal) return x.esPrincipal ? -1 : 1;
+        return (x.orden ?? 0) - (y.orden ?? 0);
+      });
+      const url = imgs[0]?.url || '';
+      if (url) primaryPhotoUrlByAssetId.set(a.id, url);
+    }
+  }
+
+  const imageByAssetId = new Map<string, ImageData>();
+  if (includePhotos && primaryPhotoUrlByAssetId.size > 0) {
+    const entries = Array.from(primaryPhotoUrlByAssetId.entries());
+    const batchSize = 3;
+    for (let i = 0; i < entries.length; i += batchSize) {
+      const batch = entries.slice(i, i + batchSize);
+      const results = await Promise.all(
+        batch.map(async ([assetId, url]) => {
+          const data = await imageUrlToBase64WithDimensions(url);
+          return { assetId, data };
+        })
+      );
+      for (const r of results) {
+        if (r.data) imageByAssetId.set(r.assetId, r.data);
+      }
+    }
+  }
+
+  const head = [headRow];
   const body = assets.map((a) => {
-    return columns.map((key) => {
+    const row = columns.map((key) => {
       switch (key) {
         case 'tipo':
           return (a.tipo || '').toUpperCase();
@@ -121,6 +193,15 @@ export async function exportPlantAssetsToPDF(assets: PlantAsset[], options: Plan
           return String((a as any)[key] ?? '');
       }
     });
+
+    if (includeLocations) {
+      const loc = getLocationsLabel ? getLocationsLabel(a) : getMarkersLabel ? getMarkersLabel(a) : '';
+      row.push(loc);
+    }
+    if (includePhotos) {
+      row.push('');
+    }
+    return row;
   });
 
   autoTable(doc, {
@@ -129,7 +210,50 @@ export async function exportPlantAssetsToPDF(assets: PlantAsset[], options: Plan
     startY: 26,
     styles: { fontSize: 8, cellPadding: 2 },
     headStyles: { fillColor: [30, 64, 175], textColor: [255, 255, 255] },
-    alternateRowStyles: { fillColor: [243, 244, 246] }
+    alternateRowStyles: { fillColor: [243, 244, 246] },
+    columnStyles:
+      includePhotos && photoColIndex >= 0
+        ? {
+            [photoColIndex]: {
+              cellWidth: 28,
+              minCellHeight: 18,
+              halign: 'center',
+              valign: 'middle'
+            }
+          }
+        : undefined,
+    didDrawCell: (data) => {
+      if (!includePhotos) return;
+      if (photoColIndex < 0) return;
+      if (data.section !== 'body') return;
+      if (data.column.index !== photoColIndex) return;
+
+      const asset = assets[data.row.index];
+      if (!asset) return;
+      const img = imageByAssetId.get(asset.id);
+      if (!img) return;
+
+      const padding = 1;
+      const maxW = Math.max(1, data.cell.width - padding * 2);
+      const maxH = Math.max(1, data.cell.height - padding * 2);
+      const ratio = img.width / img.height;
+
+      let w = maxW;
+      let h = w / ratio;
+      if (h > maxH) {
+        h = maxH;
+        w = h * ratio;
+      }
+
+      const x = data.cell.x + (data.cell.width - w) / 2;
+      const y = data.cell.y + (data.cell.height - h) / 2;
+
+      try {
+        doc.addImage(img.base64, 'JPEG', x, y, w, h);
+      } catch {
+        // si falla, no interrumpir la exportación
+      }
+    }
   });
 
   doc.save(`${filename}.pdf`);
