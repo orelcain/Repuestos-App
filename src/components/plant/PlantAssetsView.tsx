@@ -66,7 +66,7 @@ function Badge(props: { text: string; tone?: BadgeTone; className?: string; pale
   return (
     <span
       className={
-        'inline-flex items-center max-w-full px-2 py-0.5 rounded border text-xs font-medium whitespace-nowrap ' +
+        'inline-flex items-center max-w-full px-1.5 py-0 rounded border text-xs font-medium whitespace-nowrap leading-tight ' +
         colors +
         ' ' +
         className
@@ -1083,65 +1083,65 @@ export function PlantAssetsView(props: {
           </div>
         ) : (
           <div className="flex-1 overflow-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-xs">
               <thead className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
                 <tr className="text-xs text-gray-600 dark:text-gray-300">
                   {columnsEnabled.tipo && (
-                    <th className="text-left px-3 py-2">
+                    <th className="text-left px-2 py-1">
                       <button type="button" className="hover:underline" onClick={() => toggleSort('tipo')}>Tipo</button>
                     </th>
                   )}
                   {columnsEnabled.area && (
-                    <th className="text-left px-3 py-2">
+                    <th className="text-left px-2 py-1">
                       <button type="button" className="hover:underline" onClick={() => toggleSort('area')}>Área</button>
                     </th>
                   )}
                   {columnsEnabled.subarea && (
-                    <th className="text-left px-3 py-2 hidden lg:table-cell">
+                    <th className="text-left px-2 py-1 hidden lg:table-cell">
                       <button type="button" className="hover:underline" onClick={() => toggleSort('subarea')}>Subárea</button>
                     </th>
                   )}
                   {columnsEnabled.codigoSAP && (
-                    <th className="text-left px-3 py-2">
+                    <th className="text-left px-2 py-1">
                       <button type="button" className="hover:underline" onClick={() => toggleSort('codigoSAP')}>SAP</button>
                     </th>
                   )}
                   {columnsEnabled.marca && (
-                    <th className="text-left px-3 py-2 hidden xl:table-cell">
+                    <th className="text-left px-2 py-1 hidden xl:table-cell">
                       <button type="button" className="hover:underline" onClick={() => toggleSort('marca')}>Marca</button>
                     </th>
                   )}
                   {columnsEnabled.potencia && (
-                    <th className="text-left px-3 py-2 hidden xl:table-cell">
+                    <th className="text-left px-2 py-1 hidden xl:table-cell">
                       <button type="button" className="hover:underline" onClick={() => toggleSort('potencia')}>Potencia</button>
                     </th>
                   )}
                   {columnsEnabled.voltaje && (
-                    <th className="text-left px-3 py-2 hidden xl:table-cell">
+                    <th className="text-left px-2 py-1 hidden xl:table-cell">
                       <button type="button" className="hover:underline" onClick={() => toggleSort('voltaje')}>Voltaje</button>
                     </th>
                   )}
                   {columnsEnabled.corriente && (
-                    <th className="text-left px-3 py-2 hidden xl:table-cell">
+                    <th className="text-left px-2 py-1 hidden xl:table-cell">
                       <button type="button" className="hover:underline" onClick={() => toggleSort('corriente')}>Corriente</button>
                     </th>
                   )}
                   {columnsEnabled.eje && (
-                    <th className="text-left px-3 py-2 hidden xl:table-cell">
+                    <th className="text-left px-2 py-1 hidden xl:table-cell">
                       <button type="button" className="hover:underline" onClick={() => toggleSort('eje')}>Eje</button>
                     </th>
                   )}
                   {columnsEnabled.relacionReduccion && (
-                    <th className="text-left px-3 py-2 hidden xl:table-cell">
+                    <th className="text-left px-2 py-1 hidden xl:table-cell">
                       <button type="button" className="hover:underline" onClick={() => toggleSort('relacionReduccion')}>Relación de reducción (i)</button>
                     </th>
                   )}
                   {columnsEnabled.marcadores && (
-                    <th className="text-left px-3 py-2 w-[320px]">
+                    <th className="text-left px-2 py-1 w-[320px]">
                       <button type="button" className="hover:underline" onClick={() => toggleSort('marcadores')}>Marcadores</button>
                     </th>
                   )}
-                  <th className="px-3 py-2" />
+                  <th className="px-2 py-1" />
                 </tr>
               </thead>
               <tbody>
@@ -1157,10 +1157,10 @@ export function PlantAssetsView(props: {
                       }
                     >
                       {columnsEnabled.tipo && (
-                        <td className="px-3 py-2">
+                        <td className="px-2 py-1 align-top">
                           <button
                             type="button"
-                            className="text-left w-full"
+                            className="text-left w-full leading-tight"
                             onClick={() => {
                               setSelectedId(a.id);
                               setShowAllMarkers(false);
@@ -1171,10 +1171,10 @@ export function PlantAssetsView(props: {
                         </td>
                       )}
                       {columnsEnabled.area && (
-                        <td className="px-3 py-2">
+                        <td className="px-2 py-1 align-top">
                           <button
                             type="button"
-                            className="text-left w-full"
+                            className="text-left w-full leading-tight"
                             onClick={() => {
                               setSelectedId(a.id);
                               setShowAllMarkers(false);
@@ -1192,10 +1192,10 @@ export function PlantAssetsView(props: {
                         </td>
                       )}
                       {columnsEnabled.subarea && (
-                        <td className="px-3 py-2 hidden lg:table-cell">
+                        <td className="px-2 py-1 hidden lg:table-cell align-top">
                           <button
                             type="button"
-                            className="text-left w-full truncate"
+                            className="text-left w-full truncate leading-tight"
                             onClick={() => {
                               setSelectedId(a.id);
                               setShowAllMarkers(false);
@@ -1213,10 +1213,10 @@ export function PlantAssetsView(props: {
                         </td>
                       )}
                       {columnsEnabled.codigoSAP && (
-                        <td className="px-3 py-2">
+                        <td className="px-2 py-1 align-top">
                           <button
                             type="button"
-                            className="text-left w-full"
+                            className="text-left w-full leading-tight"
                             onClick={() => {
                               setSelectedId(a.id);
                               setShowAllMarkers(false);
@@ -1227,10 +1227,10 @@ export function PlantAssetsView(props: {
                         </td>
                       )}
                       {columnsEnabled.marca && (
-                        <td className="px-3 py-2 hidden xl:table-cell">
+                        <td className="px-2 py-1 hidden xl:table-cell align-top">
                           <button
                             type="button"
-                            className="text-left w-full truncate"
+                            className="text-left w-full truncate leading-tight"
                             onClick={() => {
                               setSelectedId(a.id);
                               setShowAllMarkers(false);
@@ -1241,10 +1241,10 @@ export function PlantAssetsView(props: {
                         </td>
                       )}
                       {columnsEnabled.potencia && (
-                        <td className="px-3 py-2 hidden xl:table-cell">
+                        <td className="px-2 py-1 hidden xl:table-cell align-top">
                           <button
                             type="button"
-                            className="text-left w-full"
+                            className="text-left w-full leading-tight"
                             onClick={() => {
                               setSelectedId(a.id);
                               setShowAllMarkers(false);
@@ -1255,10 +1255,10 @@ export function PlantAssetsView(props: {
                         </td>
                       )}
                       {columnsEnabled.voltaje && (
-                        <td className="px-3 py-2 hidden xl:table-cell">
+                        <td className="px-2 py-1 hidden xl:table-cell align-top">
                           <button
                             type="button"
-                            className="text-left w-full"
+                            className="text-left w-full leading-tight"
                             onClick={() => {
                               setSelectedId(a.id);
                               setShowAllMarkers(false);
@@ -1269,10 +1269,10 @@ export function PlantAssetsView(props: {
                         </td>
                       )}
                       {columnsEnabled.corriente && (
-                        <td className="px-3 py-2 hidden xl:table-cell">
+                        <td className="px-2 py-1 hidden xl:table-cell align-top">
                           <button
                             type="button"
-                            className="text-left w-full"
+                            className="text-left w-full leading-tight"
                             onClick={() => {
                               setSelectedId(a.id);
                               setShowAllMarkers(false);
@@ -1283,10 +1283,10 @@ export function PlantAssetsView(props: {
                         </td>
                       )}
                       {columnsEnabled.eje && (
-                        <td className="px-3 py-2 hidden xl:table-cell">
+                        <td className="px-2 py-1 hidden xl:table-cell align-top">
                           <button
                             type="button"
-                            className="text-left w-full"
+                            className="text-left w-full leading-tight"
                             onClick={() => {
                               setSelectedId(a.id);
                               setShowAllMarkers(false);
@@ -1297,10 +1297,10 @@ export function PlantAssetsView(props: {
                         </td>
                       )}
                       {columnsEnabled.relacionReduccion && (
-                        <td className="px-3 py-2 hidden xl:table-cell">
+                        <td className="px-2 py-1 hidden xl:table-cell align-top">
                           <button
                             type="button"
-                            className="text-left w-full"
+                            className="text-left w-full leading-tight"
                             onClick={() => {
                               setSelectedId(a.id);
                               setShowAllMarkers(false);
@@ -1311,7 +1311,7 @@ export function PlantAssetsView(props: {
                         </td>
                       )}
                       {columnsEnabled.marcadores && (
-                        <td className="px-3 py-2 w-[320px]">
+                        <td className="px-2 py-1 w-[320px] align-top">
                           {markerMaps.length === 0 ? (
                             <span className="text-gray-500">—</span>
                           ) : (
@@ -1321,7 +1321,7 @@ export function PlantAssetsView(props: {
                                   key={mm.id}
                                   type="button"
                                   className={
-                                    'px-2 py-0.5 rounded border text-xs ' +
+                                    'px-1.5 py-0 rounded border text-xs leading-tight ' +
                                     (mm.missing
                                       ? 'border-gray-200 dark:border-gray-700 text-gray-500'
                                       : 'border-primary-200 dark:border-primary-700 text-primary-700 dark:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/20')
@@ -1345,10 +1345,10 @@ export function PlantAssetsView(props: {
                           )}
                         </td>
                       )}
-                      <td className="px-3 py-2 text-right">
+                      <td className="px-2 py-1 text-right align-top whitespace-nowrap">
                         <button
                           type="button"
-                          className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 mr-1"
+                          className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 mr-1"
                           onClick={() => {
                             setImagesViewerTargetId(a.id);
                             const list = [...(a.imagenes || [])].sort((x, y) => (x.orden ?? 0) - (y.orden ?? 0));
@@ -1359,15 +1359,15 @@ export function PlantAssetsView(props: {
                           title={(a.imagenes || []).length === 0 ? 'Sin fotos' : 'Ver fotos'}
                           disabled={(a.imagenes || []).length === 0}
                         >
-                          <ImageIcon className="w-4 h-4" />
+                          <ImageIcon className="w-3.5 h-3.5" />
                         </button>
                         <button
                           type="button"
-                          className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300"
+                          className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300"
                           onClick={() => openEdit(a)}
                           title="Editar"
                         >
-                          <Pencil className="w-4 h-4" />
+                          <Pencil className="w-3.5 h-3.5" />
                         </button>
                       </td>
                     </tr>
