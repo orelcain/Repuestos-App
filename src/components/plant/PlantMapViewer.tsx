@@ -762,11 +762,13 @@ export function PlantMapViewer(props: {
             // del contenedor resulte en un tamaño visual estable.
             const exterioresFactor = isExterioresGeneral ? 0.35 : 1;
             const selectedFactor = isSelected ? 1.25 : 1;
-            const baseScreenPx = isSelected ? 10 : 8;
+            // UX: +50% tamaño para que sea más fácil hacer click.
+            const clickBoost = 1.5;
+            const baseScreenPx = (isSelected ? 10 : 8) * clickBoost;
             const targetScreenPx = baseScreenPx * exterioresFactor * selectedFactor;
             const unscaledTargetPx = targetScreenPx / clamp(scale, MIN_SCALE, MAX_SCALE);
-            const minUnscaledPx = 4 / clamp(scale, MIN_SCALE, MAX_SCALE);
-            const maxUnscaledPx = 24 / clamp(scale, MIN_SCALE, MAX_SCALE);
+            const minUnscaledPx = 6 / clamp(scale, MIN_SCALE, MAX_SCALE);
+            const maxUnscaledPx = 36 / clamp(scale, MIN_SCALE, MAX_SCALE);
             const sizePx = clamp(unscaledTargetPx, minUnscaledPx, maxUnscaledPx);
 
             // Pin PRO: el sizePx es el "tamaño base" (antes era un dot). Escalamos el pin para que sea legible.
