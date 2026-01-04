@@ -5,6 +5,18 @@ type ViewerMode = 'embedded' | 'fullscreen';
 
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 
+const readFocusZoomScale = () => {
+  try {
+    const raw = window.localStorage.getItem('plant.mapFocusZoom');
+    if (!raw) return 2.5;
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return 2.5;
+    return clamp(n, 1, 8);
+  } catch {
+    return 2.5;
+  }
+};
+
 export function PlantMapViewer(props: {
   map: PlantMap;
   selectedAsset: PlantAsset | null;
@@ -20,6 +32,7 @@ export function PlantMapViewer(props: {
   const { map, selectedAsset, allAssets, showAllMarkers, addingMarker, onAddMarker, onSelectAsset, focusMarkerId = null, mode = 'embedded', clickTitle } = props;
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const focusZoomScale = useMemo(() => readFocusZoomScale(), []);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [pinnedMarkerId, setPinnedMarkerId] = useState<string | null>(null);
   const [pinnedPhotoIndex, setPinnedPhotoIndex] = useState(0);
@@ -86,7 +99,7 @@ export function PlantMapViewer(props: {
     const rect = containerRef.current.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
 
-    const target = clamp(opts?.zoomInScale ?? 2.5, 1, 8);
+    const target = clamp(opts?.zoomInScale ?? focusZoomScale, 1, 8);
     const nextScale = clamp(Math.max(scale, target), 1, 8);
     const nextTx = rect.width / 2 - m.x * rect.width * nextScale;
     const nextTy = rect.height / 2 - m.y * rect.height * nextScale;
@@ -181,7 +194,7 @@ export function PlantMapViewer(props: {
   useEffect(() => {
     if (addingMarker) return;
     if (!focusMarker) return;
-    focusOnMarker(focusMarker, { zoomInScale: 2.5 });
+    focusOnMarker(focusMarker);
   }, [addingMarker, focusMarker]);
 
   useEffect(() => {
@@ -564,7 +577,7 @@ export function PlantMapViewer(props: {
                   e.stopPropagation();
                   setPinnedMarkerId(m.id);
                   setPinnedPhotoIndex(0);
-                  focusOnMarker(m, { zoomInScale: 2.5 });
+                  focusOnMarker(m);
                   if (canSelect) {
                     onSelectAsset?.(m.assetId);
                   }
