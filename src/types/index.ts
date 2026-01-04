@@ -227,6 +227,35 @@ export interface PlantMap {
   updatedAt?: Date;
 }
 
+export interface PlantMapAreaPoint {
+  x: number; // 0-1
+  y: number; // 0-1
+}
+
+export type PlantMapAreaShape =
+  | {
+      kind: 'circle';
+      cx: number; // 0-1
+      cy: number; // 0-1
+      r: number; // normalizado a ancho (fitW)
+    }
+  | {
+      kind: 'polygon';
+      points: PlantMapAreaPoint[];
+    };
+
+export interface PlantMapArea {
+  id: string;
+  mapId: string;
+  nombre: string;
+  visible: boolean;
+  fillOpacity: number; // 0..1
+  strokeOpacity: number; // 0..1
+  shape: PlantMapAreaShape;
+  createdAt: Date;
+  updatedAt?: Date;
+}
+
 export interface PlantAsset {
   id: string;
   tipo: PlantAssetTipo;
@@ -245,6 +274,11 @@ export interface PlantAsset {
   relacionReduccion: string;
   corriente: string;
   eje: string;
+  // === Datos específicos de bomba (opcionales) ===
+  caudalM3h?: string; // m3/h
+  alturaM?: string; // H (m)
+  acople?: string;
+  alturaBaseCentroEjeMm?: string; // mm
   observaciones: string;
   referencias: PlantAssetReferencia[];
   imagenes: PlantAssetImagen[];

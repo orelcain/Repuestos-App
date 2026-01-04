@@ -1,13 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, Maximize2, Pencil, Plus, Upload, Trash2, MapPin, X, Download } from 'lucide-react';
-import type { PlantAsset, PlantAssetTipo, PlantMap } from '../../types';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AlertCircle, Maximize2, Pencil, Plus, Upload, Trash2, MapPin, X, Download, Image as ImageIcon, ChevronLeft, ChevronRight, Minus, RefreshCw } from 'lucide-react';
+import type { PlantAsset, PlantAssetTipo, PlantMap, PlantAssetImagen } from '../../types';
 import { Button, Modal } from '../ui';
 import { usePlantAssets } from '../../hooks/usePlantAssets';
 import { usePlantMaps } from '../../hooks/usePlantMaps';
+import { usePlantMapAreas } from '../../hooks/usePlantMapAreas';
 import { usePlantStorage } from '../../hooks/usePlantStorage';
 import ExcelJS from 'exceljs';
 import { PlantMapViewer } from './PlantMapViewer';
 import { exportPlantAssetsToExcel, exportPlantAssetsToPDF, type PlantAssetsColumnKey } from '../../utils/exportUtils';
+import type { UndoableAction } from '../../hooks/useUndoRedo';
+import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 
 type BadgeTone = 'strong' | 'soft';
 
@@ -109,11 +112,23 @@ const isValidComponentRow = (componente: string) => {
   return norm.includes('motor') || norm.includes('bomba');
 };
 
-export function PlantAssetsView(props: { machineId: string | null; focusAssetId?: string | null; onFocusHandled?: () => void }) {
-  const { machineId, focusAssetId, onFocusHandled } = props;
+export function PlantAssetsView(props: {
+  machineId: string | null;
+  focusAssetId?: string | null;
+  onFocusHandled?: () => void;
+  onRecordUndoAction?: (action: Omit<UndoableAction, 'id' | 'timestamp'>) => void;
+}) {
+  const { machineId, focusAssetId, onFocusHandled, onRecordUndoAction } = props;
   const { assets, loading, error, upsertMany, addMarker, addReferencia, deleteReferencia, addImagen, deleteImagen, updateAsset, createAsset } = usePlantAssets();
   const { maps, createMap, updateMap, deleteMap } = usePlantMaps();
   const { uploadPlantMapImage, uploadPlantAssetImage, deleteByUrl } = usePlantStorage(machineId);
+
+  const recordUndo = useCallback(
+    (action: Omit<UndoableAction, 'id' | 'timestamp'>) => {
+      onRecordUndoAction?.(action);
+    },
+    [onRecordUndoAction]
+  );
 
   const preloadedMapUrlsRef = useRef<Set<string>>(new Set());
 
@@ -209,6 +224,46 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = useMemo(() => assets.find((a) => a.id === selectedId) || null, [assets, selectedId]);
 
+  const [showImagesViewer, setShowImagesViewer] = useState(false);
+  const [imagesViewerTargetId, setImagesViewerTargetId] = useState<string | null>(null);
+  const imagesViewerTarget = useMemo(
+    () => assets.find((a) => a.id === imagesViewerTargetId) || null,
+    [assets, imagesViewerTargetId]
+  );
+  const [imagesViewerIndex, setImagesViewerIndex] = useState(0);
+  const imagesViewerList = useMemo(() => {
+    const imgs = (imagesViewerTarget?.imagenes || []) as PlantAssetImagen[];
+    return [...imgs].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+  }, [imagesViewerTarget]);
+
+  useEffect(() => {
+    if (!showImagesViewer) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      const active = document.activeElement as HTMLElement | null;
+      const tag = active?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || (active && active.isContentEditable)) return;
+
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setShowImagesViewer(false);
+        return;
+      }
+
+      if (imagesViewerList.length <= 1) return;
+
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setImagesViewerIndex((i) => (i > 0 ? i - 1 : imagesViewerList.length - 1));
+      }
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setImagesViewerIndex((i) => (i < imagesViewerList.length - 1 ? i + 1 : 0));
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [imagesViewerList.length, showImagesViewer]);
+
   const [search, setSearch] = useState('');
 
   // === Columnas (persistentes) + Export ===
@@ -277,10 +332,10 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
   const [pdfScope, setPdfScope] = useState<'all' | 'selected'>('all');
   const [pdfSelectedIds, setPdfSelectedIds] = useState<Record<string, boolean>>({});
 
-  const [sortKey, setSortKey] = useState<'tipo' | 'area' | 'subarea' | 'codigoSAP' | 'marca' | 'relacionReduccion'>('area');
+  const [sortKey, setSortKey] = useState<PlantAssetsColumnKey>('area');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
-  const toggleSort = (key: typeof sortKey) => {
+  const toggleSort = (key: PlantAssetsColumnKey) => {
     if (sortKey === key) {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
       return;
@@ -288,6 +343,21 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
     setSortKey(key);
     setSortDir('asc');
   };
+
+  const sortCollator = useMemo(() => new Intl.Collator('es', { sensitivity: 'base', numeric: true }), []);
+
+  const parseFirstNumber = useCallback((input: string): number | null => {
+    const s = String(input || '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!s) return null;
+
+    // Captura el primer número (acepta coma o punto como decimal)
+    const m = s.match(/-?\d+(?:[\.,]\d+)?/);
+    if (!m) return null;
+    const n = Number(m[0].replace(',', '.'));
+    return Number.isFinite(n) ? n : null;
+  }, []);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -300,25 +370,45 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
 
   const sorted = useMemo(() => {
     const dir = sortDir === 'asc' ? 1 : -1;
-    const get = (a: PlantAsset) => {
-      const v = (a as any)[sortKey];
-      return (v == null ? '' : String(v)).toLowerCase();
+
+    const getTextKey = (asset: PlantAsset, key: PlantAssetsColumnKey) => {
+      if (key === 'marcadores') return '';
+      const v = (asset as any)[key];
+      return String(v ?? '').trim();
     };
-    return filtered
-      .slice()
-      .sort((a, b) => {
-        const av = get(a);
-        const bv = get(b);
-        if (av < bv) return -1 * dir;
-        if (av > bv) return 1 * dir;
-        // desempate estable por SAP
-        const as = (a.codigoSAP || '').toLowerCase();
-        const bs = (b.codigoSAP || '').toLowerCase();
-        if (as < bs) return -1;
-        if (as > bs) return 1;
-        return 0;
-      });
-  }, [filtered, sortDir, sortKey]);
+
+    return filtered.slice().sort((a, b) => {
+      // Marcadores: orden por cantidad
+      if (sortKey === 'marcadores') {
+        const ac = (a.marcadores || []).length;
+        const bc = (b.marcadores || []).length;
+        if (ac !== bc) return (ac - bc) * dir;
+      }
+
+      const av = getTextKey(a, sortKey);
+      const bv = getTextKey(b, sortKey);
+
+      const aEmpty = !av;
+      const bEmpty = !bv;
+      if (aEmpty && !bEmpty) return 1;
+      if (!aEmpty && bEmpty) return -1;
+
+      // Campos con contenido numérico frecuente
+      if (sortKey === 'potencia' || sortKey === 'voltaje' || sortKey === 'corriente' || sortKey === 'eje') {
+        const an = parseFirstNumber(av);
+        const bn = parseFirstNumber(bv);
+        if (an != null && bn != null && an !== bn) return (an - bn) * dir;
+      }
+
+      const cmp = sortCollator.compare(av, bv);
+      if (cmp !== 0) return cmp * dir;
+
+      // Desempate estable por SAP (y luego id)
+      const sapCmp = sortCollator.compare(String(a.codigoSAP || '').trim(), String(b.codigoSAP || '').trim());
+      if (sapCmp !== 0) return sapCmp * dir;
+      return sortCollator.compare(a.id, b.id);
+    });
+  }, [filtered, parseFirstNumber, sortCollator, sortDir, sortKey]);
 
   useEffect(() => {
     if (!showColumnsExport) return;
@@ -345,12 +435,23 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
   const [movingMarkerId, setMovingMarkerId] = useState<string | null>(null);
   const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null);
 
-  const addingMarker = markerMode !== 'none';
+  const [areaMode, setAreaMode] = useState<'none' | 'circle' | 'polygon'>('none');
+  const [draftCircleCenter, setDraftCircleCenter] = useState<{ x: number; y: number } | null>(null);
+  const [draftPolygonPoints, setDraftPolygonPoints] = useState<Array<{ x: number; y: number }>>([]);
+  const [areaCursor, setAreaCursor] = useState<{ x: number; y: number; fitW: number; fitH: number } | null>(null);
+
+  const { areas: mapAreas, createArea, updateArea, deleteArea } = usePlantMapAreas(selectedMapId || null);
+
+  const addingMarker = markerMode !== 'none' || areaMode !== 'none';
 
   useEffect(() => {
     // Si cambian plano o selección, cortar cualquier modo de edición de marcador.
     setMarkerMode('none');
     setMovingMarkerId(null);
+    setAreaMode('none');
+    setDraftCircleCenter(null);
+    setDraftPolygonPoints([]);
+    setAreaCursor(null);
   }, [selectedId, selectedMapId]);
 
   const selectedMarkersOnMap = useMemo(() => {
@@ -567,6 +668,10 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
       relacionReduccion: fromPendiente(asset.relacionReduccion),
       corriente: fromPendiente(asset.corriente),
       eje: fromPendiente(asset.eje),
+      caudalM3h: fromPendiente(asset.caudalM3h),
+      alturaM: fromPendiente(asset.alturaM),
+      acople: fromPendiente(asset.acople),
+      alturaBaseCentroEjeMm: fromPendiente(asset.alturaBaseCentroEjeMm),
       observaciones: fromPendiente(asset.observaciones),
       referencias: asset.referencias || [],
       imagenes: asset.imagenes || [],
@@ -593,6 +698,10 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
       relacionReduccion: '',
       corriente: '',
       eje: '',
+      caudalM3h: '',
+      alturaM: '',
+      acople: '',
+      alturaBaseCentroEjeMm: '',
       observaciones: '',
       referencias: [],
       imagenes: [],
@@ -778,23 +887,140 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
     }
   };
 
-  const handleMapClick = async (args: { mapId: string; x: number; y: number }) => {
+  const handleMapClick = async (args: { mapId: string; x: number; y: number; fitW: number; fitH: number }) => {
+    // === Áreas por plano ===
+    if (areaMode === 'circle') {
+      if (!selectedMapId) return;
+
+      if (!draftCircleCenter) {
+        setDraftCircleCenter({ x: args.x, y: args.y });
+        return;
+      }
+
+      const dxPx = (args.x - draftCircleCenter.x) * args.fitW;
+      const dyPx = (args.y - draftCircleCenter.y) * args.fitH;
+      const rPx = Math.hypot(dxPx, dyPx);
+      const r = args.fitW > 0 ? rPx / args.fitW : 0;
+
+      await createArea({
+        mapId: selectedMapId,
+        nombre: `Área ${mapAreas.length + 1}`,
+        visible: true,
+        fillOpacity: 0.18,
+        strokeOpacity: 0.7,
+        shape: { kind: 'circle', cx: draftCircleCenter.x, cy: draftCircleCenter.y, r }
+      });
+
+      setDraftCircleCenter(null);
+      return;
+    }
+
+    if (areaMode === 'polygon') {
+      if (!selectedMapId) return;
+
+      const pts = draftPolygonPoints.slice();
+      if (pts.length >= 1) {
+        const first = pts[0];
+        const dxPx = (args.x - first.x) * args.fitW;
+        const dyPx = (args.y - first.y) * args.fitH;
+        const distPx = Math.hypot(dxPx, dyPx);
+        if (pts.length >= 3 && distPx <= 14) {
+          await createArea({
+            mapId: selectedMapId,
+            nombre: `Área ${mapAreas.length + 1}`,
+            visible: true,
+            fillOpacity: 0.18,
+            strokeOpacity: 0.7,
+            shape: { kind: 'polygon', points: pts }
+          });
+          setDraftPolygonPoints([]);
+          return;
+        }
+      }
+
+      if (pts.length >= 200) return;
+      pts.push({ x: args.x, y: args.y });
+      setDraftPolygonPoints(pts);
+      return;
+    }
+
+    // === Marcadores por activo ===
     if (!selected) return;
 
     if (markerMode === 'add') {
-      await addMarker(selected, { mapId: args.mapId, x: args.x, y: args.y });
+      const prev = selected.marcadores || [];
+      const nextMarker = await addMarker(selected, { mapId: args.mapId, x: args.x, y: args.y });
+      recordUndo({
+        type: 'update',
+        description: 'Marcador agregado',
+        repuestoId: selected.id,
+        repuestoCode: selected.codigoSAP || selected.id.slice(0, 8),
+        campo: 'marcadores',
+        valorAnterior: prev,
+        valorNuevo: [...prev, nextMarker]
+      });
       setMarkerMode('none');
       return;
     }
 
     if (markerMode === 'move') {
       if (!movingMarkerId) return;
+      const prev = selected.marcadores || [];
       const next = (selected.marcadores || []).map((m) => (m.id === movingMarkerId ? { ...m, x: args.x, y: args.y } : m));
       await updateAsset(selected.id, { marcadores: next } as any);
+      recordUndo({
+        type: 'update',
+        description: 'Marcador movido',
+        repuestoId: selected.id,
+        repuestoCode: selected.codigoSAP || selected.id.slice(0, 8),
+        campo: 'marcadores',
+        valorAnterior: prev,
+        valorNuevo: next
+      });
       setMarkerMode('none');
       setMovingMarkerId(null);
     }
   };
+
+  const handleClosePolygon = async () => {
+    if (areaMode !== 'polygon') return;
+    if (!selectedMapId) return;
+    if (draftPolygonPoints.length < 3) return;
+    await createArea({
+      mapId: selectedMapId,
+      nombre: `Área ${mapAreas.length + 1}`,
+      visible: true,
+      fillOpacity: 0.18,
+      strokeOpacity: 0.7,
+      shape: { kind: 'polygon', points: draftPolygonPoints }
+    });
+    setDraftPolygonPoints([]);
+  };
+
+  const handleCancelArea = () => {
+    setDraftCircleCenter(null);
+    setDraftPolygonPoints([]);
+    setAreaMode('none');
+    setAreaCursor(null);
+  };
+
+  const draftAreaForViewer = useMemo(() => {
+    if (areaMode === 'circle' && draftCircleCenter) {
+      const cur = areaCursor;
+      const r = (() => {
+        if (!cur) return 0;
+        const dxPx = (cur.x - draftCircleCenter.x) * cur.fitW;
+        const dyPx = (cur.y - draftCircleCenter.y) * cur.fitH;
+        const rPx = Math.hypot(dxPx, dyPx);
+        return cur.fitW > 0 ? rPx / cur.fitW : 0;
+      })();
+      return { shape: { kind: 'circle', cx: draftCircleCenter.x, cy: draftCircleCenter.y, r } as const, fillOpacity: 0.12, strokeOpacity: 0.9 };
+    }
+    if (areaMode === 'polygon' && draftPolygonPoints.length > 0) {
+      return { shape: { kind: 'polygon', points: draftPolygonPoints } as const, fillOpacity: 0.08, strokeOpacity: 0.95 };
+    }
+    return null;
+  }, [areaCursor, areaMode, draftCircleCenter, draftPolygonPoints]);
 
   const handleUploadAssetImage = async (file: File) => {
     if (!selected) return;
@@ -886,23 +1112,35 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
                     </th>
                   )}
                   {columnsEnabled.potencia && (
-                    <th className="text-left px-3 py-2 hidden xl:table-cell">Potencia</th>
+                    <th className="text-left px-3 py-2 hidden xl:table-cell">
+                      <button type="button" className="hover:underline" onClick={() => toggleSort('potencia')}>Potencia</button>
+                    </th>
                   )}
                   {columnsEnabled.voltaje && (
-                    <th className="text-left px-3 py-2 hidden xl:table-cell">Voltaje</th>
+                    <th className="text-left px-3 py-2 hidden xl:table-cell">
+                      <button type="button" className="hover:underline" onClick={() => toggleSort('voltaje')}>Voltaje</button>
+                    </th>
                   )}
                   {columnsEnabled.corriente && (
-                    <th className="text-left px-3 py-2 hidden xl:table-cell">Corriente</th>
+                    <th className="text-left px-3 py-2 hidden xl:table-cell">
+                      <button type="button" className="hover:underline" onClick={() => toggleSort('corriente')}>Corriente</button>
+                    </th>
                   )}
                   {columnsEnabled.eje && (
-                    <th className="text-left px-3 py-2 hidden xl:table-cell">Eje</th>
+                    <th className="text-left px-3 py-2 hidden xl:table-cell">
+                      <button type="button" className="hover:underline" onClick={() => toggleSort('eje')}>Eje</button>
+                    </th>
                   )}
                   {columnsEnabled.relacionReduccion && (
                     <th className="text-left px-3 py-2 hidden xl:table-cell">
                       <button type="button" className="hover:underline" onClick={() => toggleSort('relacionReduccion')}>Relación de reducción (i)</button>
                     </th>
                   )}
-                  {columnsEnabled.marcadores && <th className="text-left px-3 py-2 w-[320px]">Marcadores</th>}
+                  {columnsEnabled.marcadores && (
+                    <th className="text-left px-3 py-2 w-[320px]">
+                      <button type="button" className="hover:underline" onClick={() => toggleSort('marcadores')}>Marcadores</button>
+                    </th>
+                  )}
                   <th className="px-3 py-2" />
                 </tr>
               </thead>
@@ -1110,6 +1348,21 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
                       <td className="px-3 py-2 text-right">
                         <button
                           type="button"
+                          className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 mr-1"
+                          onClick={() => {
+                            setImagesViewerTargetId(a.id);
+                            const list = [...(a.imagenes || [])].sort((x, y) => (x.orden ?? 0) - (y.orden ?? 0));
+                            const primaryIdx = Math.max(0, list.findIndex((img) => !!img.esPrincipal));
+                            setImagesViewerIndex(primaryIdx >= 0 ? primaryIdx : 0);
+                            setShowImagesViewer(true);
+                          }}
+                          title={(a.imagenes || []).length === 0 ? 'Sin fotos' : 'Ver fotos'}
+                          disabled={(a.imagenes || []).length === 0}
+                        >
+                          <ImageIcon className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
                           className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300"
                           onClick={() => openEdit(a)}
                           title="Editar"
@@ -1242,6 +1495,9 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
                 icon={<MapPin className="w-4 h-4" />}
                 onClick={() => {
                   if (!selectedMapId || !selected) return;
+                  setAreaMode('none');
+                  setDraftCircleCenter(null);
+                  setDraftPolygonPoints([]);
                   setMarkerMode((m) => (m === 'add' ? 'none' : 'add'));
                   setMovingMarkerId(null);
                 }}
@@ -1250,6 +1506,63 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
               >
                 {markerMode === 'add' ? 'Click en el plano...' : 'Agregar marcador'}
               </Button>
+            </div>
+
+            {/* Áreas por plano */}
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  if (!selectedMapId) return;
+                  setMarkerMode('none');
+                  setMovingMarkerId(null);
+                  setDraftPolygonPoints([]);
+                  setDraftCircleCenter(null);
+                  setAreaMode((m) => (m === 'circle' ? 'none' : 'circle'));
+                }}
+                disabled={!selectedMapId}
+                title={!selectedMapId ? 'Selecciona un plano' : undefined}
+              >
+                {areaMode === 'circle' ? 'Círculo: 2 clicks…' : 'Área (círculo)'}
+              </Button>
+
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  if (!selectedMapId) return;
+                  setMarkerMode('none');
+                  setMovingMarkerId(null);
+                  setDraftPolygonPoints([]);
+                  setDraftCircleCenter(null);
+                  setAreaMode((m) => (m === 'polygon' ? 'none' : 'polygon'));
+                }}
+                disabled={!selectedMapId}
+                title={!selectedMapId ? 'Selecciona un plano' : undefined}
+              >
+                {areaMode === 'polygon' ? `Polígono: ${draftPolygonPoints.length} puntos…` : 'Área (polígono)'}
+              </Button>
+
+              {areaMode !== 'none' && (
+                <button
+                  type="button"
+                  className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
+                  onClick={handleCancelArea}
+                >
+                  Cancelar área
+                </button>
+              )}
+
+              {areaMode === 'polygon' && draftPolygonPoints.length >= 3 && (
+                <button
+                  type="button"
+                  className="px-3 py-2 rounded-lg border border-primary-200 dark:border-primary-700 bg-primary-50 dark:bg-primary-900/20 text-sm text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900/30"
+                  onClick={handleClosePolygon}
+                >
+                  Cerrar área
+                </button>
+              )}
             </div>
 
             {selected && (selected.marcadores || []).length > 0 && (
@@ -1293,27 +1606,95 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
                   selectedMarkerId={showAllMarkers ? null : selectedMarkerId}
                   addingMarker={addingMarker}
                   onAddMarker={handleMapClick}
+                  onHoverWorld={(p) => setAreaCursor(p)}
+                  areas={mapAreas}
+                  draftArea={draftAreaForViewer}
                   onSelectAsset={(assetId) => setSelectedId(assetId)}
                   onRequestMoveMarker={({ markerId }) => {
                     setShowAllMarkers(false);
+                    setAreaMode('none');
+                    setDraftCircleCenter(null);
+                    setDraftPolygonPoints([]);
                     setSelectedMarkerId(markerId);
                     setMovingMarkerId(markerId);
                     setMarkerMode('move');
                   }}
                   focusMarkerId={markerMode === 'move' ? movingMarkerId : null}
-                  clickTitle={markerMode === 'add' ? 'Click para agregar marcador' : markerMode === 'move' ? 'Click para mover marcador' : undefined}
+                  clickTitle={
+                    areaMode === 'circle'
+                      ? draftCircleCenter
+                        ? 'Click para definir radio'
+                        : 'Click para definir centro'
+                      : areaMode === 'polygon'
+                        ? 'Click para agregar punto (click cerca del primer punto para cerrar)'
+                        : markerMode === 'add'
+                          ? 'Click para agregar marcador'
+                          : markerMode === 'move'
+                            ? 'Click para mover marcador'
+                            : undefined
+                  }
                 />
                 <div className="mt-2 text-xs text-gray-500 dark:text-gray-300">
-                  {markerMode === 'add'
-                    ? 'Haz click en el plano para colocar el marcador. (Vuelve a apretar “Agregar marcador” para salir)'
-                    : markerMode === 'move'
-                      ? 'Haz click en el plano para mover el marcador seleccionado.'
-                    : showAllMarkers
-                      ? 'Tip: puedes hacer click en un marcador para seleccionar ese motor/bomba.'
-                      : selected
-                        ? 'Mostrando solo el marcador seleccionado.'
-                        : 'Selecciona un motor/bomba para ver sus marcadores.'}
+                  {areaMode === 'circle'
+                    ? draftCircleCenter
+                      ? 'Círculo: click para definir el radio (2º click).'
+                      : 'Círculo: click para definir el centro (1º click).'
+                    : areaMode === 'polygon'
+                      ? 'Polígono: click para agregar puntos. Para cerrar, haz click cerca del primer punto o usa “Cerrar área”.'
+                      : markerMode === 'add'
+                        ? 'Haz click en el plano para colocar el marcador. (Vuelve a apretar “Agregar marcador” para salir)'
+                        : markerMode === 'move'
+                          ? 'Haz click en el plano para mover el marcador seleccionado.'
+                          : showAllMarkers
+                            ? 'Tip: puedes hacer click en un marcador para seleccionar ese motor/bomba.'
+                            : selected
+                              ? 'Mostrando solo el marcador seleccionado.'
+                              : 'Selecciona un motor/bomba para ver sus marcadores.'}
                 </div>
+
+                {selectedMapId && mapAreas.length > 0 && (
+                  <div className="mt-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                    <div className="text-xs font-semibold text-gray-700 dark:text-gray-200">Áreas en este plano</div>
+                    <div className="mt-2 flex flex-col gap-2">
+                      {mapAreas.map((a) => (
+                        <div key={a.id} className="flex items-center gap-2">
+                          <label className="inline-flex items-center gap-2 text-xs text-gray-700 dark:text-gray-200">
+                            <input
+                              type="checkbox"
+                              checked={a.visible}
+                              onChange={(e) => updateArea(a.id, { visible: e.target.checked })}
+                            />
+                            <span className="truncate max-w-[220px]">{a.nombre}</span>
+                          </label>
+
+                          <button
+                            type="button"
+                            className="ml-auto px-2 py-1 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
+                            onClick={() => {
+                              const next = a.fillOpacity >= 0.28 ? 0.18 : 0.38;
+                              updateArea(a.id, { fillOpacity: next });
+                            }}
+                            title="Alternar entre transparente y sólido"
+                          >
+                            {a.fillOpacity >= 0.28 ? 'Transparente' : 'Sólido'}
+                          </button>
+
+                          <button
+                            type="button"
+                            className="px-2 py-1 rounded border border-red-200 dark:border-red-700 bg-red-50 dark:bg-red-900/20 text-xs text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30"
+                            onClick={async () => {
+                              const ok = window.confirm('¿Eliminar esta área?');
+                              if (!ok) return;
+                              await deleteArea(a.id);
+                            }}
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {!showAllMarkers && selected && selectedMapId && selectedMarkersOnMap.length > 1 && markerMode !== 'move' && (
                   <div className="mt-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
@@ -1468,6 +1849,27 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
                   {!isPendienteLike(selected.eje) && (
                     <div>
                       <b>Eje:</b> {selected.eje}
+                    </div>
+                  )}
+
+                  {selected.tipo === 'bomba' && !isPendienteLike(selected.caudalM3h) && (
+                    <div>
+                      <b>Caudal (m³/h):</b> {selected.caudalM3h}
+                    </div>
+                  )}
+                  {selected.tipo === 'bomba' && !isPendienteLike(selected.alturaM) && (
+                    <div>
+                      <b>Altura H (m):</b> {selected.alturaM}
+                    </div>
+                  )}
+                  {selected.tipo === 'bomba' && !isPendienteLike(selected.acople) && (
+                    <div>
+                      <b>Acople:</b> {selected.acople}
+                    </div>
+                  )}
+                  {selected.tipo === 'bomba' && !isPendienteLike(selected.alturaBaseCentroEjeMm) && (
+                    <div>
+                      <b>Altura base → centro eje (mm):</b> {selected.alturaBaseCentroEjeMm}
                     </div>
                   )}
                 </div>
@@ -2114,6 +2516,47 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
                 className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
               />
             </div>
+
+            {editDraft.tipo === 'bomba' && (
+              <>
+                <div className="md:col-span-2 pt-2">
+                  <div className="text-xs font-semibold text-gray-700 dark:text-gray-200">Datos de bomba</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">Opcional (si no aplica, dejar vacío)</div>
+                </div>
+                <div>
+                  <div className="text-xs text-gray-600 dark:text-gray-300 mb-1">Caudal (m³/h)</div>
+                  <input
+                    value={editDraft.caudalM3h || ''}
+                    onChange={(e) => setEditDraft((d) => ({ ...d, caudalM3h: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+                  />
+                </div>
+                <div>
+                  <div className="text-xs text-gray-600 dark:text-gray-300 mb-1">Altura H (m)</div>
+                  <input
+                    value={editDraft.alturaM || ''}
+                    onChange={(e) => setEditDraft((d) => ({ ...d, alturaM: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+                  />
+                </div>
+                <div>
+                  <div className="text-xs text-gray-600 dark:text-gray-300 mb-1">Acople</div>
+                  <input
+                    value={editDraft.acople || ''}
+                    onChange={(e) => setEditDraft((d) => ({ ...d, acople: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+                  />
+                </div>
+                <div>
+                  <div className="text-xs text-gray-600 dark:text-gray-300 mb-1">Altura base → centro eje (mm)</div>
+                  <input
+                    value={editDraft.alturaBaseCentroEjeMm || ''}
+                    onChange={(e) => setEditDraft((d) => ({ ...d, alturaBaseCentroEjeMm: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           {/* Sugerencias basadas en valores existentes. Permite escribir nuevos valores. */}
@@ -2202,6 +2645,10 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
                     relacionReduccion: toBlank(editDraft.relacionReduccion),
                     corriente: toBlank(editDraft.corriente),
                     eje: toBlank(editDraft.eje),
+                    caudalM3h: toBlank(String(editDraft.caudalM3h || '')),
+                    alturaM: toBlank(String(editDraft.alturaM || '')),
+                    acople: toBlank(String(editDraft.acople || '')),
+                    alturaBaseCentroEjeMm: toBlank(String(editDraft.alturaBaseCentroEjeMm || '')),
                     observaciones: toBlank(editDraft.observaciones)
                   } as any;
 
@@ -2215,6 +2662,39 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
                     setSelectedId(newId);
                   } else {
                     if (!editDraft.id) return;
+                    const prev = assets.find((a) => a.id === editDraft.id);
+                    if (prev) {
+                      const before = {
+                        tipo: prev.tipo,
+                        equipo: prev.equipo,
+                        area: prev.area,
+                        subarea: prev.subarea,
+                        componente: prev.componente,
+                        codigoSAP: prev.codigoSAP,
+                        descripcionSAP: prev.descripcionSAP,
+                        marca: prev.marca,
+                        modeloTipo: prev.modeloTipo,
+                        potencia: prev.potencia,
+                        voltaje: prev.voltaje,
+                        relacionReduccion: prev.relacionReduccion,
+                        corriente: prev.corriente,
+                        eje: prev.eje,
+                        caudalM3h: prev.caudalM3h || '',
+                        alturaM: prev.alturaM || '',
+                        acople: prev.acople || '',
+                        alturaBaseCentroEjeMm: prev.alturaBaseCentroEjeMm || '',
+                        observaciones: prev.observaciones
+                      };
+                      recordUndo({
+                        type: 'update',
+                        description: 'Edición motor/bomba',
+                        repuestoId: prev.id,
+                        repuestoCode: prev.codigoSAP || prev.id.slice(0, 8),
+                        campo: 'motor/bomba',
+                        valorAnterior: before,
+                        valorNuevo: payload
+                      });
+                    }
                     await updateAsset(editDraft.id, payload);
                   }
                   setShowEdit(false);
@@ -2313,16 +2793,34 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
               selectedMarkerId={showAllMarkers ? null : selectedMarkerId}
               addingMarker={addingMarker}
               onAddMarker={handleMapClick}
+              onHoverWorld={(p) => setAreaCursor(p)}
+              areas={mapAreas}
+              draftArea={draftAreaForViewer}
               onSelectAsset={(assetId) => setSelectedId(assetId)}
               onRequestMoveMarker={({ markerId }) => {
                 setShowAllMarkers(false);
+                setAreaMode('none');
+                setDraftCircleCenter(null);
+                setDraftPolygonPoints([]);
                 setSelectedMarkerId(markerId);
                 setMovingMarkerId(markerId);
                 setMarkerMode('move');
               }}
               focusMarkerId={markerMode === 'move' ? movingMarkerId : null}
               mode="fullscreen"
-              clickTitle={markerMode === 'add' ? 'Click para agregar marcador' : markerMode === 'move' ? 'Click para mover marcador' : undefined}
+              clickTitle={
+                areaMode === 'circle'
+                  ? draftCircleCenter
+                    ? 'Click para definir radio'
+                    : 'Click para definir centro'
+                  : areaMode === 'polygon'
+                    ? 'Click para agregar punto (click cerca del primer punto para cerrar)'
+                    : markerMode === 'add'
+                      ? 'Click para agregar marcador'
+                      : markerMode === 'move'
+                        ? 'Click para mover marcador'
+                        : undefined
+              }
             />
             <div className="text-xs text-gray-500 dark:text-gray-300">
               Zoom: rueda del mouse / pinch en móvil. Arrastra para mover. Doble click para reset.
@@ -2330,6 +2828,109 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
           </div>
         ) : (
           <div className="text-sm text-gray-500">Selecciona un plano para verlo.</div>
+        )}
+      </Modal>
+
+      {/* Modal Visor de fotos (Motor/Bomba) */}
+      <Modal
+        isOpen={showImagesViewer}
+        onClose={() => setShowImagesViewer(false)}
+        title={
+          imagesViewerTarget
+            ? `Fotos: ${imagesViewerTarget.codigoSAP ? imagesViewerTarget.codigoSAP : imagesViewerTarget.area || 'Motor/Bomba'}`
+            : 'Fotos'
+        }
+        size="full"
+      >
+        {imagesViewerTarget ? (
+          imagesViewerList.length === 0 ? (
+            <div className="p-6 text-sm text-gray-500">Este motor/bomba no tiene fotos.</div>
+          ) : (
+            <div className="h-[80vh] flex flex-col">
+              <div className="flex items-center justify-between gap-3 p-3 border-b border-gray-200 dark:border-gray-700">
+                <div className="text-xs text-gray-600 dark:text-gray-300">
+                  {imagesViewerIndex + 1} / {imagesViewerList.length}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    icon={<ChevronLeft className="w-4 h-4" />}
+                    onClick={() => setImagesViewerIndex((i) => (i > 0 ? i - 1 : imagesViewerList.length - 1))}
+                    disabled={imagesViewerList.length <= 1}
+                    title="Anterior (←)"
+                  >
+                    Anterior
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    icon={<ChevronRight className="w-4 h-4" />}
+                    onClick={() => setImagesViewerIndex((i) => (i < imagesViewerList.length - 1 ? i + 1 : 0))}
+                    disabled={imagesViewerList.length <= 1}
+                    title="Siguiente (→)"
+                  >
+                    Siguiente
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex-1 bg-gray-100 dark:bg-gray-900 flex items-center justify-center relative">
+                <TransformWrapper
+                  key={imagesViewerList[imagesViewerIndex]?.id}
+                  initialScale={1}
+                  minScale={1}
+                  maxScale={6}
+                  centerOnInit
+                  centerZoomedOut
+                  disablePadding
+                  wheel={{ step: 0.2, wheelDisabled: false }}
+                  doubleClick={{ mode: 'toggle', step: 0.8 }}
+                  pinch={{ step: 0.4 }}
+                  panning={{ disabled: false, velocityDisabled: false, allowLeftClickPan: true }}
+                >
+                  {({ zoomIn, zoomOut, resetTransform, centerView }) => (
+                    <>
+                      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 bg-black/60 text-white backdrop-blur px-3 py-2 rounded-full shadow border border-white/15">
+                        <button onClick={() => zoomOut()} className="p-1 rounded hover:bg-white/10" title="Alejar">
+                          <Minus className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => zoomIn()} className="p-1 rounded hover:bg-white/10" title="Acercar">
+                          <Plus className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            resetTransform();
+                            centerView();
+                          }}
+                          className="p-1 rounded hover:bg-white/10"
+                          title="Reset"
+                        >
+                          <RefreshCw className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <TransformComponent wrapperClass="w-full h-full" contentClass="w-full h-full">
+                        <div className="w-full h-full flex items-center justify-center">
+                          <img
+                            src={imagesViewerList[imagesViewerIndex].url}
+                            alt={imagesViewerList[imagesViewerIndex].descripcion || 'Foto'}
+                            className="max-w-full max-h-full object-contain select-none"
+                            draggable={false}
+                          />
+                        </div>
+                      </TransformComponent>
+                    </>
+                  )}
+                </TransformWrapper>
+              </div>
+
+              <div className="p-3 text-xs text-gray-500 dark:text-gray-300">
+                Mouse: rueda para zoom, arrastra para mover. Teclado: ← → para cambiar de foto.
+              </div>
+            </div>
+          )
+        ) : (
+          <div className="p-6 text-sm text-gray-500">Selecciona un motor/bomba.</div>
         )}
       </Modal>
     </div>

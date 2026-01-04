@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { PlantAsset, PlantMap, PlantMarker } from '../../types';
+import type { PlantAsset, PlantMap, PlantMarker, PlantMapArea, PlantMapAreaShape } from '../../types';
 
 type ViewerMode = 'embedded' | 'fullscreen';
 
@@ -33,7 +33,10 @@ export function PlantMapViewer(props: {
   allAssets: PlantAsset[];
   showAllMarkers: boolean;
   addingMarker: boolean;
-  onAddMarker: (args: { mapId: string; x: number; y: number }) => void;
+  onAddMarker: (args: { mapId: string; x: number; y: number; fitW: number; fitH: number }) => void;
+  onHoverWorld?: (args: { mapId: string; x: number; y: number; fitW: number; fitH: number }) => void;
+  areas?: PlantMapArea[];
+  draftArea?: { shape: PlantMapAreaShape; fillOpacity?: number; strokeOpacity?: number } | null;
   onSelectAsset?: (assetId: string) => void;
   focusMarkerId?: string | null;
   selectedMarkerId?: string | null;
@@ -41,7 +44,7 @@ export function PlantMapViewer(props: {
   mode?: ViewerMode;
   clickTitle?: string;
 }) {
-  const { map, selectedAsset, allAssets, showAllMarkers, addingMarker, onAddMarker, onSelectAsset, focusMarkerId = null, selectedMarkerId = null, onRequestMoveMarker, mode = 'embedded', clickTitle } = props;
+  const { map, selectedAsset, allAssets, showAllMarkers, addingMarker, onAddMarker, onHoverWorld, areas = [], draftArea = null, onSelectAsset, focusMarkerId = null, selectedMarkerId = null, onRequestMoveMarker, mode = 'embedded', clickTitle } = props;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const focusZoomScale = useMemo(() => {
@@ -332,8 +335,11 @@ export function PlantMapViewer(props: {
     const x = worldX / fit.w;
     const y = worldY / fit.h;
 
-    onAddMarker({ mapId: map.id, x: clamp(x, 0, 1), y: clamp(y, 0, 1) });
+    onAddMarker({ mapId: map.id, x: clamp(x, 0, 1), y: clamp(y, 0, 1), fitW: fit.w, fitH: fit.h });
   };
+
+  const hoverRafRef = useRef<number | null>(null);
+  const lastHoverRef = useRef<{ x: number; y: number } | null>(null);
 
   const zoomAt = (nextScale: number, clientX: number, clientY: number) => {
     if (!containerRef.current) return;
@@ -405,6 +411,28 @@ export function PlantMapViewer(props: {
     if (!containerRef.current) return;
     if (!pointersRef.current.has(e.pointerId)) return;
     pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (addingMarker && onHoverWorld && fit.w && fit.h) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const px = e.clientX - rect.left;
+      const py = e.clientY - rect.top;
+      const localX = px - fit.offsetX;
+      const localY = py - fit.offsetY;
+      const worldX = (localX - tx) / scale;
+      const worldY = (localY - ty) / scale;
+      const x = clamp(worldX / fit.w, 0, 1);
+      const y = clamp(worldY / fit.h, 0, 1);
+
+      lastHoverRef.current = { x, y };
+      if (hoverRafRef.current == null) {
+        hoverRafRef.current = window.requestAnimationFrame(() => {
+          hoverRafRef.current = null;
+          const p = lastHoverRef.current;
+          if (!p) return;
+          onHoverWorld({ mapId: map.id, x: p.x, y: p.y, fitW: fit.w, fitH: fit.h });
+        });
+      }
+    }
 
     const pts = Array.from(pointersRef.current.values());
     if (pts.length === 2) {
@@ -749,6 +777,96 @@ export function PlantMapViewer(props: {
             }}
             draggable={false}
           />
+
+          {/* Áreas (overlay debajo de marcadores) */}
+          {(areas.length > 0 || !!draftArea) && fit.w > 0 && fit.h > 0 && (
+            <svg
+              className="absolute inset-0 pointer-events-none"
+              width={fit.w}
+              height={fit.h}
+              viewBox={`0 0 ${fit.w} ${fit.h}`}
+              preserveAspectRatio="none"
+            >
+              {areas
+                .filter((a) => a.visible)
+                .map((a) => {
+                  if (a.shape.kind === 'circle') {
+                    return (
+                      <circle
+                        key={a.id}
+                        cx={a.shape.cx * fit.w}
+                        cy={a.shape.cy * fit.h}
+                        r={a.shape.r * fit.w}
+                        className="fill-primary-600 stroke-primary-700"
+                        fillOpacity={a.fillOpacity}
+                        strokeOpacity={a.strokeOpacity}
+                        strokeWidth={2}
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    );
+                  }
+
+                  const pts = (a.shape.points || [])
+                    .map((p) => `${p.x * fit.w},${p.y * fit.h}`)
+                    .join(' ');
+                  return (
+                    <polygon
+                      key={a.id}
+                      points={pts}
+                      className="fill-primary-600 stroke-primary-700"
+                      fillOpacity={a.fillOpacity}
+                      strokeOpacity={a.strokeOpacity}
+                      strokeWidth={2}
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  );
+                })}
+
+              {draftArea?.shape ? (
+                draftArea.shape.kind === 'circle' ? (
+                  <circle
+                    cx={draftArea.shape.cx * fit.w}
+                    cy={draftArea.shape.cy * fit.h}
+                    r={draftArea.shape.r * fit.w}
+                    className="fill-primary-600 stroke-primary-700"
+                    fillOpacity={draftArea.fillOpacity ?? 0.12}
+                    strokeOpacity={draftArea.strokeOpacity ?? 0.9}
+                    strokeWidth={2}
+                    vectorEffect="non-scaling-stroke"
+                  />
+                ) : (
+                  (() => {
+                    const pts = (draftArea.shape.points || [])
+                      .map((p) => `${p.x * fit.w},${p.y * fit.h}`)
+                      .join(' ');
+                    return (
+                      <>
+                        <polygon
+                          points={pts}
+                          className="fill-primary-600 stroke-primary-700"
+                          fillOpacity={draftArea.fillOpacity ?? 0.10}
+                          strokeOpacity={draftArea.strokeOpacity ?? 0.95}
+                          strokeWidth={2}
+                          vectorEffect="non-scaling-stroke"
+                        />
+                        {(draftArea.shape.points || []).map((p, idx) => (
+                          <circle
+                            key={idx}
+                            cx={p.x * fit.w}
+                            cy={p.y * fit.h}
+                            r={4}
+                            className="fill-white/90 stroke-primary-700"
+                            strokeWidth={2}
+                            vectorEffect="non-scaling-stroke"
+                          />
+                        ))}
+                      </>
+                    );
+                  })()
+                )
+              ) : null}
+            </svg>
+          )}
 
           {/* Marcadores */}
           {markers.map((m) => {

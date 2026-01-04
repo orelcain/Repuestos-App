@@ -51,7 +51,7 @@ const preloadMarkerEditor = () => {
 
 import { ImportModal } from './ImportModal';
 import { StatsPanel } from './stats/StatsPanel';
-import { ToastContainer, Button } from './ui';
+import { ToastContainer, Button, Modal } from './ui';
 import ReportsModal from './reports/ReportsModal';
 import { BackupModal } from './backup/BackupModal';
 import { useBackupSystem } from '../hooks/useBackupSystem';
@@ -300,17 +300,21 @@ export function Dashboard() {
   const [editingMachineModal, setEditingMachineModal] = useState<Machine | null>(null);
   
   // Hook de deshacer/rehacer
+  const repuestosUndo = useUndoRedo();
+  const motoresUndo = useUndoRedo();
+
   const {
-    canUndo,
-    canRedo,
     recordAction,
     popUndo,
     popRedo,
     startRestoring,
     endRestoring,
-    getActionDescription,
-    peekUndo
-  } = useUndoRedo();
+    getActionDescription
+  } = repuestosUndo;
+
+  const activeUndo = mainView === 'motores' ? motoresUndo : repuestosUndo;
+
+  const [showMotoresHistory, setShowMotoresHistory] = useState(false);
 
   // Limpiar PDF y resetear índice al cambiar de máquina
   useEffect(() => {
@@ -334,6 +338,41 @@ export function Dashboard() {
       // Usar manuals[] de la máquina (aislamiento total por máquina)
       if (currentMachine.manuals && currentMachine.manuals.length > 0) {
         const manualUrl = currentMachine.manuals[selectedManualIndex] || currentMachine.manuals[0];
+            <Modal
+              isOpen={showMotoresHistory}
+              onClose={() => setShowMotoresHistory(false)}
+              title="Historial (Motores/Bombas)"
+              size="lg"
+            >
+              <div className="space-y-3">
+                <div className="text-sm text-gray-700 dark:text-gray-200">
+                  Acciones disponibles: {motoresUndo.undoStack.length} para deshacer, {motoresUndo.redoStack.length} para rehacer.
+                </div>
+                <div className="max-h-[60vh] overflow-auto rounded-lg border border-gray-200 dark:border-gray-700">
+                  {motoresUndo.undoStack.length === 0 ? (
+                    <div className="p-4 text-sm text-gray-500">No hay acciones registradas aún.</div>
+                  ) : (
+                    <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                      {motoresUndo.undoStack.map((a) => (
+                        <div key={a.id} className="p-3 text-sm flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-gray-800 dark:text-gray-100 truncate">{motoresUndo.getActionDescription(a)}</div>
+                            <div className="text-xs text-gray-500">{a.timestamp.toLocaleString('es-CL')}</div>
+                          </div>
+                          <div className="text-xs text-gray-500 whitespace-nowrap">Undo</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <Button variant="secondary" onClick={() => setShowMotoresHistory(false)}>
+                    Cerrar
+                  </Button>
+                </div>
+              </div>
+            </Modal>
         console.log('✅ [Dashboard] Using manual from Firestore:', manualUrl);
         setPdfUrl(manualUrl);
         return;
@@ -904,8 +943,23 @@ export function Dashboard() {
     setShowPDFExportModal(false);
   };
 
-  // Deshacer última acción
+  // Deshacer última acción (según vista activa)
   const handleUndo = async () => {
+    if (mainView === 'motores') {
+      const action = motoresUndo.popUndo();
+      if (!action) return;
+
+      try {
+        if (action.type === 'update') {
+          await plantAssets.updateAsset(action.repuestoId, (action.valorAnterior || {}) as any);
+          success(`Deshecho: ${motoresUndo.getActionDescription(action)}`);
+        }
+      } catch {
+        error('Error al deshacer');
+      }
+      return;
+    }
+
     const action = popUndo();
     if (!action) return;
 
@@ -926,8 +980,23 @@ export function Dashboard() {
     }
   };
 
-  // Rehacer acción deshecha
+  // Rehacer acción deshecha (según vista activa)
   const handleRedo = async () => {
+    if (mainView === 'motores') {
+      const action = motoresUndo.popRedo();
+      if (!action) return;
+
+      try {
+        if (action.type === 'update') {
+          await plantAssets.updateAsset(action.repuestoId, (action.valorNuevo || {}) as any);
+          success(`Rehecho: ${motoresUndo.getActionDescription(action)}`);
+        }
+      } catch {
+        error('Error al rehacer');
+      }
+      return;
+    }
+
     const action = popRedo();
     if (!action) return;
 
@@ -1126,21 +1195,21 @@ export function Dashboard() {
       <div className="flex items-center gap-1 border-l border-gray-200 dark:border-gray-700 pl-3 ml-1">
         <button
           onClick={handleUndo}
-          disabled={!canUndo}
+          disabled={!activeUndo.canUndo}
           className={`p-2 rounded-lg transition-colors ${
-            canUndo 
+            activeUndo.canUndo 
               ? 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' 
               : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
           }`}
-          title={canUndo ? `Deshacer: ${getActionDescription(peekUndo()!)}` : 'Nada que deshacer'}
+          title={activeUndo.canUndo ? `Deshacer: ${activeUndo.getActionDescription(activeUndo.peekUndo()!)}` : 'Nada que deshacer'}
         >
           <Undo2 className="w-5 h-5" />
         </button>
         <button
           onClick={handleRedo}
-          disabled={!canRedo}
+          disabled={!activeUndo.canRedo}
           className={`p-2 rounded-lg transition-colors ${
-            canRedo 
+            activeUndo.canRedo 
               ? 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' 
               : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
           }`}
@@ -1149,9 +1218,15 @@ export function Dashboard() {
           <Redo2 className="w-5 h-5" />
         </button>
         <button
-          onClick={() => setShowActivityLogModal(true)}
+          onClick={() => {
+            if (mainView === 'motores') {
+              setShowMotoresHistory(true);
+              return;
+            }
+            setShowActivityLogModal(true);
+          }}
           className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-          title="Ver registro de actividad"
+          title={mainView === 'motores' ? 'Ver historial (Motores/Bombas)' : 'Ver registro de actividad'}
         >
           <History className="w-5 h-5" />
         </button>
@@ -1740,6 +1815,7 @@ export function Dashboard() {
                     machineId={machineId}
                     focusAssetId={focusPlantAssetId}
                     onFocusHandled={() => setFocusPlantAssetId(null)}
+                    onRecordUndoAction={motoresUndo.recordAction}
                   />
                 </div>
               ) : mainView === 'reportes' ? (

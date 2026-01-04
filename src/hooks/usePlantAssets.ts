@@ -42,6 +42,10 @@ const fromDoc = (id: string, data: Record<string, unknown>): PlantAsset => {
     relacionReduccion: cleanText(data.relacionReduccion),
     corriente: cleanText(data.corriente),
     eje: cleanText(data.eje),
+    caudalM3h: cleanText(data.caudalM3h),
+    alturaM: cleanText(data.alturaM),
+    acople: cleanText(data.acople),
+    alturaBaseCentroEjeMm: cleanText(data.alturaBaseCentroEjeMm),
     observaciones: cleanText(data.observaciones),
     referencias: Array.isArray(data.referencias)
       ? (data.referencias as any[]).map((r) => ({
