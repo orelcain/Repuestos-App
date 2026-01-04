@@ -1,9 +1,17 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.125';
+export const APP_VERSION = '4.9.126';
 
 // Historial de versiones
 // ⚠️ Importante: agrega SIEMPRE la versión más nueva ARRIBA (al inicio del array)
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.126',
+    date: '2026-01-04',
+    changes: [
+      'Planos: editor de áreas solo en “Ver grande” (toggle + panel lateral + oculto para usuarios normales)',
+      'Planos: edición por arrastre de áreas (handles) con guardado robusto'
+    ]
+  },
   {
     version: '4.9.125',
     date: '2026-01-04',

@@ -37,6 +37,13 @@ export function PlantMapViewer(props: {
   onHoverWorld?: (args: { mapId: string; x: number; y: number; fitW: number; fitH: number }) => void;
   areas?: PlantMapArea[];
   draftArea?: { shape: PlantMapAreaShape; fillOpacity?: number; strokeOpacity?: number } | null;
+  areaEdit?: {
+    enabled: boolean;
+    selectedAreaId: string | null;
+    onSelectArea?: (areaId: string | null) => void;
+    onChangeAreaShape?: (areaId: string, shape: PlantMapAreaShape) => void;
+    onCommitAreaShape?: (areaId: string, shape: PlantMapAreaShape) => void;
+  };
   onSelectAsset?: (assetId: string) => void;
   focusMarkerId?: string | null;
   selectedMarkerId?: string | null;
@@ -44,7 +51,7 @@ export function PlantMapViewer(props: {
   mode?: ViewerMode;
   clickTitle?: string;
 }) {
-  const { map, selectedAsset, allAssets, showAllMarkers, addingMarker, onAddMarker, onHoverWorld, areas = [], draftArea = null, onSelectAsset, focusMarkerId = null, selectedMarkerId = null, onRequestMoveMarker, mode = 'embedded', clickTitle } = props;
+  const { map, selectedAsset, allAssets, showAllMarkers, addingMarker, onAddMarker, onHoverWorld, areas = [], draftArea = null, areaEdit, onSelectAsset, focusMarkerId = null, selectedMarkerId = null, onRequestMoveMarker, mode = 'embedded', clickTitle } = props;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const focusZoomScale = useMemo(() => {
@@ -338,6 +345,52 @@ export function PlantMapViewer(props: {
     onAddMarker({ mapId: map.id, x: clamp(x, 0, 1), y: clamp(y, 0, 1), fitW: fit.w, fitH: fit.h });
   };
 
+  const clientToWorld01 = (clientX: number, clientY: number) => {
+    if (!containerRef.current) return null;
+    if (!fit.w || !fit.h) return null;
+    const rect = containerRef.current.getBoundingClientRect();
+    const px = clientX - rect.left;
+    const py = clientY - rect.top;
+    const localX = px - fit.offsetX;
+    const localY = py - fit.offsetY;
+    const worldX = (localX - tx) / scale;
+    const worldY = (localY - ty) / scale;
+    return {
+      x: clamp(worldX / fit.w, 0, 1),
+      y: clamp(worldY / fit.h, 0, 1)
+    };
+  };
+
+  type AreaDrag =
+    | {
+        active: true;
+        pointerId: number;
+        areaId: string;
+        kind: 'circle-center';
+        startShape: Extract<PlantMapAreaShape, { kind: 'circle' }>;
+        latestShape?: PlantMapAreaShape;
+      }
+    | {
+        active: true;
+        pointerId: number;
+        areaId: string;
+        kind: 'circle-radius';
+        startShape: Extract<PlantMapAreaShape, { kind: 'circle' }>;
+        latestShape?: PlantMapAreaShape;
+      }
+    | {
+        active: true;
+        pointerId: number;
+        areaId: string;
+        kind: 'poly-point';
+        pointIndex: number;
+        startShape: Extract<PlantMapAreaShape, { kind: 'polygon' }>;
+        latestShape?: PlantMapAreaShape;
+      }
+    | { active: false };
+
+  const areaDragRef = useRef<AreaDrag>({ active: false });
+
   const hoverRafRef = useRef<number | null>(null);
   const lastHoverRef = useRef<{ x: number; y: number } | null>(null);
 
@@ -398,6 +451,7 @@ export function PlantMapViewer(props: {
 
     // Drag pan (solo si no estamos agregando marcador)
     if (addingMarker) return;
+    if (areaDragRef.current.active) return;
     dragRef.current = {
       active: true,
       startX: e.clientX,
@@ -409,6 +463,48 @@ export function PlantMapViewer(props: {
 
   const handlePointerMove = (e: React.PointerEvent) => {
     if (!containerRef.current) return;
+    if (areaDragRef.current.active) {
+      const drag = areaDragRef.current;
+      if (!drag.active) return;
+      if (drag.pointerId !== e.pointerId) return;
+      const p = clientToWorld01(e.clientX, e.clientY);
+      if (!p) return;
+
+      if (drag.kind === 'circle-center') {
+        const next: PlantMapAreaShape = {
+          kind: 'circle',
+          cx: p.x,
+          cy: p.y,
+          r: Math.max(0, drag.startShape.r)
+        };
+        areaDragRef.current = { ...drag, latestShape: next };
+        areaEdit?.onChangeAreaShape?.(drag.areaId, next);
+      } else if (drag.kind === 'circle-radius') {
+        if (!fit.w || !fit.h) return;
+        const dxPx = (p.x - drag.startShape.cx) * fit.w;
+        const dyPx = (p.y - drag.startShape.cy) * fit.h;
+        const rPx = Math.hypot(dxPx, dyPx);
+        const r = fit.w > 0 ? rPx / fit.w : 0;
+        const next: PlantMapAreaShape = {
+          kind: 'circle',
+          cx: drag.startShape.cx,
+          cy: drag.startShape.cy,
+          r: Math.max(0, r)
+        };
+        areaDragRef.current = { ...drag, latestShape: next };
+        areaEdit?.onChangeAreaShape?.(drag.areaId, next);
+      } else if (drag.kind === 'poly-point') {
+        const pts = drag.startShape.points.slice();
+        if (drag.pointIndex < 0 || drag.pointIndex >= pts.length) return;
+        pts[drag.pointIndex] = { x: p.x, y: p.y };
+        const next: PlantMapAreaShape = { kind: 'polygon', points: pts };
+        areaDragRef.current = { ...drag, latestShape: next };
+        areaEdit?.onChangeAreaShape?.(drag.areaId, next);
+      }
+
+      return;
+    }
+
     if (!pointersRef.current.has(e.pointerId)) return;
     pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
@@ -470,6 +566,24 @@ export function PlantMapViewer(props: {
   };
 
   const handlePointerUpOrCancel = (e: React.PointerEvent) => {
+    if (areaDragRef.current.active) {
+      const drag = areaDragRef.current;
+      if (drag.active && drag.pointerId === e.pointerId) {
+        const latestShape = drag.latestShape;
+        if (latestShape) {
+          areaEdit?.onCommitAreaShape?.(drag.areaId, latestShape);
+        } else {
+          const currentShape = (() => {
+            const a = areas.find((aa) => aa.id === drag.areaId);
+            return a?.shape || null;
+          })();
+          if (currentShape) areaEdit?.onCommitAreaShape?.(drag.areaId, currentShape);
+        }
+        areaDragRef.current = { active: false };
+      }
+      pointersRef.current.delete(e.pointerId);
+      return;
+    }
     pointersRef.current.delete(e.pointerId);
     const pts = pointersRef.current.size;
     if (pts < 2) pinchRef.current.active = false;
@@ -781,7 +895,10 @@ export function PlantMapViewer(props: {
           {/* Áreas (overlay debajo de marcadores) */}
           {(areas.length > 0 || !!draftArea) && fit.w > 0 && fit.h > 0 && (
             <svg
-              className="absolute inset-0 pointer-events-none"
+              className={
+                'absolute inset-0 ' +
+                (areaEdit?.enabled ? 'pointer-events-auto' : 'pointer-events-none')
+              }
               width={fit.w}
               height={fit.h}
               viewBox={`0 0 ${fit.w} ${fit.h}`}
@@ -802,6 +919,12 @@ export function PlantMapViewer(props: {
                         strokeOpacity={a.strokeOpacity}
                         strokeWidth={2}
                         vectorEffect="non-scaling-stroke"
+                        onPointerDown={(e) => {
+                          if (!areaEdit?.enabled) return;
+                          e.preventDefault();
+                          e.stopPropagation();
+                          areaEdit.onSelectArea?.(a.id);
+                        }}
                       />
                     );
                   }
@@ -818,9 +941,126 @@ export function PlantMapViewer(props: {
                       strokeOpacity={a.strokeOpacity}
                       strokeWidth={2}
                       vectorEffect="non-scaling-stroke"
+                      onPointerDown={(e) => {
+                        if (!areaEdit?.enabled) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        areaEdit.onSelectArea?.(a.id);
+                      }}
                     />
                   );
                 })}
+
+              {/* Handles para edición */}
+              {areaEdit?.enabled && areaEdit.selectedAreaId
+                ? (() => {
+                    const a = areas.find((aa) => aa.id === areaEdit.selectedAreaId);
+                    if (!a) return null;
+
+                    if (a.shape.kind === 'circle') {
+                      const shape = a.shape;
+                      const cx = a.shape.cx * fit.w;
+                      const cy = a.shape.cy * fit.h;
+                      const rx = (a.shape.cx + a.shape.r) * fit.w;
+                      const ry = a.shape.cy * fit.h;
+                      return (
+                        <>
+                          <circle
+                            cx={cx}
+                            cy={cy}
+                            r={7}
+                            className="fill-white/90 stroke-primary-700"
+                            strokeWidth={2}
+                            vectorEffect="non-scaling-stroke"
+                            style={{ cursor: 'move' }}
+                            onPointerDown={(e) => {
+                              if (!areaEdit?.enabled) return;
+                              e.preventDefault();
+                              e.stopPropagation();
+                              try {
+                                (e.currentTarget as SVGCircleElement).setPointerCapture(e.pointerId);
+                              } catch {
+                                // ignore
+                              }
+                              pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+                              areaDragRef.current = {
+                                active: true,
+                                pointerId: e.pointerId,
+                                areaId: a.id,
+                                kind: 'circle-center',
+                                startShape: shape
+                              };
+                            }}
+                          />
+                          <circle
+                            cx={rx}
+                            cy={ry}
+                            r={7}
+                            className="fill-white/90 stroke-primary-700"
+                            strokeWidth={2}
+                            vectorEffect="non-scaling-stroke"
+                            style={{ cursor: 'nwse-resize' }}
+                            onPointerDown={(e) => {
+                              if (!areaEdit?.enabled) return;
+                              e.preventDefault();
+                              e.stopPropagation();
+                              try {
+                                (e.currentTarget as SVGCircleElement).setPointerCapture(e.pointerId);
+                              } catch {
+                                // ignore
+                              }
+                              pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+                              areaDragRef.current = {
+                                active: true,
+                                pointerId: e.pointerId,
+                                areaId: a.id,
+                                kind: 'circle-radius',
+                                startShape: shape
+                              };
+                            }}
+                          />
+                        </>
+                      );
+                    }
+
+                    const shape = a.shape;
+                    return (
+                      <>
+                        {a.shape.points.map((p, idx) => (
+                          <circle
+                            key={idx}
+                            cx={p.x * fit.w}
+                            cy={p.y * fit.h}
+                            r={7}
+                            className="fill-white/90 stroke-primary-700"
+                            strokeWidth={2}
+                            vectorEffect="non-scaling-stroke"
+                            style={{ cursor: 'move' }}
+                            onPointerDown={(e) => {
+                              if (!areaEdit?.enabled) return;
+                              e.preventDefault();
+                              e.stopPropagation();
+                              try {
+                                (e.currentTarget as SVGCircleElement).setPointerCapture(e.pointerId);
+                              } catch {
+                                // ignore
+                              }
+                              pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+                              areaDragRef.current = {
+                                active: true,
+                                pointerId: e.pointerId,
+                                areaId: a.id,
+                                kind: 'poly-point',
+                                pointIndex: idx,
+                                startShape: shape
+                              };
+                            }}
+                          />
+                        ))}
+                      </>
+                    );
+                  })()
+                : null}
 
               {draftArea?.shape ? (
                 draftArea.shape.kind === 'circle' ? (

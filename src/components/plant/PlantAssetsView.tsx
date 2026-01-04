@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, Maximize2, Pencil, Plus, Upload, Trash2, MapPin, X, Download, Image as ImageIcon, ChevronLeft, ChevronRight, Minus, RefreshCw } from 'lucide-react';
-import type { PlantAsset, PlantAssetTipo, PlantMap, PlantAssetImagen } from '../../types';
+import type { PlantAsset, PlantAssetTipo, PlantMap, PlantAssetImagen, PlantMapAreaShape } from '../../types';
 import { Button, Modal } from '../ui';
+import { useAuth } from '../../hooks/useAuth';
 import { usePlantAssets } from '../../hooks/usePlantAssets';
 import { usePlantMaps } from '../../hooks/usePlantMaps';
 import { usePlantMapAreas } from '../../hooks/usePlantMapAreas';
@@ -119,9 +120,36 @@ export function PlantAssetsView(props: {
   onRecordUndoAction?: (action: Omit<UndoableAction, 'id' | 'timestamp'>) => void;
 }) {
   const { machineId, focusAssetId, onFocusHandled, onRecordUndoAction } = props;
+  const { user } = useAuth();
   const { assets, loading, error, upsertMany, addMarker, addReferencia, deleteReferencia, addImagen, deleteImagen, updateAsset, createAsset } = usePlantAssets();
   const { maps, createMap, updateMap, deleteMap } = usePlantMaps();
   const { uploadPlantMapImage, uploadPlantAssetImage, deleteByUrl } = usePlantStorage(machineId);
+
+  const canEditMapAreas = useMemo(() => {
+    if (!user) return false;
+    const email = String(user.email || '').trim().toLowerCase();
+    if (!email) return false;
+
+    // 1) Flag local (oculto) para habilitar editor en este navegador
+    let localEnabled = false;
+    try {
+      localEnabled = window.localStorage.getItem('plant.mapAreasEditor') === '1';
+    } catch {
+      localEnabled = false;
+    }
+
+    // 2) Allowlist opcional por env (VITE_ADMIN_EMAILS="a@b.com,c@d.com")
+    const envRaw = String((import.meta as any)?.env?.VITE_ADMIN_EMAILS ?? '').trim();
+    const envList = envRaw
+      ? envRaw
+          .split(',')
+          .map((s: string) => s.trim().toLowerCase())
+          .filter(Boolean)
+      : [];
+    const envEnabled = envList.length > 0 ? envList.includes(email) : false;
+
+    return localEnabled || envEnabled;
+  }, [user]);
 
   const recordUndo = useCallback(
     (action: Omit<UndoableAction, 'id' | 'timestamp'>) => {
@@ -440,9 +468,44 @@ export function PlantAssetsView(props: {
   const [draftPolygonPoints, setDraftPolygonPoints] = useState<Array<{ x: number; y: number }>>([]);
   const [areaCursor, setAreaCursor] = useState<{ x: number; y: number; fitW: number; fitH: number } | null>(null);
 
+  const [areasEditorEnabled, setAreasEditorEnabled] = useState(false);
+  const [areasPanelOpen, setAreasPanelOpen] = useState(true);
+  const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
+  const [areaShapeOverrides, setAreaShapeOverrides] = useState<Record<string, PlantMapAreaShape>>({});
+
   const { areas: mapAreas, createArea, updateArea, deleteArea } = usePlantMapAreas(selectedMapId || null);
 
   const addingMarker = markerMode !== 'none' || areaMode !== 'none';
+
+  const areasForViewer = useMemo(() => {
+    if (!areaShapeOverrides || Object.keys(areaShapeOverrides).length === 0) return mapAreas;
+    return mapAreas.map((a) => {
+      const ov = areaShapeOverrides[a.id];
+      return ov ? { ...a, shape: ov } : a;
+    });
+  }, [areaShapeOverrides, mapAreas]);
+
+  useEffect(() => {
+    // Al cambiar de plano, resetear edición/drafts.
+    setSelectedAreaId(null);
+    setAreaShapeOverrides({});
+    setDraftCircleCenter(null);
+    setDraftPolygonPoints([]);
+    setAreaCursor(null);
+  }, [selectedMapId]);
+
+  useEffect(() => {
+    // Si no pueden editar, forzar editor OFF y limpiar.
+    if (!canEditMapAreas) {
+      setAreasEditorEnabled(false);
+      setAreaMode('none');
+      setSelectedAreaId(null);
+      setAreaShapeOverrides({});
+      setDraftCircleCenter(null);
+      setDraftPolygonPoints([]);
+      setAreaCursor(null);
+    }
+  }, [canEditMapAreas]);
 
   useEffect(() => {
     // Si cambian plano o selección, cortar cualquier modo de edición de marcador.
@@ -1508,62 +1571,6 @@ export function PlantAssetsView(props: {
               </Button>
             </div>
 
-            {/* Áreas por plano */}
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => {
-                  if (!selectedMapId) return;
-                  setMarkerMode('none');
-                  setMovingMarkerId(null);
-                  setDraftPolygonPoints([]);
-                  setDraftCircleCenter(null);
-                  setAreaMode((m) => (m === 'circle' ? 'none' : 'circle'));
-                }}
-                disabled={!selectedMapId}
-                title={!selectedMapId ? 'Selecciona un plano' : undefined}
-              >
-                {areaMode === 'circle' ? 'Círculo: 2 clicks…' : 'Área (círculo)'}
-              </Button>
-
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => {
-                  if (!selectedMapId) return;
-                  setMarkerMode('none');
-                  setMovingMarkerId(null);
-                  setDraftPolygonPoints([]);
-                  setDraftCircleCenter(null);
-                  setAreaMode((m) => (m === 'polygon' ? 'none' : 'polygon'));
-                }}
-                disabled={!selectedMapId}
-                title={!selectedMapId ? 'Selecciona un plano' : undefined}
-              >
-                {areaMode === 'polygon' ? `Polígono: ${draftPolygonPoints.length} puntos…` : 'Área (polígono)'}
-              </Button>
-
-              {areaMode !== 'none' && (
-                <button
-                  type="button"
-                  className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
-                  onClick={handleCancelArea}
-                >
-                  Cancelar área
-                </button>
-              )}
-
-              {areaMode === 'polygon' && draftPolygonPoints.length >= 3 && (
-                <button
-                  type="button"
-                  className="px-3 py-2 rounded-lg border border-primary-200 dark:border-primary-700 bg-primary-50 dark:bg-primary-900/20 text-sm text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900/30"
-                  onClick={handleClosePolygon}
-                >
-                  Cerrar área
-                </button>
-              )}
-            </div>
 
             {selected && (selected.marcadores || []).length > 0 && (
               <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
@@ -1651,50 +1658,6 @@ export function PlantAssetsView(props: {
                               ? 'Mostrando solo el marcador seleccionado.'
                               : 'Selecciona un motor/bomba para ver sus marcadores.'}
                 </div>
-
-                {selectedMapId && mapAreas.length > 0 && (
-                  <div className="mt-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-                    <div className="text-xs font-semibold text-gray-700 dark:text-gray-200">Áreas en este plano</div>
-                    <div className="mt-2 flex flex-col gap-2">
-                      {mapAreas.map((a) => (
-                        <div key={a.id} className="flex items-center gap-2">
-                          <label className="inline-flex items-center gap-2 text-xs text-gray-700 dark:text-gray-200">
-                            <input
-                              type="checkbox"
-                              checked={a.visible}
-                              onChange={(e) => updateArea(a.id, { visible: e.target.checked })}
-                            />
-                            <span className="truncate max-w-[220px]">{a.nombre}</span>
-                          </label>
-
-                          <button
-                            type="button"
-                            className="ml-auto px-2 py-1 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
-                            onClick={() => {
-                              const next = a.fillOpacity >= 0.28 ? 0.18 : 0.38;
-                              updateArea(a.id, { fillOpacity: next });
-                            }}
-                            title="Alternar entre transparente y sólido"
-                          >
-                            {a.fillOpacity >= 0.28 ? 'Transparente' : 'Sólido'}
-                          </button>
-
-                          <button
-                            type="button"
-                            className="px-2 py-1 rounded border border-red-200 dark:border-red-700 bg-red-50 dark:bg-red-900/20 text-xs text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30"
-                            onClick={async () => {
-                              const ok = window.confirm('¿Eliminar esta área?');
-                              if (!ok) return;
-                              await deleteArea(a.id);
-                            }}
-                          >
-                            Eliminar
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
 
                 {!showAllMarkers && selected && selectedMapId && selectedMarkersOnMap.length > 1 && markerMode !== 'move' && (
                   <div className="mt-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
@@ -2779,51 +2742,279 @@ export function PlantAssetsView(props: {
       {/* Modal Map Fullscreen */}
       <Modal
         isOpen={showMapFullscreen}
-        onClose={() => setShowMapFullscreen(false)}
+        onClose={() => {
+          setShowMapFullscreen(false);
+          setAreasEditorEnabled(false);
+          setAreasPanelOpen(true);
+          setAreaMode('none');
+          setSelectedAreaId(null);
+          setAreaShapeOverrides({});
+          setDraftCircleCenter(null);
+          setDraftPolygonPoints([]);
+          setAreaCursor(null);
+        }}
         title={selectedMap ? `Plano: ${selectedMap.nombre}` : 'Plano'}
         size="full"
       >
         {selectedMap ? (
           <div className="space-y-3">
-            <PlantMapViewer
-              map={selectedMap}
-              selectedAsset={selected}
-              allAssets={assets}
-              showAllMarkers={showAllMarkers}
-              selectedMarkerId={showAllMarkers ? null : selectedMarkerId}
-              addingMarker={addingMarker}
-              onAddMarker={handleMapClick}
-              onHoverWorld={(p) => setAreaCursor(p)}
-              areas={mapAreas}
-              draftArea={draftAreaForViewer}
-              onSelectAsset={(assetId) => setSelectedId(assetId)}
-              onRequestMoveMarker={({ markerId }) => {
-                setShowAllMarkers(false);
-                setAreaMode('none');
-                setDraftCircleCenter(null);
-                setDraftPolygonPoints([]);
-                setSelectedMarkerId(markerId);
-                setMovingMarkerId(markerId);
-                setMarkerMode('move');
-              }}
-              focusMarkerId={markerMode === 'move' ? movingMarkerId : null}
-              mode="fullscreen"
-              clickTitle={
-                areaMode === 'circle'
-                  ? draftCircleCenter
-                    ? 'Click para definir radio'
-                    : 'Click para definir centro'
-                  : areaMode === 'polygon'
-                    ? 'Click para agregar punto (click cerca del primer punto para cerrar)'
-                    : markerMode === 'add'
-                      ? 'Click para agregar marcador'
-                      : markerMode === 'move'
-                        ? 'Click para mover marcador'
-                        : undefined
-              }
-            />
-            <div className="text-xs text-gray-500 dark:text-gray-300">
-              Zoom: rueda del mouse / pinch en móvil. Arrastra para mover. Doble click para reset.
+            {/* Toolbar editor de áreas (solo admins/flag) */}
+            {canEditMapAreas && (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  size="sm"
+                  variant={areasEditorEnabled ? 'primary' : 'secondary'}
+                  onClick={() => {
+                    setAreasEditorEnabled((v) => {
+                      const next = !v;
+                      if (!next) {
+                        setAreaMode('none');
+                        setSelectedAreaId(null);
+                        setAreaShapeOverrides({});
+                        setDraftCircleCenter(null);
+                        setDraftPolygonPoints([]);
+                        setAreaCursor(null);
+                      }
+                      return next;
+                    });
+                  }}
+                >
+                  {areasEditorEnabled ? 'Editor áreas: ON' : 'Editor áreas'}
+                </Button>
+
+                {areasEditorEnabled && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant={areaMode === 'none' ? 'primary' : 'secondary'}
+                      onClick={() => {
+                        setAreaMode('none');
+                        setDraftCircleCenter(null);
+                        setDraftPolygonPoints([]);
+                      }}
+                    >
+                      Seleccionar
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={areaMode === 'circle' ? 'primary' : 'secondary'}
+                      onClick={() => {
+                        setMarkerMode('none');
+                        setMovingMarkerId(null);
+                        setSelectedMarkerId(null);
+                        setSelectedAreaId(null);
+                        setDraftPolygonPoints([]);
+                        setDraftCircleCenter(null);
+                        setAreaMode((m) => (m === 'circle' ? 'none' : 'circle'));
+                      }}
+                    >
+                      Círculo
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={areaMode === 'polygon' ? 'primary' : 'secondary'}
+                      onClick={() => {
+                        setMarkerMode('none');
+                        setMovingMarkerId(null);
+                        setSelectedMarkerId(null);
+                        setSelectedAreaId(null);
+                        setDraftPolygonPoints([]);
+                        setDraftCircleCenter(null);
+                        setAreaMode((m) => (m === 'polygon' ? 'none' : 'polygon'));
+                      }}
+                    >
+                      Polígono {areaMode === 'polygon' ? `(${draftPolygonPoints.length})` : ''}
+                    </Button>
+
+                    {areaMode !== 'none' && (
+                      <Button size="sm" variant="secondary" onClick={handleCancelArea}>
+                        Cancelar
+                      </Button>
+                    )}
+
+                    {areaMode === 'polygon' && draftPolygonPoints.length >= 3 && (
+                      <Button size="sm" variant="secondary" onClick={handleClosePolygon}>
+                        Cerrar área
+                      </Button>
+                    )}
+
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setAreasPanelOpen((v) => !v)}
+                      title="Mostrar/ocultar panel de áreas"
+                    >
+                      {areasPanelOpen ? 'Ocultar panel' : 'Mostrar panel'}
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              {/* Panel lateral */}
+              {areasEditorEnabled && areasPanelOpen && (
+                <div className="w-[320px] shrink-0 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3">
+                  <div className="text-sm font-semibold text-gray-800 dark:text-gray-100">Áreas</div>
+                  <div className="mt-2 space-y-2 max-h-[70vh] overflow-auto">
+                    {mapAreas.length === 0 ? (
+                      <div className="text-xs text-gray-500">Aún no hay áreas en este plano.</div>
+                    ) : (
+                      mapAreas.map((a) => (
+                        <button
+                          key={a.id}
+                          type="button"
+                          className={
+                            'w-full text-left p-2 rounded border text-xs ' +
+                            (selectedAreaId === a.id
+                              ? 'border-primary-300 dark:border-primary-600 bg-primary-50 dark:bg-primary-900/20'
+                              : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800')
+                          }
+                          onClick={() => {
+                            setSelectedAreaId(a.id);
+                            setAreaMode('none');
+                            setDraftCircleCenter(null);
+                            setDraftPolygonPoints([]);
+                          }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={a.visible}
+                              onChange={(e) => updateArea(a.id, { visible: e.target.checked })}
+                              onClick={(e) => e.stopPropagation()}
+                              title="Mostrar/ocultar"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate text-gray-800 dark:text-gray-100">{a.nombre}</div>
+                              <div className="text-[11px] text-gray-500">
+                                {a.shape.kind === 'circle' ? 'Círculo' : `Polígono (${a.shape.points.length})`}
+                              </div>
+                            </div>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+
+                  {selectedAreaId && (
+                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 space-y-2">
+                      {(() => {
+                        const a = mapAreas.find((x) => x.id === selectedAreaId);
+                        if (!a) return null;
+                        return (
+                          <>
+                            <div>
+                              <div className="text-xs text-gray-600 dark:text-gray-300 mb-1">Nombre</div>
+                              <input
+                                value={a.nombre}
+                                onChange={(e) => updateArea(a.id, { nombre: e.target.value })}
+                                className="w-full px-2 py-1 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs"
+                              />
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                className="px-2 py-1 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                onClick={() => {
+                                  const next = a.fillOpacity >= 0.28 ? 0.18 : 0.38;
+                                  updateArea(a.id, { fillOpacity: next });
+                                }}
+                              >
+                                {a.fillOpacity >= 0.28 ? 'Transparente' : 'Sólido'}
+                              </button>
+                              <button
+                                type="button"
+                                className="ml-auto px-2 py-1 rounded border border-red-200 dark:border-red-700 bg-red-50 dark:bg-red-900/20 text-xs text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30"
+                                onClick={async () => {
+                                  const ok = window.confirm('¿Eliminar esta área?');
+                                  if (!ok) return;
+                                  await deleteArea(a.id);
+                                  setSelectedAreaId(null);
+                                }}
+                              >
+                                Eliminar
+                              </button>
+                            </div>
+                            <div className="text-[11px] text-gray-500">
+                              Tip: arrastra los puntos (o centro/radio) en el plano para editar.
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Mapa */}
+              <div className="flex-1">
+                <PlantMapViewer
+                  map={selectedMap}
+                  selectedAsset={selected}
+                  allAssets={assets}
+                  showAllMarkers={showAllMarkers}
+                  selectedMarkerId={showAllMarkers ? null : selectedMarkerId}
+                  addingMarker={addingMarker}
+                  onAddMarker={handleMapClick}
+                  onHoverWorld={(p) => setAreaCursor(p)}
+                  areas={areasForViewer}
+                  draftArea={draftAreaForViewer}
+                  areaEdit={
+                    areasEditorEnabled
+                      ? {
+                          enabled: true,
+                          selectedAreaId,
+                          onSelectArea: (id) => {
+                            setSelectedAreaId(id);
+                            setAreaMode('none');
+                            setDraftCircleCenter(null);
+                            setDraftPolygonPoints([]);
+                          },
+                          onChangeAreaShape: (id, shape) => {
+                            setAreaShapeOverrides((prev) => ({ ...prev, [id]: shape }));
+                          },
+                          onCommitAreaShape: async (id, shape) => {
+                            await updateArea(id, { shape });
+                            setAreaShapeOverrides((prev) => {
+                              const next = { ...prev };
+                              delete next[id];
+                              return next;
+                            });
+                          }
+                        }
+                      : undefined
+                  }
+                  onSelectAsset={(assetId) => setSelectedId(assetId)}
+                  onRequestMoveMarker={({ markerId }) => {
+                    setShowAllMarkers(false);
+                    setAreaMode('none');
+                    setDraftCircleCenter(null);
+                    setDraftPolygonPoints([]);
+                    setSelectedMarkerId(markerId);
+                    setMovingMarkerId(markerId);
+                    setMarkerMode('move');
+                  }}
+                  focusMarkerId={markerMode === 'move' ? movingMarkerId : null}
+                  mode="fullscreen"
+                  clickTitle={
+                    areaMode === 'circle'
+                      ? draftCircleCenter
+                        ? 'Click para definir radio'
+                        : 'Click para definir centro'
+                      : areaMode === 'polygon'
+                        ? 'Click para agregar punto (click cerca del primer punto para cerrar)'
+                        : markerMode === 'add'
+                          ? 'Click para agregar marcador'
+                          : markerMode === 'move'
+                            ? 'Click para mover marcador'
+                            : undefined
+                  }
+                />
+                <div className="text-xs text-gray-500 dark:text-gray-300 mt-2">
+                  Zoom: rueda del mouse / pinch en móvil. Arrastra para mover. Doble click para reset.
+                </div>
+              </div>
             </div>
           </div>
         ) : (
