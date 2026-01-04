@@ -38,7 +38,7 @@ export function PlantAssetsView(props: { machineId: string | null }) {
   const { machineId } = props;
   const { assets, loading, error, upsertMany, addMarker, addReferencia, deleteReferencia, addImagen, deleteImagen } = usePlantAssets();
   const { maps, createMap, updateMap, deleteMap } = usePlantMaps();
-  const { uploadPlantMapImage, uploadPlantAssetImage } = usePlantStorage(machineId);
+  const { uploadPlantMapImage, uploadPlantAssetImage, deleteByUrl } = usePlantStorage(machineId);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = useMemo(() => assets.find((a) => a.id === selectedId) || null, [assets, selectedId]);
@@ -69,6 +69,9 @@ export function PlantAssetsView(props: { machineId: string | null }) {
   const [newMapName, setNewMapName] = useState('');
   const [newMapFile, setNewMapFile] = useState<File | null>(null);
   const [creatingMap, setCreatingMap] = useState(false);
+
+  const [showDeleteMap, setShowDeleteMap] = useState(false);
+  const [deletingMap, setDeletingMap] = useState(false);
 
   const [newRefTitle, setNewRefTitle] = useState('');
   const [newRefUrl, setNewRefUrl] = useState('');
@@ -266,6 +269,16 @@ export function PlantAssetsView(props: { machineId: string | null }) {
               <div className="flex items-center gap-2 flex-wrap">
                 <Button size="sm" variant="secondary" icon={<Plus className="w-4 h-4" />} onClick={() => setShowAddMap(true)}>
                   Agregar plano
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  icon={<Trash2 className="w-4 h-4" />}
+                  onClick={() => setShowDeleteMap(true)}
+                  disabled={!selectedMap || deletingMap}
+                  title={!selectedMap ? 'Selecciona un plano para poder eliminarlo' : 'Eliminar plano'}
+                >
+                  Eliminar plano
                 </Button>
               </div>
             </div>
@@ -563,6 +576,57 @@ export function PlantAssetsView(props: { machineId: string | null }) {
             </Button>
             <Button onClick={handleCreateMap} loading={creatingMap} disabled={!newMapName.trim() || !newMapFile}>
               Crear
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal Delete Map */}
+      <Modal
+        isOpen={showDeleteMap}
+        onClose={() => {
+          if (deletingMap) return;
+          setShowDeleteMap(false);
+        }}
+        title="Eliminar plano"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div className="text-sm text-gray-700 dark:text-gray-200">
+            {selectedMap
+              ? <>¿Eliminar el plano <b>{selectedMap.nombre}</b>? Esto no borra los marcadores guardados en los motores/bombas, pero ya no se podrá ver ese plano.</>
+              : 'Selecciona un plano primero.'}
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setShowDeleteMap(false)} disabled={deletingMap}>
+              Cancelar
+            </Button>
+            <Button
+              variant="danger"
+              loading={deletingMap}
+              disabled={!selectedMap}
+              onClick={async () => {
+                if (!selectedMap) return;
+                setDeletingMap(true);
+                try {
+                  if (selectedMap.imageUrl) {
+                    try {
+                      await deleteByUrl(selectedMap.imageUrl);
+                    } catch {
+                      // ignore (puede no existir o no tener permiso)
+                    }
+                  }
+                  await deleteMap(selectedMap.id);
+                  setSelectedMapId('');
+                  setAddingMarker(false);
+                  setShowDeleteMap(false);
+                } finally {
+                  setDeletingMap(false);
+                }
+              }}
+            >
+              Eliminar
             </Button>
           </div>
         </div>

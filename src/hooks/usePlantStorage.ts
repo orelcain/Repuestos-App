@@ -40,5 +40,10 @@ export function usePlantStorage(machineId: string | null) {
     await deleteObject(storageRef);
   };
 
-  return { uploadPlantMapImage, uploadPlantAssetImage, deleteByPath };
+  const deleteByUrl = async (url: string) => {
+    const storageRef = ref(storage, url);
+    await deleteObject(storageRef);
+  };
+
+  return { uploadPlantMapImage, uploadPlantAssetImage, deleteByPath, deleteByUrl };
 }

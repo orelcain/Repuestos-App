@@ -74,13 +74,20 @@ const storageRules = `
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // Manual PDF - lectura para autenticados
+    // Reglas simples: solo usuarios autenticados.
+    // Cubren rutas legacy y multi-máquina.
+
+    // Legacy (proyecto original)
     match /manual/{allPaths=**} {
       allow read, write: if request.auth != null;
     }
-    
-    // Imágenes de repuestos - lectura para autenticados
+
     match /repuestos/{repuestoId}/{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Multi-máquina (rutas actuales)
+    match /machines/{machineId}/{allPaths=**} {
       allow read, write: if request.auth != null;
     }
   }
