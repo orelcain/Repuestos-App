@@ -1,9 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.106';
+export const APP_VERSION = '4.9.107';
 
 // Historial de versiones
 // ⚠️ Importante: agrega SIEMPRE la versión más nueva ARRIBA (al inicio del array)
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.107',
+    date: '2026-01-04',
+    changes: [
+      'Quitar campo Máquina/Cinta en motores'
+    ]
+  },
   {
     version: '4.9.106',
     date: '2026-01-04',

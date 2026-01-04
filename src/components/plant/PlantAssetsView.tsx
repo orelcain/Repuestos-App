@@ -1349,7 +1349,6 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
                 <div className="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-2">Datos</div>
                 <div className="text-sm text-gray-700 dark:text-gray-200 space-y-1">
                   <div><b>Descripción SAP:</b> {selected.descripcionSAP}</div>
-                  <div><b>Máquina/Cinta:</b> {selected.equipo}</div>
                   <div><b>Marca:</b> {selected.marca}</div>
                   <div><b>Modelo/Tipo:</b> {selected.modeloTipo}</div>
                   <div><b>Potencia:</b> {selected.potencia}</div>
@@ -1883,14 +1882,7 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
               />
             </div>
 
-            <div className="md:col-span-2">
-              <div className="text-xs text-gray-600 dark:text-gray-300 mb-1">Máquina/Cinta (si aplica)</div>
-              <input
-                value={editDraft.equipo}
-                onChange={(e) => setEditDraft((d) => ({ ...d, equipo: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
-              />
-            </div>
+            {/* Campo retirado por UX: "Máquina/Cinta" no aplica para motores/bombas en esta vista */}
 
             <div>
               <div className="text-xs text-gray-600 dark:text-gray-300 mb-1">Área</div>
