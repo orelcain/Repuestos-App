@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Maximize2, Pencil, Plus, Upload, Trash2, MapPin, X } from 'lucide-react';
+import { AlertCircle, Maximize2, Pencil, Plus, Upload, Trash2, MapPin, X, Download } from 'lucide-react';
 import type { PlantAsset, PlantAssetTipo, PlantMap } from '../../types';
 import { Button, Modal } from '../ui';
 import { usePlantAssets } from '../../hooks/usePlantAssets';
@@ -7,6 +7,7 @@ import { usePlantMaps } from '../../hooks/usePlantMaps';
 import { usePlantStorage } from '../../hooks/usePlantStorage';
 import ExcelJS from 'exceljs';
 import { PlantMapViewer } from './PlantMapViewer';
+import { exportPlantAssetsToExcel, exportPlantAssetsToPDF, type PlantAssetsColumnKey } from '../../utils/exportUtils';
 
 type BadgeTone = 'strong' | 'soft';
 
@@ -110,6 +111,62 @@ export function PlantAssetsView(props: { machineId: string | null }) {
   const selected = useMemo(() => assets.find((a) => a.id === selectedId) || null, [assets, selectedId]);
 
   const [search, setSearch] = useState('');
+
+  // === Columnas (persistentes) + Export ===
+  const ALL_COLUMNS: Array<{ key: PlantAssetsColumnKey; label: string; defaultEnabled: boolean; thClassName?: string; tdClassName?: string }> = [
+    { key: 'tipo', label: 'Tipo', defaultEnabled: true },
+    { key: 'area', label: 'Área', defaultEnabled: true },
+    { key: 'subarea', label: 'Subárea', defaultEnabled: true, thClassName: 'hidden lg:table-cell', tdClassName: 'hidden lg:table-cell' },
+    { key: 'codigoSAP', label: 'SAP', defaultEnabled: true },
+    { key: 'marca', label: 'Marca', defaultEnabled: true, thClassName: 'hidden xl:table-cell', tdClassName: 'hidden xl:table-cell' },
+    { key: 'relacionReduccion', label: 'i', defaultEnabled: true, thClassName: 'hidden xl:table-cell', tdClassName: 'hidden xl:table-cell' },
+    { key: 'marcadores', label: 'Marcadores', defaultEnabled: true, thClassName: 'w-[320px]', tdClassName: 'w-[320px]' }
+  ];
+
+  const columnsStorageKey = useMemo(() => `plant_assets_columns_v1:${machineId || 'global'}`, [machineId]);
+  const getDefaultColumnsState = () => {
+    const base: Record<string, boolean> = {};
+    for (const c of ALL_COLUMNS) base[c.key] = c.defaultEnabled;
+    return base as Record<PlantAssetsColumnKey, boolean>;
+  };
+
+  const [columnsEnabled, setColumnsEnabled] = useState<Record<PlantAssetsColumnKey, boolean>>(() => {
+    try {
+      const raw = localStorage.getItem(`plant_assets_columns_v1:${machineId || 'global'}`);
+      if (!raw) return getDefaultColumnsState();
+      const parsed = JSON.parse(raw) as Record<string, boolean>;
+      return { ...getDefaultColumnsState(), ...(parsed || {}) } as Record<PlantAssetsColumnKey, boolean>;
+    } catch {
+      return getDefaultColumnsState();
+    }
+  });
+
+  useEffect(() => {
+    // Al cambiar de máquina, recargar preferencias
+    try {
+      const raw = localStorage.getItem(columnsStorageKey);
+      if (!raw) {
+        setColumnsEnabled(getDefaultColumnsState());
+        return;
+      }
+      const parsed = JSON.parse(raw) as Record<string, boolean>;
+      setColumnsEnabled({ ...getDefaultColumnsState(), ...(parsed || {}) } as Record<PlantAssetsColumnKey, boolean>);
+    } catch {
+      setColumnsEnabled(getDefaultColumnsState());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [columnsStorageKey]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(columnsStorageKey, JSON.stringify(columnsEnabled));
+    } catch {
+      // ignore
+    }
+  }, [columnsEnabled, columnsStorageKey]);
+
+  const visibleColumns = useMemo(() => ALL_COLUMNS.filter((c) => columnsEnabled[c.key]), [ALL_COLUMNS, columnsEnabled]);
+  const [showColumnsExport, setShowColumnsExport] = useState(false);
 
   const [sortKey, setSortKey] = useState<'tipo' | 'area' | 'subarea' | 'codigoSAP' | 'marca' | 'relacionReduccion'>('area');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
@@ -248,6 +305,14 @@ export function PlantAssetsView(props: { machineId: string | null }) {
       const map = mapById.get(id);
       return map ? { id, nombre: map.nombre } : { id, nombre: 'Plano eliminado', missing: true };
     });
+  };
+
+  const getMarkersLabel = (asset: PlantAsset) => {
+    const items = getMarkerMapNames(asset);
+    if (items.length === 0) return '';
+    return items
+      .map((m) => (m.missing ? `${m.nombre}` : m.nombre))
+      .join(' | ');
   };
 
 
@@ -405,6 +470,9 @@ export function PlantAssetsView(props: { machineId: string | null }) {
               <Button size="sm" variant="secondary" icon={<Upload className="w-4 h-4" />} onClick={() => setShowImport(true)}>
                 Importar Excel
               </Button>
+              <Button size="sm" variant="secondary" icon={<Download className="w-4 h-4" />} onClick={() => setShowColumnsExport(true)}>
+                Exportar
+              </Button>
             </div>
           </div>
           <input
@@ -427,25 +495,37 @@ export function PlantAssetsView(props: { machineId: string | null }) {
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
                 <tr className="text-xs text-gray-600 dark:text-gray-300">
-                  <th className="text-left px-3 py-2">
-                    <button type="button" className="hover:underline" onClick={() => toggleSort('tipo')}>Tipo</button>
-                  </th>
-                  <th className="text-left px-3 py-2">
-                    <button type="button" className="hover:underline" onClick={() => toggleSort('area')}>Área</button>
-                  </th>
-                  <th className="text-left px-3 py-2 hidden lg:table-cell">
-                    <button type="button" className="hover:underline" onClick={() => toggleSort('subarea')}>Subárea</button>
-                  </th>
-                  <th className="text-left px-3 py-2">
-                    <button type="button" className="hover:underline" onClick={() => toggleSort('codigoSAP')}>SAP</button>
-                  </th>
-                  <th className="text-left px-3 py-2 hidden xl:table-cell">
-                    <button type="button" className="hover:underline" onClick={() => toggleSort('marca')}>Marca</button>
-                  </th>
-                  <th className="text-left px-3 py-2 hidden xl:table-cell">
-                    <button type="button" className="hover:underline" onClick={() => toggleSort('relacionReduccion')}>i</button>
-                  </th>
-                  <th className="text-left px-3 py-2 w-[320px]">Marcadores</th>
+                  {columnsEnabled.tipo && (
+                    <th className="text-left px-3 py-2">
+                      <button type="button" className="hover:underline" onClick={() => toggleSort('tipo')}>Tipo</button>
+                    </th>
+                  )}
+                  {columnsEnabled.area && (
+                    <th className="text-left px-3 py-2">
+                      <button type="button" className="hover:underline" onClick={() => toggleSort('area')}>Área</button>
+                    </th>
+                  )}
+                  {columnsEnabled.subarea && (
+                    <th className="text-left px-3 py-2 hidden lg:table-cell">
+                      <button type="button" className="hover:underline" onClick={() => toggleSort('subarea')}>Subárea</button>
+                    </th>
+                  )}
+                  {columnsEnabled.codigoSAP && (
+                    <th className="text-left px-3 py-2">
+                      <button type="button" className="hover:underline" onClick={() => toggleSort('codigoSAP')}>SAP</button>
+                    </th>
+                  )}
+                  {columnsEnabled.marca && (
+                    <th className="text-left px-3 py-2 hidden xl:table-cell">
+                      <button type="button" className="hover:underline" onClick={() => toggleSort('marca')}>Marca</button>
+                    </th>
+                  )}
+                  {columnsEnabled.relacionReduccion && (
+                    <th className="text-left px-3 py-2 hidden xl:table-cell">
+                      <button type="button" className="hover:underline" onClick={() => toggleSort('relacionReduccion')}>i</button>
+                    </th>
+                  )}
+                  {columnsEnabled.marcadores && <th className="text-left px-3 py-2 w-[320px]">Marcadores</th>}
                   <th className="px-3 py-2" />
                 </tr>
               </thead>
@@ -461,69 +541,83 @@ export function PlantAssetsView(props: { machineId: string | null }) {
                         (isSelected ? 'bg-primary-50 dark:bg-primary-900/20' : '')
                       }
                     >
-                      <td className="px-3 py-2">
-                        <button type="button" className="text-left w-full" onClick={() => setSelectedId(a.id)}>
-                          <Badge text={a.tipo.toUpperCase()} tone="strong" paletteKey={`tipo:${a.tipo}`} />
-                        </button>
-                      </td>
-                      <td className="px-3 py-2">
-                        <button type="button" className="text-left w-full" onClick={() => setSelectedId(a.id)}>
-                          <Badge text={a.area} tone="strong" paletteKey={`area:${a.area}`} className="max-w-[220px]" />
-                        </button>
-                      </td>
-                      <td className="px-3 py-2 hidden lg:table-cell">
-                        <button type="button" className="text-left w-full truncate" onClick={() => setSelectedId(a.id)}>
-                          <Badge text={a.subarea} tone="soft" paletteKey={`area:${a.area}`} className="max-w-[260px]" />
-                        </button>
-                      </td>
-                      <td className="px-3 py-2">
-                        <button type="button" className="text-left w-full" onClick={() => setSelectedId(a.id)}>
-                          {a.codigoSAP}
-                        </button>
-                      </td>
-                      <td className="px-3 py-2 hidden xl:table-cell">
-                        <button type="button" className="text-left w-full truncate" onClick={() => setSelectedId(a.id)}>
-                          {a.marca}
-                        </button>
-                      </td>
-                      <td className="px-3 py-2 hidden xl:table-cell">
-                        <button type="button" className="text-left w-full" onClick={() => setSelectedId(a.id)}>
-                          {a.relacionReduccion || 'pendiente'}
-                        </button>
-                      </td>
-                      <td className="px-3 py-2 w-[320px]">
-                        {markerMaps.length === 0 ? (
-                          <span className="text-gray-500">—</span>
-                        ) : (
-                          <div className="flex flex-wrap gap-1">
-                            {markerMaps.map((mm) => (
-                              <button
-                                key={mm.id}
-                                type="button"
-                                className={
-                                  'px-2 py-0.5 rounded border text-xs ' +
-                                  (mm.missing
-                                    ? 'border-gray-200 dark:border-gray-700 text-gray-500'
-                                    : 'border-primary-200 dark:border-primary-700 text-primary-700 dark:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/20')
-                                }
-                                onClick={() => {
-                                  setSelectedId(a.id);
-                                  if (!mm.missing) {
-                                    setSelectedMapId(mm.id);
-                                    setShowAllMarkers(false);
-                                    setMarkerMode('none');
-                                    setMovingMarkerId(null);
+                      {columnsEnabled.tipo && (
+                        <td className="px-3 py-2">
+                          <button type="button" className="text-left w-full" onClick={() => setSelectedId(a.id)}>
+                            <Badge text={a.tipo.toUpperCase()} tone="strong" paletteKey={`tipo:${a.tipo}`} />
+                          </button>
+                        </td>
+                      )}
+                      {columnsEnabled.area && (
+                        <td className="px-3 py-2">
+                          <button type="button" className="text-left w-full" onClick={() => setSelectedId(a.id)}>
+                            <Badge text={a.area} tone="strong" paletteKey={`area:${a.area}`} className="max-w-[220px]" />
+                          </button>
+                        </td>
+                      )}
+                      {columnsEnabled.subarea && (
+                        <td className="px-3 py-2 hidden lg:table-cell">
+                          <button type="button" className="text-left w-full truncate" onClick={() => setSelectedId(a.id)}>
+                            <Badge text={a.subarea} tone="soft" paletteKey={`area:${a.area}`} className="max-w-[260px]" />
+                          </button>
+                        </td>
+                      )}
+                      {columnsEnabled.codigoSAP && (
+                        <td className="px-3 py-2">
+                          <button type="button" className="text-left w-full" onClick={() => setSelectedId(a.id)}>
+                            {a.codigoSAP}
+                          </button>
+                        </td>
+                      )}
+                      {columnsEnabled.marca && (
+                        <td className="px-3 py-2 hidden xl:table-cell">
+                          <button type="button" className="text-left w-full truncate" onClick={() => setSelectedId(a.id)}>
+                            {a.marca}
+                          </button>
+                        </td>
+                      )}
+                      {columnsEnabled.relacionReduccion && (
+                        <td className="px-3 py-2 hidden xl:table-cell">
+                          <button type="button" className="text-left w-full" onClick={() => setSelectedId(a.id)}>
+                            {a.relacionReduccion || 'pendiente'}
+                          </button>
+                        </td>
+                      )}
+                      {columnsEnabled.marcadores && (
+                        <td className="px-3 py-2 w-[320px]">
+                          {markerMaps.length === 0 ? (
+                            <span className="text-gray-500">—</span>
+                          ) : (
+                            <div className="flex flex-wrap gap-1">
+                              {markerMaps.map((mm) => (
+                                <button
+                                  key={mm.id}
+                                  type="button"
+                                  className={
+                                    'px-2 py-0.5 rounded border text-xs ' +
+                                    (mm.missing
+                                      ? 'border-gray-200 dark:border-gray-700 text-gray-500'
+                                      : 'border-primary-200 dark:border-primary-700 text-primary-700 dark:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/20')
                                   }
-                                }}
-                                title={mm.missing ? 'Plano eliminado' : 'Abrir plano y ver ubicación'}
-                                disabled={mm.missing}
-                              >
-                                {mm.nombre}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </td>
+                                  onClick={() => {
+                                    setSelectedId(a.id);
+                                    if (!mm.missing) {
+                                      setSelectedMapId(mm.id);
+                                      setShowAllMarkers(false);
+                                      setMarkerMode('none');
+                                      setMovingMarkerId(null);
+                                    }
+                                  }}
+                                  title={mm.missing ? 'Plano eliminado' : 'Abrir plano y ver ubicación'}
+                                  disabled={mm.missing}
+                                >
+                                  {mm.nombre}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                      )}
                       <td className="px-3 py-2 text-right">
                         <button
                           type="button"
@@ -960,6 +1054,78 @@ export function PlantAssetsView(props: { machineId: string | null }) {
 
           <div className="flex justify-end">
             <Button variant="secondary" onClick={() => setShowImport(false)} disabled={importing}>
+              Cerrar
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal Columnas + Export */}
+      <Modal isOpen={showColumnsExport} onClose={() => setShowColumnsExport(false)} title="Columnas y exportación" size="lg">
+        <div className="space-y-4">
+          <div className="text-sm text-gray-700 dark:text-gray-200">
+            Elige qué columnas ver en la tabla (queda guardado). La exportación usa el filtro/búsqueda y el orden actual.
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {ALL_COLUMNS.map((c) => (
+              <label key={c.key} className="flex items-center gap-2 p-2 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+                <input
+                  type="checkbox"
+                  checked={!!columnsEnabled[c.key]}
+                  onChange={(e) => setColumnsEnabled((prev) => ({ ...prev, [c.key]: e.target.checked }))}
+                />
+                <span className="text-sm text-gray-800 dark:text-gray-100">{c.label}</span>
+              </label>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <Button
+              variant="secondary"
+              onClick={() => setColumnsEnabled(getDefaultColumnsState())}
+              title="Volver a columnas por defecto"
+            >
+              Restaurar
+            </Button>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                onClick={async () => {
+                  const cols = visibleColumns.map((c) => c.key);
+                  await exportPlantAssetsToExcel(sorted, {
+                    filename: `motores_bombas_${new Date().toISOString().slice(0, 10)}`,
+                    columns: cols,
+                    getMarkersLabel
+                  });
+                }}
+                disabled={visibleColumns.length === 0 || sorted.length === 0}
+                title={sorted.length === 0 ? 'No hay filas para exportar' : undefined}
+              >
+                Exportar Excel
+              </Button>
+
+              <Button
+                variant="secondary"
+                onClick={async () => {
+                  const cols = visibleColumns.map((c) => c.key);
+                  await exportPlantAssetsToPDF(sorted, {
+                    filename: `motores_bombas_${new Date().toISOString().slice(0, 10)}`,
+                    columns: cols,
+                    getMarkersLabel
+                  });
+                }}
+                disabled={visibleColumns.length === 0 || sorted.length === 0}
+                title={sorted.length === 0 ? 'No hay filas para exportar' : undefined}
+              >
+                Exportar PDF
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <Button variant="secondary" onClick={() => setShowColumnsExport(false)}>
               Cerrar
             </Button>
           </div>

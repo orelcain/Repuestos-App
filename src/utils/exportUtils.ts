@@ -2,8 +2,138 @@ import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Repuesto, getTagNombre, isTagAsignado } from '../types';
+import { PlantAsset, Repuesto, getTagNombre, isTagAsignado } from '../types';
 import { preloadImagesWithDimensions, ImageData } from './imageUtils';
+
+// === EXPORT MOTORES / BOMBAS (ACTIVOS DE PLANTA) ===
+
+export type PlantAssetsColumnKey =
+  | 'tipo'
+  | 'area'
+  | 'subarea'
+  | 'codigoSAP'
+  | 'marca'
+  | 'relacionReduccion'
+  | 'marcadores';
+
+export interface PlantAssetsExportOptions {
+  filename?: string;
+  columns: PlantAssetsColumnKey[];
+  getMarkersLabel?: (asset: PlantAsset) => string;
+}
+
+const plantAssetsColumnHeader: Record<PlantAssetsColumnKey, string> = {
+  tipo: 'Tipo',
+  area: 'Área',
+  subarea: 'Subárea',
+  codigoSAP: 'SAP',
+  marca: 'Marca',
+  relacionReduccion: 'i',
+  marcadores: 'Marcadores'
+};
+
+export async function exportPlantAssetsToExcel(assets: PlantAsset[], options: PlantAssetsExportOptions) {
+  const { filename = 'motores_bombas', columns, getMarkersLabel } = options;
+
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'Baader 200 App';
+  workbook.created = new Date();
+
+  const ws = workbook.addWorksheet('Motores/Bombas');
+  ws.columns = columns.map((key) => ({
+    header: plantAssetsColumnHeader[key],
+    key,
+    width: key === 'marcadores' ? 45 : key === 'subarea' ? 26 : key === 'area' ? 22 : 16
+  }));
+
+  const headerRow = ws.getRow(1);
+  headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.primary } };
+  headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+  headerRow.height = 18;
+
+  assets.forEach((a, index) => {
+    const rowObj: Record<string, unknown> = {};
+    for (const key of columns) {
+      switch (key) {
+        case 'tipo':
+          rowObj[key] = (a.tipo || '').toUpperCase();
+          break;
+        case 'marcadores':
+          rowObj[key] = getMarkersLabel ? getMarkersLabel(a) : '';
+          break;
+        default:
+          rowObj[key] = (a as any)[key] ?? '';
+          break;
+      }
+    }
+
+    const row = ws.addRow(rowObj);
+    if (index % 2 === 1) {
+      row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.grayLight } };
+    }
+  });
+
+  ws.autoFilter = {
+    from: { row: 1, column: 1 },
+    to: { row: Math.max(1, assets.length + 1), column: Math.max(1, columns.length) }
+  };
+
+  ws.eachRow((row) => {
+    row.eachCell((cell) => {
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+        left: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+        bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+        right: { style: 'thin', color: { argb: 'FFE5E7EB' } }
+      };
+    });
+  });
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  saveAs(blob, `${filename}.xlsx`);
+}
+
+export async function exportPlantAssetsToPDF(assets: PlantAsset[], options: PlantAssetsExportOptions) {
+  const { filename = 'motores_bombas', columns, getMarkersLabel } = options;
+
+  const doc = new jsPDF('l', 'mm', 'a4');
+  const title = 'Motores / Bombas';
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(30, 64, 175);
+  doc.text(title, 14, 14);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 100, 100);
+  doc.text(`Fecha: ${new Date().toLocaleDateString('es-CL')}`, 14, 20);
+
+  const head = [columns.map((c) => plantAssetsColumnHeader[c])];
+  const body = assets.map((a) => {
+    return columns.map((key) => {
+      switch (key) {
+        case 'tipo':
+          return (a.tipo || '').toUpperCase();
+        case 'marcadores':
+          return getMarkersLabel ? getMarkersLabel(a) : '';
+        default:
+          return String((a as any)[key] ?? '');
+      }
+    });
+  });
+
+  autoTable(doc, {
+    head,
+    body,
+    startY: 26,
+    styles: { fontSize: 8, cellPadding: 2 },
+    headStyles: { fillColor: [30, 64, 175], textColor: [255, 255, 255] },
+    alternateRowStyles: { fillColor: [243, 244, 246] }
+  });
+
+  doc.save(`${filename}.pdf`);
+}
 
 // Formatear número con decimales solo si los tiene
 function formatNumber(num: number): string {

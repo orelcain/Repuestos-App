@@ -1,9 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.92';
+export const APP_VERSION = '4.9.93';
 
 // Historial de versiones
 // ⚠️ Importante: agrega SIEMPRE la versión más nueva ARRIBA (al inicio del array)
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.93',
+    date: '2026-01-04',
+    changes: [
+      'Motores: columnas persistentes + export Excel/PDF'
+    ]
+  },
   {
     version: '4.9.92',
     date: '2026-01-04',
