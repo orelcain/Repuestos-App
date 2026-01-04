@@ -692,17 +692,6 @@ export function PlantMapViewer(props: {
                 ) : null}
 
                 <div className="mt-2 flex items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    className="px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-gray-200"
-                    onClick={() => {
-                      setPinnedMarkerId(hoveredMarker.id);
-                      setPinnedPhotoIndex(0);
-                    }}
-                    title="Fijar este globo"
-                  >
-                    Fijar
-                  </button>
                   {onRequestMoveMarker && selectedAsset?.id === hoveredMarker.assetId && (
                     <button
                       type="button"
@@ -753,12 +742,17 @@ export function PlantMapViewer(props: {
           {/* Marcadores */}
           {markers.map((m) => {
             const isSelected = selectedAsset?.id === m.assetId;
+            const isSelectedMarker = selectedMarkerId === m.id;
             const canSelect = showAllMarkers && !!onSelectAsset;
             const isPinned = pinnedMarkerId === m.id;
             const isFocused = focusMarkerId === m.id;
 
-            const showWave = isPinned || isFocused;
-            const showHalo = isPinned || isFocused || isSelected;
+            // Ondas para el que está "activo":
+            // - pinned/focus siempre
+            // - si hay un selectedMarkerId, ese marcador
+            // - en "ver todos", el/los marcadores del asset seleccionado (para ubicarlo rápido)
+            const showWave = isPinned || isFocused || isSelectedMarker || (showAllMarkers && isSelected);
+            const showHalo = isPinned || isFocused || isSelectedMarker || isSelected;
             const haloClass = isPinned || isFocused ? 'bg-emerald-500/20' : 'bg-primary-600/20';
             const waveBorderClass = isPinned || isFocused ? 'border-emerald-400/45' : 'border-primary-400/45';
 
@@ -810,9 +804,12 @@ export function PlantMapViewer(props: {
                   // Click fija el globo. Si además estamos en "ver todos", selecciona el activo.
                   e.preventDefault();
                   e.stopPropagation();
-                  setPinnedMarkerId(m.id);
-                  setPinnedPhotoIndex(0);
-                  focusOnMarker(m);
+                  const willPin = pinnedMarkerId !== m.id;
+                  setPinnedMarkerId(willPin ? m.id : null);
+                  if (willPin) {
+                    setPinnedPhotoIndex(0);
+                    focusOnMarker(m);
+                  }
                   if (canSelect) {
                     onSelectAsset?.(m.assetId);
                   }
