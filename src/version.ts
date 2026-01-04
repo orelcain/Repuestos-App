@@ -1,9 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.98';
+export const APP_VERSION = '4.9.99';
 
 // Historial de versiones
 // ⚠️ Importante: agrega SIEMPRE la versión más nueva ARRIBA (al inicio del array)
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.99',
+    date: '2026-01-04',
+    changes: [
+      'Mejora mapas: precarga de planos + tooltip fijable con fotos + fix mover marcador + fallback export Excel'
+    ]
+  },
   {
     version: '4.9.98',
     date: '2026-01-04',

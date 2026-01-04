@@ -106,19 +106,32 @@ export async function exportPlantAssetsToExcel(assets: PlantAsset[], options: Pl
 
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+  // En algunos navegadores (especialmente Safari/PWA), la descarga puede fallar por restricciones de gesto de usuario.
+  // Mantener un fallback que al menos abra el archivo en una pestaña para poder guardarlo/compartirlo.
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+  const isSafari = /safari/i.test(ua) && !/chrome|chromium|android/i.test(ua);
+  const isIOS = /iPad|iPhone|iPod/i.test(ua);
+
   try {
+    if (isSafari || isIOS) throw new Error('force-fallback');
     saveAs(blob, `${filename}.xlsx`);
+    return;
   } catch {
-    // Fallback (mejor compatibilidad en algunos navegadores/PWA)
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${filename}.xlsx`;
-    a.rel = 'noopener';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    try {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${filename}.xlsx`;
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch {
+      // último recurso
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
   }
 }
 

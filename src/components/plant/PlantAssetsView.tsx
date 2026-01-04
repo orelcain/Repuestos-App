@@ -107,6 +107,26 @@ export function PlantAssetsView(props: { machineId: string | null }) {
   const { maps, createMap, updateMap, deleteMap } = usePlantMaps();
   const { uploadPlantMapImage, uploadPlantAssetImage, deleteByUrl } = usePlantStorage(machineId);
 
+  const preloadedMapUrlsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    // Precargar planos para que al cambiar de marcador/ubicación el plano ya esté cacheado.
+    // Evitamos repetir cargas con un Set en memoria.
+    for (const m of maps) {
+      const url = (m.imageUrl || '').trim();
+      if (!url) continue;
+      if (preloadedMapUrlsRef.current.has(url)) continue;
+      preloadedMapUrlsRef.current.add(url);
+      try {
+        const img = new Image();
+        img.decoding = 'async';
+        img.src = url;
+      } catch {
+        // ignore
+      }
+    }
+  }, [maps]);
+
   const splitContainerRef = useRef<HTMLDivElement>(null);
   const resizingRef = useRef<{
     active: boolean;

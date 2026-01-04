@@ -20,6 +20,15 @@ export function PlantMapViewer(props: {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [imgLoaded, setImgLoaded] = useState(false);
+  const [pinnedMarkerId, setPinnedMarkerId] = useState<string | null>(null);
+  const [pinnedPhotoIndex, setPinnedPhotoIndex] = useState(0);
+
+  useEffect(() => {
+    // Cuando cambia el plano, reseteamos el estado de carga.
+    setImgLoaded(false);
+    setPinnedMarkerId(null);
+    setPinnedPhotoIndex(0);
+  }, [map.id, map.imageUrl]);
 
   const [containerSize, setContainerSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
   const [hoveredMarkerId, setHoveredMarkerId] = useState<string | null>(null);
@@ -100,9 +109,17 @@ export function PlantMapViewer(props: {
         potencia?: string;
         voltaje?: string;
         imageUrl?: string;
+        images?: Array<{ url: string; descripcion?: string }>; // todas las fotos (ordenadas)
       }
     > => {
       const imageUrl = getPrimaryImageUrl(asset);
+      const images = (asset.imagenes || [])
+        .slice()
+        .sort((a, b) => {
+          if (!!a.esPrincipal !== !!b.esPrincipal) return a.esPrincipal ? -1 : 1;
+          return (a.orden ?? 0) - (b.orden ?? 0);
+        })
+        .map((i) => ({ url: i.url, descripcion: i.descripcion }));
       return (asset.marcadores || [])
         .filter((m) => m.mapId === map.id)
         .map((m) => ({
@@ -120,7 +137,8 @@ export function PlantMapViewer(props: {
           modeloTipo: asset.modeloTipo,
           potencia: asset.potencia,
           voltaje: asset.voltaje,
-          imageUrl: imageUrl || undefined
+          imageUrl: imageUrl || undefined,
+          images: images.length ? images : undefined
         }));
     };
 
@@ -137,6 +155,19 @@ export function PlantMapViewer(props: {
     return markers.find((m) => m.id === hoveredMarkerId) || null;
   }, [hoveredMarkerId, markers]);
 
+  const pinnedMarker = useMemo(() => {
+    if (!pinnedMarkerId) return null;
+    return markers.find((m) => m.id === pinnedMarkerId) || null;
+  }, [markers, pinnedMarkerId]);
+
+  useEffect(() => {
+    // Si el marcador fijado ya no existe (cambio de filtros/selección), soltarlo.
+    if (pinnedMarkerId && !markers.some((m) => m.id === pinnedMarkerId)) {
+      setPinnedMarkerId(null);
+      setPinnedPhotoIndex(0);
+    }
+  }, [markers, pinnedMarkerId]);
+
   const hoveredMarkerPos = useMemo(() => {
     if (!hoveredMarker) return null;
     if (!containerSize.w || !containerSize.h) return null;
@@ -144,6 +175,21 @@ export function PlantMapViewer(props: {
     const top = hoveredMarker.y * containerSize.h * scale + ty;
     return { left, top };
   }, [containerSize.h, containerSize.w, hoveredMarker, scale, tx, ty]);
+
+  const pinnedMarkerPos = useMemo(() => {
+    if (!pinnedMarker) return null;
+    if (!containerSize.w || !containerSize.h) return null;
+    const left = pinnedMarker.x * containerSize.w * scale + tx;
+    const top = pinnedMarker.y * containerSize.h * scale + ty;
+    return { left, top };
+  }, [containerSize.h, containerSize.w, pinnedMarker, scale, tx, ty]);
+
+  const formatField = (v?: string) => {
+    const s = String(v ?? '').trim();
+    if (!s) return '';
+    if (s.toLowerCase() === 'pendiente') return '';
+    return s;
+  };
 
   const handleClick = (e: React.MouseEvent) => {
     if (!addingMarker) return;
@@ -289,6 +335,120 @@ export function PlantMapViewer(props: {
         style={mode === 'embedded' ? { aspectRatio: '16 / 9', touchAction: 'none' } : { height: '80vh', touchAction: 'none' }}
         title={addingMarker ? (clickTitle || 'Click para colocar marcador') : 'Plano'}
       >
+        {/* Tooltip fijado (click) */}
+        {!addingMarker && pinnedMarker && pinnedMarkerPos && (
+          <div
+            className="absolute z-30"
+            style={{ left: pinnedMarkerPos.left, top: pinnedMarkerPos.top }}
+            onPointerDown={(e) => {
+              // Evitar que el drag/pan del mapa capture interacción con el tooltip
+              e.stopPropagation();
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="relative -translate-x-1/2 -translate-y-[calc(100%+10px)]">
+              <div className="bg-gray-900/95 dark:bg-gray-800 text-white rounded-lg border border-gray-700 shadow-lg px-3 py-2 text-xs w-[320px]">
+                <div className="flex items-start gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-primary-200">
+                      {pinnedMarker.tipo} • {pinnedMarker.codigoSAP}
+                    </div>
+                    <div className="mt-1 text-gray-200">
+                      {pinnedMarker.area} — {pinnedMarker.subarea}
+                    </div>
+                    {formatField(pinnedMarker.equipo) && <div className="mt-1 text-gray-200">Máquina/Cinta: {pinnedMarker.equipo}</div>}
+                  </div>
+                  <button
+                    type="button"
+                    className="p-1 rounded hover:bg-white/10 text-gray-200"
+                    title="Cerrar"
+                    onClick={() => {
+                      setPinnedMarkerId(null);
+                      setPinnedPhotoIndex(0);
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Foto(s) */}
+                {pinnedMarker.images && pinnedMarker.images.length > 0 && (
+                  <div className="mt-2 rounded border border-gray-700 overflow-hidden bg-black/20">
+                    <div className="relative">
+                      <img
+                        src={pinnedMarker.images[Math.max(0, Math.min(pinnedMarker.images.length - 1, pinnedPhotoIndex))].url}
+                        alt=""
+                        className="w-full h-36 object-cover"
+                        draggable={false}
+                      />
+                      {pinnedMarker.images.length > 1 && (
+                        <div className="absolute inset-x-0 bottom-0 flex items-center justify-between p-1 bg-black/40">
+                          <button
+                            type="button"
+                            className="px-2 py-1 rounded bg-white/10 hover:bg-white/20"
+                            onClick={() => setPinnedPhotoIndex((i) => (i - 1 + pinnedMarker.images!.length) % pinnedMarker.images!.length)}
+                            title="Anterior"
+                          >
+                            ‹
+                          </button>
+                          <div className="text-[11px] text-gray-200">
+                            {pinnedPhotoIndex + 1}/{pinnedMarker.images.length}
+                          </div>
+                          <button
+                            type="button"
+                            className="px-2 py-1 rounded bg-white/10 hover:bg-white/20"
+                            onClick={() => setPinnedPhotoIndex((i) => (i + 1) % pinnedMarker.images!.length)}
+                            title="Siguiente"
+                          >
+                            ›
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Info ordenada */}
+                <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-gray-200">
+                  {formatField(pinnedMarker.marca) && (
+                    <div>
+                      <span className="text-gray-400">Marca:</span> {pinnedMarker.marca}
+                    </div>
+                  )}
+                  {formatField(pinnedMarker.modeloTipo) && (
+                    <div>
+                      <span className="text-gray-400">Modelo:</span> {pinnedMarker.modeloTipo}
+                    </div>
+                  )}
+                  {formatField(pinnedMarker.potencia) && (
+                    <div>
+                      <span className="text-gray-400">Potencia:</span> {pinnedMarker.potencia}
+                    </div>
+                  )}
+                  {formatField(pinnedMarker.voltaje) && (
+                    <div>
+                      <span className="text-gray-400">Voltaje:</span> {pinnedMarker.voltaje}
+                    </div>
+                  )}
+                  {formatField(pinnedMarker.componente) && (
+                    <div className="col-span-2">
+                      <span className="text-gray-400">Componente:</span> {pinnedMarker.componente}
+                    </div>
+                  )}
+                  {formatField(pinnedMarker.descripcionSAP) && (
+                    <div className="col-span-2">
+                      <span className="text-gray-400">SAP:</span> <span className="line-clamp-2">{pinnedMarker.descripcionSAP}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="absolute left-1/2 top-full -translate-x-1/2">
+                <div className="w-0 h-0 border-x-[7px] border-x-transparent border-t-[8px] border-t-gray-900/95 dark:border-t-gray-800" />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Tooltip hover (no se escala con zoom/pan) */}
         {!addingMarker && hoveredMarker && hoveredMarkerPos && (
           <div
@@ -358,30 +518,47 @@ export function PlantMapViewer(props: {
           {markers.map((m) => {
             const isSelected = selectedAsset?.id === m.assetId;
             const canSelect = showAllMarkers && !!onSelectAsset;
+
+            // En modo agregar/mover, NO queremos que los marcadores intercepten clicks (mejora mover marcador).
+            if (addingMarker) {
+              return (
+                <div
+                  key={m.id}
+                  className={
+                    `absolute pointer-events-none -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary-600 ring-2 ring-white dark:ring-gray-900 ` +
+                    (isSelected ? 'w-4 h-4' : 'w-3 h-3')
+                  }
+                  style={{ left: `${m.x * 100}%`, top: `${m.y * 100}%` }}
+                />
+              );
+            }
+
             return (
               <button
                 key={m.id}
                 type="button"
                 onClick={(e) => {
-                  if (!canSelect) return;
+                  // Click fija el globo. Si además estamos en "ver todos", selecciona el activo.
                   e.preventDefault();
                   e.stopPropagation();
-                  onSelectAsset?.(m.assetId);
+                  setPinnedMarkerId(m.id);
+                  setPinnedPhotoIndex(0);
+                  if (canSelect) {
+                    onSelectAsset?.(m.assetId);
+                  }
                 }}
                 onMouseEnter={() => {
-                  if (addingMarker) return;
                   setHoveredMarkerId(m.id);
                 }}
                 onMouseLeave={() => setHoveredMarkerId(null)}
                 onFocus={() => {
-                  if (addingMarker) return;
                   setHoveredMarkerId(m.id);
                 }}
                 onBlur={() => setHoveredMarkerId(null)}
                 className={
                   `absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary-600 ring-2 ring-white dark:ring-gray-900 ` +
                   (isSelected ? 'w-4 h-4' : 'w-3 h-3') +
-                  (canSelect ? ' cursor-pointer hover:scale-110 transition-transform' : ' cursor-default')
+                  ' cursor-pointer hover:scale-110 transition-transform'
                 }
                 style={{ left: `${m.x * 100}%`, top: `${m.y * 100}%` }}
                 title={m.assetLabel}
