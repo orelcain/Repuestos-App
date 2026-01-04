@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PlantAsset, PlantMap, PlantMarker } from '../../types';
 
 type ViewerMode = 'embedded' | 'fullscreen';
@@ -20,6 +20,28 @@ export function PlantMapViewer(props: {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [imgLoaded, setImgLoaded] = useState(false);
+
+  const [containerSize, setContainerSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+  const [hoveredMarkerId, setHoveredMarkerId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const el = containerRef.current;
+
+    const update = () => {
+      const rect = el.getBoundingClientRect();
+      setContainerSize({ w: rect.width, h: rect.height });
+    };
+
+    update();
+    const ro = new ResizeObserver(() => update());
+    ro.observe(el);
+    window.addEventListener('resize', update);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', update);
+    };
+  }, []);
 
   // Zoom/pan state
   const [scale, setScale] = useState(1);
@@ -50,13 +72,41 @@ export function PlantMapViewer(props: {
   };
 
   const markers = useMemo(() => {
-    const pickMarkers = (asset: PlantAsset): Array<PlantMarker & { assetId: string; assetLabel: string }> => {
+    const getPrimaryImageUrl = (asset: PlantAsset) => {
+      const imgs = (asset.imagenes || []).slice();
+      if (imgs.length === 0) return '';
+      imgs.sort((a, b) => {
+        if (!!a.esPrincipal !== !!b.esPrincipal) return a.esPrincipal ? -1 : 1;
+        return (a.orden ?? 0) - (b.orden ?? 0);
+      });
+      return imgs[0]?.url || '';
+    };
+
+    const pickMarkers = (
+      asset: PlantAsset
+    ): Array<
+      PlantMarker & {
+        assetId: string;
+        assetLabel: string;
+        codigoSAP: string;
+        tipo: string;
+        area: string;
+        subarea: string;
+        imageUrl?: string;
+      }
+    > => {
+      const imageUrl = getPrimaryImageUrl(asset);
       return (asset.marcadores || [])
         .filter((m) => m.mapId === map.id)
         .map((m) => ({
           ...m,
           assetId: asset.id,
-          assetLabel: `${asset.tipo.toUpperCase()} • ${asset.codigoSAP}`
+          assetLabel: `${asset.tipo.toUpperCase()} • ${asset.codigoSAP}`,
+          codigoSAP: asset.codigoSAP,
+          tipo: asset.tipo.toUpperCase(),
+          area: asset.area,
+          subarea: asset.subarea,
+          imageUrl: imageUrl || undefined
         }));
     };
 
@@ -67,6 +117,19 @@ export function PlantMapViewer(props: {
     if (!selectedAsset) return [];
     return pickMarkers(selectedAsset);
   }, [allAssets, map.id, selectedAsset, showAllMarkers]);
+
+  const hoveredMarker = useMemo(() => {
+    if (!hoveredMarkerId) return null;
+    return markers.find((m) => m.id === hoveredMarkerId) || null;
+  }, [hoveredMarkerId, markers]);
+
+  const hoveredMarkerPos = useMemo(() => {
+    if (!hoveredMarker) return null;
+    if (!containerSize.w || !containerSize.h) return null;
+    const left = hoveredMarker.x * containerSize.w * scale + tx;
+    const top = hoveredMarker.y * containerSize.h * scale + ty;
+    return { left, top };
+  }, [containerSize.h, containerSize.w, hoveredMarker, scale, tx, ty]);
 
   const handleClick = (e: React.MouseEvent) => {
     if (!addingMarker) return;
@@ -212,6 +275,33 @@ export function PlantMapViewer(props: {
         style={mode === 'embedded' ? { aspectRatio: '16 / 9', touchAction: 'none' } : { height: '80vh', touchAction: 'none' }}
         title={addingMarker ? (clickTitle || 'Click para colocar marcador') : 'Plano'}
       >
+        {/* Tooltip hover (no se escala con zoom/pan) */}
+        {!addingMarker && hoveredMarker && hoveredMarkerPos && (
+          <div
+            className="absolute z-20 pointer-events-none"
+            style={{ left: hoveredMarkerPos.left, top: hoveredMarkerPos.top }}
+          >
+            <div className="relative -translate-x-1/2 -translate-y-[calc(100%+10px)]">
+              <div className="bg-gray-900/95 dark:bg-gray-800 text-white rounded-lg border border-gray-700 shadow-lg px-3 py-2 text-xs w-[260px]">
+                <div className="font-semibold text-primary-200">
+                  {hoveredMarker.tipo} • {hoveredMarker.codigoSAP}
+                </div>
+                <div className="mt-1 text-gray-200">
+                  {hoveredMarker.area} — {hoveredMarker.subarea}
+                </div>
+                {hoveredMarker.imageUrl && (
+                  <div className="mt-2 rounded border border-gray-700 overflow-hidden bg-black/20">
+                    <img src={hoveredMarker.imageUrl} alt="" className="w-full h-24 object-cover" draggable={false} />
+                  </div>
+                )}
+              </div>
+              <div className="absolute left-1/2 top-full -translate-x-1/2">
+                <div className="w-0 h-0 border-x-[7px] border-x-transparent border-t-[8px] border-t-gray-900/95 dark:border-t-gray-800" />
+              </div>
+            </div>
+          </div>
+        )}
+
         <div
           className="absolute inset-0"
           style={{
@@ -244,6 +334,16 @@ export function PlantMapViewer(props: {
                   e.stopPropagation();
                   onSelectAsset?.(m.assetId);
                 }}
+                onMouseEnter={() => {
+                  if (addingMarker) return;
+                  setHoveredMarkerId(m.id);
+                }}
+                onMouseLeave={() => setHoveredMarkerId(null)}
+                onFocus={() => {
+                  if (addingMarker) return;
+                  setHoveredMarkerId(m.id);
+                }}
+                onBlur={() => setHoveredMarkerId(null)}
                 className={
                   `absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary-600 ring-2 ring-white dark:ring-gray-900 ` +
                   (isSelected ? 'w-4 h-4' : 'w-3 h-3') +

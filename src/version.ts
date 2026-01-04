@@ -1,9 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.91';
+export const APP_VERSION = '4.9.92';
 
 // Historial de versiones
 // ⚠️ Importante: agrega SIEMPRE la versión más nueva ARRIBA (al inicio del array)
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.92',
+    date: '2026-01-04',
+    changes: [
+      'Mapas: tooltip hover con foto'
+    ]
+  },
   {
     version: '4.9.91',
     date: '2026-01-04',
