@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, Maximize2, Pencil, Plus, Upload, Trash2, MapPin, X, Download } from 'lucide-react';
 import type { PlantAsset, PlantAssetTipo, PlantMap } from '../../types';
 import { Button, Modal } from '../ui';
@@ -106,6 +106,77 @@ export function PlantAssetsView(props: { machineId: string | null }) {
   const { assets, loading, error, upsertMany, addMarker, addReferencia, deleteReferencia, addImagen, deleteImagen, updateAsset, createAsset } = usePlantAssets();
   const { maps, createMap, updateMap, deleteMap } = usePlantMaps();
   const { uploadPlantMapImage, uploadPlantAssetImage, deleteByUrl } = usePlantStorage(machineId);
+
+  const splitContainerRef = useRef<HTMLDivElement>(null);
+  const resizingRef = useRef<{
+    active: boolean;
+    startX: number;
+    startWidth: number;
+  }>({ active: false, startX: 0, startWidth: 0 });
+
+  const [isDesktop, setIsDesktop] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia?.('(min-width: 768px)')?.matches ?? false;
+  });
+
+  const splitStorageKey = useMemo(() => 'plant_assets_split_left_px_v1', []);
+  const [leftPaneWidthPx, setLeftPaneWidthPx] = useState<number | null>(() => {
+    try {
+      const raw = localStorage.getItem('plant_assets_split_left_px_v1');
+      if (!raw) return null;
+      const n = Number(raw);
+      return Number.isFinite(n) && n > 0 ? n : null;
+    } catch {
+      return null;
+    }
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mq = window.matchMedia('(min-width: 768px)');
+    const onChange = () => setIsDesktop(mq.matches);
+    onChange();
+    mq.addEventListener?.('change', onChange);
+    return () => mq.removeEventListener?.('change', onChange);
+  }, []);
+
+  useEffect(() => {
+    const onPointerMove = (e: PointerEvent) => {
+      if (!resizingRef.current.active) return;
+      if (!splitContainerRef.current) return;
+
+      const rect = splitContainerRef.current.getBoundingClientRect();
+      const delta = e.clientX - resizingRef.current.startX;
+      const proposed = resizingRef.current.startWidth + delta;
+
+      // Clamp: dejar espacio razonable para el panel derecho
+      const minLeft = 360;
+      const maxLeft = Math.max(minLeft, rect.width - 420);
+      const next = Math.max(minLeft, Math.min(maxLeft, proposed));
+      setLeftPaneWidthPx(next);
+    };
+
+    const onPointerUp = () => {
+      if (!resizingRef.current.active) return;
+      resizingRef.current.active = false;
+      try {
+        if (leftPaneWidthPx) {
+          localStorage.setItem(splitStorageKey, String(Math.round(leftPaneWidthPx)));
+        }
+      } catch {
+        // ignore
+      }
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    return () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+    };
+  }, [leftPaneWidthPx, splitStorageKey]);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = useMemo(() => assets.find((a) => a.id === selectedId) || null, [assets, selectedId]);
@@ -525,9 +596,12 @@ export function PlantAssetsView(props: { machineId: string | null }) {
   };
 
   return (
-    <div className="flex-1 flex overflow-hidden">
+    <div ref={splitContainerRef} className="flex-1 flex overflow-hidden">
       {/* Listado */}
-      <div className="w-full md:w-3/5 lg:w-3/5 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex flex-col">
+      <div
+        className="w-full md:flex-none bg-white dark:bg-gray-900 flex flex-col"
+        style={isDesktop && leftPaneWidthPx ? { width: leftPaneWidthPx } : undefined}
+      >
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between gap-2">
             <div className="font-semibold text-gray-900 dark:text-gray-100">Motores / Bombas</div>
@@ -717,6 +791,37 @@ export function PlantAssetsView(props: { machineId: string | null }) {
             {sorted.length === 0 && <div className="p-6 text-sm text-gray-500">Sin resultados.</div>}
           </div>
         )}
+      </div>
+
+      {/* Splitter (desktop) */}
+      <div
+        className="hidden md:flex w-3 relative cursor-col-resize select-none"
+        onPointerDown={(e) => {
+          if (!isDesktop) return;
+          if (!splitContainerRef.current) return;
+          const rect = splitContainerRef.current.getBoundingClientRect();
+          // Si no hay width guardado, usar 60% del contenedor como base al empezar a arrastrar
+          const base = leftPaneWidthPx ?? Math.round(rect.width * 0.6);
+          resizingRef.current = {
+            active: true,
+            startX: e.clientX,
+            startWidth: base
+          };
+          setLeftPaneWidthPx(base);
+          document.body.style.userSelect = 'none';
+          document.body.style.cursor = 'col-resize';
+        }}
+        onDoubleClick={() => {
+          setLeftPaneWidthPx(null);
+          try {
+            localStorage.removeItem(splitStorageKey);
+          } catch {
+            // ignore
+          }
+        }}
+        title="Arrastra para ajustar el ancho (doble click para reset)"
+      >
+        <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-gray-200 dark:bg-gray-700" />
       </div>
 
       {/* Detalle */}
