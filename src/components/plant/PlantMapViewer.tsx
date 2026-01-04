@@ -743,6 +743,8 @@ export function PlantMapViewer(props: {
             const isFocused = focusMarkerId === m.id;
 
             const markerScale = markerVisualScaleBase * (isSelected ? 1.25 : 1);
+            const basePx = isSelected ? 12 : 8;
+            const sizePx = Math.max(4, basePx * markerScale);
 
             // En modo agregar/mover, NO queremos que los marcadores intercepten clicks (mejora mover marcador).
             if (addingMarker) {
@@ -753,7 +755,7 @@ export function PlantMapViewer(props: {
                     `absolute pointer-events-none rounded-full bg-primary-600 ring-2 ring-white dark:ring-gray-900 ` +
                     (isSelected ? 'w-3 h-3' : 'w-2 h-2')
                   }
-                  style={{ left: `${m.x * 100}%`, top: `${m.y * 100}%`, transform: `translate(-50%, -50%) scale(${markerScale})` }}
+                  style={{ left: `${m.x * 100}%`, top: `${m.y * 100}%`, width: sizePx, height: sizePx, transform: 'translate(-50%, -50%)' }}
                 />
               );
             }
@@ -788,7 +790,7 @@ export function PlantMapViewer(props: {
                   (isSelected ? 'w-3 h-3' : 'w-2 h-2') +
                   ' cursor-pointer transition-opacity hover:opacity-90'
                 }
-                style={{ left: `${m.x * 100}%`, top: `${m.y * 100}%`, transform: `translate(-50%, -50%) scale(${markerScale})` }}
+                style={{ left: `${m.x * 100}%`, top: `${m.y * 100}%`, width: sizePx, height: sizePx, transform: 'translate(-50%, -50%)' }}
                 title={m.assetLabel}
               />
             );
