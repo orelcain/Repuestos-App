@@ -345,15 +345,24 @@ export function PlantAssetsView(props: { machineId: string | null }) {
   }, [selectedId, selectedMapId]);
 
   useEffect(() => {
-    // Si el motor seleccionado tiene marcadores pero no en el plano actual,
-    // cambiar automáticamente al primer plano donde esté marcado.
+    // Auto-cambio de plano SOLO cuando no hay plano seleccionado o el plano actual no existe.
+    // Importante: no debe bloquear la selección manual de otro plano (ej: Exteriores).
     if (!selected) return;
+
+    const currentExists = !!selectedMapId && maps.some((m) => m.id === selectedMapId);
+    if (selectedMapId && currentExists) return;
+
     const ids = Array.from(new Set((selected.marcadores || []).map((mm) => mm.mapId).filter(Boolean)));
-    if (ids.length === 0) return;
-    if (!selectedMapId || !ids.includes(selectedMapId)) {
+    if (ids.length > 0) {
       const firstExisting = ids.find((id) => maps.some((m) => m.id === id)) || ids[0];
       setSelectedMapId(firstExisting);
       setShowAllMarkers(false);
+      return;
+    }
+
+    // Si no tiene marcadores, pero aún no hay plano seleccionado, dejamos el primero disponible.
+    if (!selectedMapId && maps.length > 0) {
+      setSelectedMapId(maps[0].id);
     }
   }, [maps, selected, selectedMapId]);
 

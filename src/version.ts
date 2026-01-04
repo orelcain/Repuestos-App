@@ -1,9 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.101';
+export const APP_VERSION = '4.9.102';
 
 // Historial de versiones
 // ⚠️ Importante: agrega SIEMPRE la versión más nueva ARRIBA (al inicio del array)
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.102',
+    date: '2026-01-04',
+    changes: [
+      'Fix selector de planos: no bloquear selección manual'
+    ]
+  },
   {
     version: '4.9.101',
     date: '2026-01-04',
