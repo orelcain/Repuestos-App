@@ -1,9 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.108';
+export const APP_VERSION = '4.9.109';
 
 // Historial de versiones
 // ⚠️ Importante: agrega SIEMPRE la versión más nueva ARRIBA (al inicio del array)
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.109',
+    date: '2026-01-04',
+    changes: [
+      'Mover marcador desde globo + fotos en hover'
+    ]
+  },
   {
     version: '4.9.108',
     date: '2026-01-04',

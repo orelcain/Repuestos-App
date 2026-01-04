@@ -1154,27 +1154,6 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
               >
                 {markerMode === 'add' ? 'Click en el plano...' : 'Agregar marcador'}
               </Button>
-
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => {
-                  if (!selected || !selectedMapId) return;
-                  // Si solo tiene 1 marcador en este plano, lo preseleccionamos.
-                  const inMap = (selected.marcadores || []).filter((m) => m.mapId === selectedMapId);
-                  if (inMap.length === 1) {
-                    setMovingMarkerId(inMap[0].id);
-                    setMarkerMode('move');
-                    return;
-                  }
-                  // Si hay varios, dejamos que el usuario elija abajo.
-                  setMarkerMode('move');
-                }}
-                disabled={!selected || !selectedMapId || (selected?.marcadores || []).filter((m) => m.mapId === selectedMapId).length === 0}
-                title={!selected ? 'Selecciona un motor/bomba' : 'Mover marcador existente'}
-              >
-                {markerMode === 'move' ? 'Click para mover...' : 'Mover marcador'}
-              </Button>
             </div>
 
             {selected && (selected.marcadores || []).length > 0 && (
@@ -1219,6 +1198,12 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
                   addingMarker={addingMarker}
                   onAddMarker={handleMapClick}
                   onSelectAsset={(assetId) => setSelectedId(assetId)}
+                  onRequestMoveMarker={({ markerId }) => {
+                    setShowAllMarkers(false);
+                    setSelectedMarkerId(markerId);
+                    setMovingMarkerId(markerId);
+                    setMarkerMode('move');
+                  }}
                   focusMarkerId={markerMode === 'move' ? movingMarkerId : null}
                   clickTitle={markerMode === 'add' ? 'Click para agregar marcador' : markerMode === 'move' ? 'Click para mover marcador' : undefined}
                 />
@@ -2125,6 +2110,12 @@ export function PlantAssetsView(props: { machineId: string | null; focusAssetId?
               addingMarker={addingMarker}
               onAddMarker={handleMapClick}
               onSelectAsset={(assetId) => setSelectedId(assetId)}
+              onRequestMoveMarker={({ markerId }) => {
+                setShowAllMarkers(false);
+                setSelectedMarkerId(markerId);
+                setMovingMarkerId(markerId);
+                setMarkerMode('move');
+              }}
               focusMarkerId={markerMode === 'move' ? movingMarkerId : null}
               mode="fullscreen"
               clickTitle={markerMode === 'add' ? 'Click para agregar marcador' : markerMode === 'move' ? 'Click para mover marcador' : undefined}

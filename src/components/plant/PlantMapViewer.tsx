@@ -37,10 +37,11 @@ export function PlantMapViewer(props: {
   onSelectAsset?: (assetId: string) => void;
   focusMarkerId?: string | null;
   selectedMarkerId?: string | null;
+  onRequestMoveMarker?: (args: { markerId: string; assetId: string }) => void;
   mode?: ViewerMode;
   clickTitle?: string;
 }) {
-  const { map, selectedAsset, allAssets, showAllMarkers, addingMarker, onAddMarker, onSelectAsset, focusMarkerId = null, selectedMarkerId = null, mode = 'embedded', clickTitle } = props;
+  const { map, selectedAsset, allAssets, showAllMarkers, addingMarker, onAddMarker, onSelectAsset, focusMarkerId = null, selectedMarkerId = null, onRequestMoveMarker, mode = 'embedded', clickTitle } = props;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const focusZoomScale = useMemo(() => {
@@ -52,6 +53,7 @@ export function PlantMapViewer(props: {
   const [imgNatural, setImgNatural] = useState<{ w: number; h: number } | null>(null);
   const [pinnedMarkerId, setPinnedMarkerId] = useState<string | null>(null);
   const [pinnedPhotoIndex, setPinnedPhotoIndex] = useState(0);
+  const [hoveredPhotoIndex, setHoveredPhotoIndex] = useState(0);
 
   useEffect(() => {
     // Cuando cambia el plano, reseteamos el estado de carga.
@@ -59,10 +61,15 @@ export function PlantMapViewer(props: {
     setImgNatural(null);
     setPinnedMarkerId(null);
     setPinnedPhotoIndex(0);
+    setHoveredPhotoIndex(0);
   }, [map.id, map.imageUrl]);
 
   const [containerSize, setContainerSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
   const [hoveredMarkerId, setHoveredMarkerId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setHoveredPhotoIndex(0);
+  }, [hoveredMarkerId]);
 
   const fit = useMemo(() => {
     const cw = containerSize.w;
@@ -477,6 +484,16 @@ export function PlantMapViewer(props: {
                       {pinnedMarker.area} — {pinnedMarker.subarea}
                     </div>
                   </div>
+                  {onRequestMoveMarker && selectedAsset?.id === pinnedMarker.assetId && (
+                    <button
+                      type="button"
+                      className="px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-gray-200"
+                      title="Mover este marcador"
+                      onClick={() => onRequestMoveMarker({ markerId: pinnedMarker.id, assetId: pinnedMarker.assetId })}
+                    >
+                      Mover
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="p-1 rounded hover:bg-white/10 text-gray-200"
@@ -584,10 +601,14 @@ export function PlantMapViewer(props: {
         )}
 
         {/* Tooltip hover (no se escala con zoom/pan) */}
-        {!addingMarker && hoveredMarker && hoveredMarkerPos && (
+        {!addingMarker && !pinnedMarker && hoveredMarker && hoveredMarkerPos && (
           <div
-            className="absolute z-20 pointer-events-none"
+            className="absolute z-20 pointer-events-auto"
             style={{ left: hoveredMarkerPos.left, top: hoveredMarkerPos.top }}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+            }}
+            onClick={(e) => e.stopPropagation()}
           >
             <div className="relative -translate-x-1/2 -translate-y-[calc(100%+10px)]">
               <div className="bg-gray-900/95 dark:bg-gray-800 text-white rounded-lg border border-gray-700 shadow-lg px-3 py-2 text-xs w-[260px]">
@@ -614,11 +635,70 @@ export function PlantMapViewer(props: {
                 {String(hoveredMarker.descripcionSAP || '').trim() && String(hoveredMarker.descripcionSAP || '').toLowerCase() !== 'pendiente' && (
                   <div className="mt-1 text-gray-300 line-clamp-2">{hoveredMarker.descripcionSAP}</div>
                 )}
-                {hoveredMarker.imageUrl && (
+
+                {hoveredMarker.images && hoveredMarker.images.length > 0 ? (
+                  <div className="mt-2 rounded border border-gray-700 overflow-hidden bg-black/20">
+                    <div className="relative">
+                      <img
+                        src={hoveredMarker.images[Math.max(0, Math.min(hoveredMarker.images.length - 1, hoveredPhotoIndex))].url}
+                        alt=""
+                        className="w-full h-24 object-cover"
+                        draggable={false}
+                      />
+                      {hoveredMarker.images.length > 1 && (
+                        <div className="absolute inset-x-0 bottom-0 flex items-center justify-between p-1 bg-black/40">
+                          <button
+                            type="button"
+                            className="px-2 py-1 rounded bg-white/10 hover:bg-white/20"
+                            onClick={() => setHoveredPhotoIndex((i) => (i - 1 + hoveredMarker.images!.length) % hoveredMarker.images!.length)}
+                            title="Anterior"
+                          >
+                            ‹
+                          </button>
+                          <div className="text-[11px] text-gray-200">
+                            {hoveredPhotoIndex + 1}/{hoveredMarker.images.length}
+                          </div>
+                          <button
+                            type="button"
+                            className="px-2 py-1 rounded bg-white/10 hover:bg-white/20"
+                            onClick={() => setHoveredPhotoIndex((i) => (i + 1) % hoveredMarker.images!.length)}
+                            title="Siguiente"
+                          >
+                            ›
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : hoveredMarker.imageUrl ? (
                   <div className="mt-2 rounded border border-gray-700 overflow-hidden bg-black/20">
                     <img src={hoveredMarker.imageUrl} alt="" className="w-full h-24 object-cover" draggable={false} />
                   </div>
-                )}
+                ) : null}
+
+                <div className="mt-2 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    className="px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-gray-200"
+                    onClick={() => {
+                      setPinnedMarkerId(hoveredMarker.id);
+                      setPinnedPhotoIndex(0);
+                    }}
+                    title="Fijar este globo"
+                  >
+                    Fijar
+                  </button>
+                  {onRequestMoveMarker && selectedAsset?.id === hoveredMarker.assetId && (
+                    <button
+                      type="button"
+                      className="px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-gray-200"
+                      onClick={() => onRequestMoveMarker({ markerId: hoveredMarker.id, assetId: hoveredMarker.assetId })}
+                      title="Mover este marcador"
+                    >
+                      Mover
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="absolute left-1/2 top-full -translate-x-1/2">
                 <div className="w-0 h-0 border-x-[7px] border-x-transparent border-t-[8px] border-t-gray-900/95 dark:border-t-gray-800" />
