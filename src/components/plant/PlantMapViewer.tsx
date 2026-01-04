@@ -448,6 +448,17 @@ export function PlantMapViewer(props: {
     if (pts === 0) dragRef.current.active = false;
   };
 
+  const handleCenter = () => {
+    if (!showAllMarkers && selectedMarkerId) {
+      const m = markers.find((mm) => mm.id === selectedMarkerId);
+      if (m) {
+        focusOnMarker(m, { zoomInScale: focusZoomScale });
+        return;
+      }
+    }
+    resetView();
+  };
+
   return (
     <div className="flex flex-col gap-2">
       <div
@@ -895,19 +906,15 @@ export function PlantMapViewer(props: {
               // El contenedor captura pointer para pan/zoom; si no frenamos esto,
               // el botón puede iniciar drag y el click no llega.
               e.stopPropagation();
+              e.preventDefault();
+              handleCenter();
             }}
             onPointerMove={(e) => e.stopPropagation()}
             onPointerUp={(e) => e.stopPropagation()}
             onClick={(e) => {
+              // Fallback por si algún navegador no dispara pointerdown en algunos escenarios.
               e.stopPropagation();
-              if (!showAllMarkers && selectedMarkerId) {
-                const m = markers.find((mm) => mm.id === selectedMarkerId);
-                if (m) {
-                  focusOnMarker(m, { zoomInScale: focusZoomScale });
-                  return;
-                }
-              }
-              resetView();
+              handleCenter();
             }}
             title={!showAllMarkers && selectedMarkerId ? 'Centrar en el marcador' : 'Centrar el plano'}
           >
