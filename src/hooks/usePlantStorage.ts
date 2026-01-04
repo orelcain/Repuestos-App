@@ -9,10 +9,16 @@ const newId = () => {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 };
 
-export function usePlantStorage() {
+export function usePlantStorage(machineId: string | null) {
+  const requireMachineId = () => {
+    if (!machineId) throw new Error('Machine ID is required');
+    return machineId;
+  };
+
   const uploadPlantMapImage = async (file: File, mapId: string) => {
+    const mid = requireMachineId();
     const id = newId();
-    const path = `plantMaps/${mapId}/${id}-${safeFileName(file.name)}`;
+    const path = `machines/${mid}/plantMaps/${mapId}/${id}-${safeFileName(file.name)}`;
     const storageRef = ref(storage, path);
     await uploadBytes(storageRef, file);
     const url = await getDownloadURL(storageRef);
@@ -20,8 +26,9 @@ export function usePlantStorage() {
   };
 
   const uploadPlantAssetImage = async (file: File, assetId: string) => {
+    const mid = requireMachineId();
     const id = newId();
-    const path = `plantAssets/${assetId}/imagenes/${id}-${safeFileName(file.name)}`;
+    const path = `machines/${mid}/plantAssets/${assetId}/imagenes/${id}-${safeFileName(file.name)}`;
     const storageRef = ref(storage, path);
     await uploadBytes(storageRef, file);
     const url = await getDownloadURL(storageRef);

@@ -1692,7 +1692,7 @@ export function Dashboard() {
             <div className="flex-1 flex overflow-hidden">
               {mainView === 'motores' ? (
                 <div className="flex-1 overflow-hidden">
-                  <PlantAssetsView />
+                  <PlantAssetsView machineId={machineId} />
                 </div>
               ) : mainView === 'reportes' ? (
             <div className="flex-1 overflow-hidden">

@@ -34,10 +34,11 @@ const isValidComponentRow = (componente: string) => {
   return norm.includes('motor') || norm.includes('bomba');
 };
 
-export function PlantAssetsView() {
+export function PlantAssetsView(props: { machineId: string | null }) {
+  const { machineId } = props;
   const { assets, loading, error, upsertMany, addMarker, addReferencia, deleteReferencia, addImagen, deleteImagen } = usePlantAssets();
-  const { maps, createMap } = usePlantMaps();
-  const { uploadPlantMapImage, uploadPlantAssetImage } = usePlantStorage();
+  const { maps, createMap, updateMap, deleteMap } = usePlantMaps();
+  const { uploadPlantMapImage, uploadPlantAssetImage } = usePlantStorage(machineId);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = useMemo(() => assets.find((a) => a.id === selectedId) || null, [assets, selectedId]);
@@ -151,18 +152,28 @@ export function PlantAssetsView() {
   const handleCreateMap = async () => {
     if (!newMapName.trim()) return;
     if (!newMapFile) return;
+    if (!machineId) return;
 
     setCreatingMap(true);
+    let mapId: string | null = null;
     try {
-      // Crear doc primero (necesitamos mapId para ruta)
-      const tempId = 'tmp';
-      const upload = await uploadPlantMapImage(newMapFile, tempId);
-      const mapId = await createMap({ nombre: newMapName.trim(), imageUrl: upload.url });
-      // Re-subir a ruta definitiva (mantenerlo simple por ahora: dejamos el archivo donde está)
+      // Crear doc primero (necesitamos mapId para ruta de Storage)
+      mapId = await createMap({ nombre: newMapName.trim(), imageUrl: '' });
+      const upload = await uploadPlantMapImage(newMapFile, mapId);
+      await updateMap(mapId, { imageUrl: upload.url });
       setSelectedMapId(mapId);
       setShowAddMap(false);
       setNewMapName('');
       setNewMapFile(null);
+    } catch (e) {
+      if (mapId) {
+        try {
+          await deleteMap(mapId);
+        } catch {
+          // ignore
+        }
+      }
+      throw e;
     } finally {
       setCreatingMap(false);
     }
