@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { AlertCircle, Plus, Upload, Trash2, MapPin, X } from 'lucide-react';
+import { AlertCircle, Maximize2, Plus, Upload, Trash2, MapPin, X } from 'lucide-react';
 import type { PlantAsset, PlantAssetTipo } from '../../types';
 import { Button, Modal } from '../ui';
 import { usePlantAssets } from '../../hooks/usePlantAssets';
@@ -72,6 +72,8 @@ export function PlantAssetsView(props: { machineId: string | null }) {
 
   const [showDeleteMap, setShowDeleteMap] = useState(false);
   const [deletingMap, setDeletingMap] = useState(false);
+
+  const [showMapFullscreen, setShowMapFullscreen] = useState(false);
 
   const [newRefTitle, setNewRefTitle] = useState('');
   const [newRefUrl, setNewRefUrl] = useState('');
@@ -269,6 +271,16 @@ export function PlantAssetsView(props: { machineId: string | null }) {
               <div className="flex items-center gap-2 flex-wrap">
                 <Button size="sm" variant="secondary" icon={<Plus className="w-4 h-4" />} onClick={() => setShowAddMap(true)}>
                   Agregar plano
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  icon={<Maximize2 className="w-4 h-4" />}
+                  onClick={() => setShowMapFullscreen(true)}
+                  disabled={!selectedMap}
+                  title={!selectedMap ? 'Selecciona un plano primero' : 'Ver plano en grande'}
+                >
+                  Ver grande
                 </Button>
                 <Button
                   size="sm"
@@ -630,6 +642,34 @@ export function PlantAssetsView(props: { machineId: string | null }) {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Modal Map Fullscreen */}
+      <Modal
+        isOpen={showMapFullscreen}
+        onClose={() => setShowMapFullscreen(false)}
+        title={selectedMap ? `Plano: ${selectedMap.nombre}` : 'Plano'}
+        size="xl"
+      >
+        {selectedMap ? (
+          <div className="space-y-3">
+            <PlantMapViewer
+              map={selectedMap}
+              selectedAsset={selected}
+              allAssets={assets}
+              showAllMarkers={showAllMarkers}
+              addingMarker={addingMarker}
+              onAddMarker={handleAddMarker}
+              onSelectAsset={(assetId) => setSelectedId(assetId)}
+              mode="fullscreen"
+            />
+            <div className="text-xs text-gray-500 dark:text-gray-300">
+              Zoom: rueda del mouse / pinch en móvil. Arrastra para mover. Doble click para reset.
+            </div>
+          </div>
+        ) : (
+          <div className="text-sm text-gray-500">Selecciona un plano para verlo.</div>
+        )}
       </Modal>
     </div>
   );
