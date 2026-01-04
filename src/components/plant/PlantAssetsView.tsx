@@ -2909,7 +2909,10 @@ export function PlantAssetsView(props: {
                           <RefreshCw className="w-4 h-4" />
                         </button>
                       </div>
-                      <TransformComponent wrapperClass="w-full h-full" contentClass="w-full h-full">
+                      <TransformComponent
+                        wrapperClass="w-full h-full cursor-grab active:cursor-grabbing"
+                        contentClass="w-full h-full cursor-grab active:cursor-grabbing"
+                      >
                         <div className="w-full h-full flex items-center justify-center">
                           <img
                             src={imagesViewerList[imagesViewerIndex].url}
