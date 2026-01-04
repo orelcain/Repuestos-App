@@ -54,6 +54,8 @@ export function PlantMapViewer(props: {
   const [pinnedMarkerId, setPinnedMarkerId] = useState<string | null>(null);
   const [pinnedPhotoIndex, setPinnedPhotoIndex] = useState(0);
   const [hoveredPhotoIndex, setHoveredPhotoIndex] = useState(0);
+  const [isHoveringTooltip, setIsHoveringTooltip] = useState(false);
+  const hoverClearTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     // Cuando cambia el plano, reseteamos el estado de carga.
@@ -62,6 +64,11 @@ export function PlantMapViewer(props: {
     setPinnedMarkerId(null);
     setPinnedPhotoIndex(0);
     setHoveredPhotoIndex(0);
+    setIsHoveringTooltip(false);
+    if (hoverClearTimerRef.current) {
+      window.clearTimeout(hoverClearTimerRef.current);
+      hoverClearTimerRef.current = null;
+    }
   }, [map.id, map.imageUrl]);
 
   const [containerSize, setContainerSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
@@ -70,6 +77,13 @@ export function PlantMapViewer(props: {
   useEffect(() => {
     setHoveredPhotoIndex(0);
   }, [hoveredMarkerId]);
+
+  const clearHoverSoon = () => {
+    if (hoverClearTimerRef.current) window.clearTimeout(hoverClearTimerRef.current);
+    hoverClearTimerRef.current = window.setTimeout(() => {
+      if (!isHoveringTooltip) setHoveredMarkerId(null);
+    }, 120);
+  };
 
   const fit = useMemo(() => {
     const cw = containerSize.w;
@@ -605,6 +619,17 @@ export function PlantMapViewer(props: {
           <div
             className="absolute z-20 pointer-events-auto"
             style={{ left: hoveredMarkerPos.left, top: hoveredMarkerPos.top }}
+            onMouseEnter={() => {
+              setIsHoveringTooltip(true);
+              if (hoverClearTimerRef.current) {
+                window.clearTimeout(hoverClearTimerRef.current);
+                hoverClearTimerRef.current = null;
+              }
+            }}
+            onMouseLeave={() => {
+              setIsHoveringTooltip(false);
+              setHoveredMarkerId(null);
+            }}
             onPointerDown={(e) => {
               e.stopPropagation();
             }}
@@ -742,9 +767,18 @@ export function PlantMapViewer(props: {
             const isPinned = pinnedMarkerId === m.id;
             const isFocused = focusMarkerId === m.id;
 
-            const markerScale = markerVisualScaleBase * (isSelected ? 1.25 : 1);
-            const basePx = isSelected ? 12 : 8;
-            const sizePx = Math.max(4, basePx * markerScale);
+            // Mantener el tamaño del marcador prácticamente constante en pantalla,
+            // compensando el zoom del contenedor (que escala todo el plano).
+            // El tamaño se define en el espacio "sin escalar" para que al aplicarse scale()
+            // del contenedor resulte en un tamaño visual estable.
+            const exterioresFactor = isExterioresGeneral ? 0.35 : 1;
+            const selectedFactor = isSelected ? 1.25 : 1;
+            const baseScreenPx = isSelected ? 10 : 8;
+            const targetScreenPx = baseScreenPx * exterioresFactor * selectedFactor;
+            const unscaledTargetPx = targetScreenPx / clamp(scale, MIN_SCALE, MAX_SCALE);
+            const minUnscaledPx = 4 / clamp(scale, MIN_SCALE, MAX_SCALE);
+            const maxUnscaledPx = 24 / clamp(scale, MIN_SCALE, MAX_SCALE);
+            const sizePx = clamp(unscaledTargetPx, minUnscaledPx, maxUnscaledPx);
 
             // En modo agregar/mover, NO queremos que los marcadores intercepten clicks (mejora mover marcador).
             if (addingMarker) {
@@ -776,13 +810,25 @@ export function PlantMapViewer(props: {
                   }
                 }}
                 onMouseEnter={() => {
+                  if (hoverClearTimerRef.current) {
+                    window.clearTimeout(hoverClearTimerRef.current);
+                    hoverClearTimerRef.current = null;
+                  }
                   setHoveredMarkerId(m.id);
                 }}
-                onMouseLeave={() => setHoveredMarkerId(null)}
+                onMouseLeave={() => {
+                  clearHoverSoon();
+                }}
                 onFocus={() => {
+                  if (hoverClearTimerRef.current) {
+                    window.clearTimeout(hoverClearTimerRef.current);
+                    hoverClearTimerRef.current = null;
+                  }
                   setHoveredMarkerId(m.id);
                 }}
-                onBlur={() => setHoveredMarkerId(null)}
+                onBlur={() => {
+                  clearHoverSoon();
+                }}
                 className={
                   `absolute rounded-full ring-2 ring-white dark:ring-gray-900 ` +
                   (isPinned || isFocused ? 'bg-emerald-500' : 'bg-primary-600') +
