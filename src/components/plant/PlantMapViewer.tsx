@@ -761,7 +761,8 @@ export function PlantMapViewer(props: {
             // compensando el zoom del contenedor (que escala todo el plano).
             // El tamaño se define en el espacio "sin escalar" para que al aplicarse scale()
             // del contenedor resulte en un tamaño visual estable.
-            const exterioresFactor = isExterioresGeneral ? 0.35 : 1;
+            // Exteriores General: se veía demasiado chico, subir +50% solo en ese plano.
+            const exterioresFactor = isExterioresGeneral ? 0.35 * 1.5 : 1;
             const selectedFactor = isSelected ? 1.25 : 1;
             // UX: +50% tamaño para que sea más fácil hacer click.
             const clickBoost = 1.5;
