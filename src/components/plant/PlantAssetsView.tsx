@@ -101,8 +101,8 @@ const isValidComponentRow = (componente: string) => {
   return norm.includes('motor') || norm.includes('bomba');
 };
 
-export function PlantAssetsView(props: { machineId: string | null }) {
-  const { machineId } = props;
+export function PlantAssetsView(props: { machineId: string | null; focusAssetId?: string | null; onFocusHandled?: () => void }) {
+  const { machineId, focusAssetId, onFocusHandled } = props;
   const { assets, loading, error, upsertMany, addMarker, addReferencia, deleteReferencia, addImagen, deleteImagen, updateAsset, createAsset } = usePlantAssets();
   const { maps, createMap, updateMap, deleteMap } = usePlantMaps();
   const { uploadPlantMapImage, uploadPlantAssetImage, deleteByUrl } = usePlantStorage(machineId);
@@ -332,9 +332,10 @@ export function PlantAssetsView(props: { machineId: string | null }) {
   // === Mapas / marcadores ===
   const [selectedMapId, setSelectedMapId] = useState<string>('');
   const selectedMap = useMemo(() => maps.find((m) => m.id === selectedMapId) || null, [maps, selectedMapId]);
-  const [showAllMarkers, setShowAllMarkers] = useState(true);
+  const [showAllMarkers, setShowAllMarkers] = useState(false);
   const [markerMode, setMarkerMode] = useState<'none' | 'add' | 'move'>('none');
   const [movingMarkerId, setMovingMarkerId] = useState<string | null>(null);
+  const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null);
 
   const addingMarker = markerMode !== 'none';
 
@@ -343,6 +344,34 @@ export function PlantAssetsView(props: { machineId: string | null }) {
     setMarkerMode('none');
     setMovingMarkerId(null);
   }, [selectedId, selectedMapId]);
+
+  const selectedMarkersOnMap = useMemo(() => {
+    if (!selected || !selectedMapId) return [];
+    return (selected.marcadores || []).filter((m) => m.mapId === selectedMapId);
+  }, [selected, selectedMapId]);
+
+  useEffect(() => {
+    if (!selected || !selectedMapId) {
+      setSelectedMarkerId(null);
+      return;
+    }
+
+    if (selectedMarkersOnMap.length === 0) {
+      setSelectedMarkerId(null);
+      return;
+    }
+
+    setSelectedMarkerId((prev) => {
+      if (prev && selectedMarkersOnMap.some((m) => m.id === prev)) return prev;
+      return selectedMarkersOnMap[0].id;
+    });
+  }, [selected, selectedMapId, selectedMarkersOnMap]);
+
+  useEffect(() => {
+    if (markerMode !== 'move') return;
+    if (!movingMarkerId) return;
+    setSelectedMarkerId(movingMarkerId);
+  }, [markerMode, movingMarkerId]);
 
   useEffect(() => {
     // Auto-cambio de plano SOLO cuando no hay plano seleccionado o el plano actual no existe.
@@ -365,6 +394,15 @@ export function PlantAssetsView(props: { machineId: string | null }) {
       setSelectedMapId(maps[0].id);
     }
   }, [maps, selected, selectedMapId]);
+
+  useEffect(() => {
+    if (!focusAssetId) return;
+    const exists = assets.some((a) => a.id === focusAssetId);
+    if (!exists) return;
+    setSelectedId(focusAssetId);
+    setShowAllMarkers(false);
+    onFocusHandled?.();
+  }, [assets, focusAssetId, onFocusHandled]);
 
   // === Modales ===
   const [showImport, setShowImport] = useState(false);
@@ -799,70 +837,140 @@ export function PlantAssetsView(props: { machineId: string | null }) {
                     >
                       {columnsEnabled.tipo && (
                         <td className="px-3 py-2">
-                          <button type="button" className="text-left w-full" onClick={() => setSelectedId(a.id)}>
+                          <button
+                            type="button"
+                            className="text-left w-full"
+                            onClick={() => {
+                              setSelectedId(a.id);
+                              setShowAllMarkers(false);
+                            }}
+                          >
                             <Badge text={a.tipo.toUpperCase()} tone="strong" paletteKey={`tipo:${a.tipo}`} />
                           </button>
                         </td>
                       )}
                       {columnsEnabled.area && (
                         <td className="px-3 py-2">
-                          <button type="button" className="text-left w-full" onClick={() => setSelectedId(a.id)}>
+                          <button
+                            type="button"
+                            className="text-left w-full"
+                            onClick={() => {
+                              setSelectedId(a.id);
+                              setShowAllMarkers(false);
+                            }}
+                          >
                             <Badge text={a.area} tone="strong" paletteKey={`area:${a.area}`} className="max-w-[220px]" />
                           </button>
                         </td>
                       )}
                       {columnsEnabled.subarea && (
                         <td className="px-3 py-2 hidden lg:table-cell">
-                          <button type="button" className="text-left w-full truncate" onClick={() => setSelectedId(a.id)}>
+                          <button
+                            type="button"
+                            className="text-left w-full truncate"
+                            onClick={() => {
+                              setSelectedId(a.id);
+                              setShowAllMarkers(false);
+                            }}
+                          >
                             <Badge text={a.subarea} tone="soft" paletteKey={`area:${a.area}`} className="max-w-[260px]" />
                           </button>
                         </td>
                       )}
                       {columnsEnabled.codigoSAP && (
                         <td className="px-3 py-2">
-                          <button type="button" className="text-left w-full" onClick={() => setSelectedId(a.id)}>
+                          <button
+                            type="button"
+                            className="text-left w-full"
+                            onClick={() => {
+                              setSelectedId(a.id);
+                              setShowAllMarkers(false);
+                            }}
+                          >
                             {a.codigoSAP}
                           </button>
                         </td>
                       )}
                       {columnsEnabled.marca && (
                         <td className="px-3 py-2 hidden xl:table-cell">
-                          <button type="button" className="text-left w-full truncate" onClick={() => setSelectedId(a.id)}>
+                          <button
+                            type="button"
+                            className="text-left w-full truncate"
+                            onClick={() => {
+                              setSelectedId(a.id);
+                              setShowAllMarkers(false);
+                            }}
+                          >
                             {a.marca}
                           </button>
                         </td>
                       )}
                       {columnsEnabled.potencia && (
                         <td className="px-3 py-2 hidden xl:table-cell">
-                          <button type="button" className="text-left w-full" onClick={() => setSelectedId(a.id)}>
+                          <button
+                            type="button"
+                            className="text-left w-full"
+                            onClick={() => {
+                              setSelectedId(a.id);
+                              setShowAllMarkers(false);
+                            }}
+                          >
                             {a.potencia || 'pendiente'}
                           </button>
                         </td>
                       )}
                       {columnsEnabled.voltaje && (
                         <td className="px-3 py-2 hidden xl:table-cell">
-                          <button type="button" className="text-left w-full" onClick={() => setSelectedId(a.id)}>
+                          <button
+                            type="button"
+                            className="text-left w-full"
+                            onClick={() => {
+                              setSelectedId(a.id);
+                              setShowAllMarkers(false);
+                            }}
+                          >
                             {a.voltaje || 'pendiente'}
                           </button>
                         </td>
                       )}
                       {columnsEnabled.corriente && (
                         <td className="px-3 py-2 hidden xl:table-cell">
-                          <button type="button" className="text-left w-full" onClick={() => setSelectedId(a.id)}>
+                          <button
+                            type="button"
+                            className="text-left w-full"
+                            onClick={() => {
+                              setSelectedId(a.id);
+                              setShowAllMarkers(false);
+                            }}
+                          >
                             {a.corriente || 'pendiente'}
                           </button>
                         </td>
                       )}
                       {columnsEnabled.eje && (
                         <td className="px-3 py-2 hidden xl:table-cell">
-                          <button type="button" className="text-left w-full" onClick={() => setSelectedId(a.id)}>
+                          <button
+                            type="button"
+                            className="text-left w-full"
+                            onClick={() => {
+                              setSelectedId(a.id);
+                              setShowAllMarkers(false);
+                            }}
+                          >
                             {a.eje || 'pendiente'}
                           </button>
                         </td>
                       )}
                       {columnsEnabled.relacionReduccion && (
                         <td className="px-3 py-2 hidden xl:table-cell">
-                          <button type="button" className="text-left w-full" onClick={() => setSelectedId(a.id)}>
+                          <button
+                            type="button"
+                            className="text-left w-full"
+                            onClick={() => {
+                              setSelectedId(a.id);
+                              setShowAllMarkers(false);
+                            }}
+                          >
                             {a.relacionReduccion || 'pendiente'}
                           </button>
                         </td>
@@ -1106,6 +1214,7 @@ export function PlantAssetsView(props: { machineId: string | null }) {
                   selectedAsset={selected}
                   allAssets={assets}
                   showAllMarkers={showAllMarkers}
+                  selectedMarkerId={showAllMarkers ? null : selectedMarkerId}
                   addingMarker={addingMarker}
                   onAddMarker={handleMapClick}
                   onSelectAsset={(assetId) => setSelectedId(assetId)}
@@ -1120,9 +1229,32 @@ export function PlantAssetsView(props: { machineId: string | null }) {
                     : showAllMarkers
                       ? 'Tip: puedes hacer click en un marcador para seleccionar ese motor/bomba.'
                       : selected
-                        ? 'Mostrando solo los marcadores del seleccionado.'
+                        ? 'Mostrando solo el marcador seleccionado.'
                         : 'Selecciona un motor/bomba para ver sus marcadores.'}
                 </div>
+
+                {!showAllMarkers && selected && selectedMapId && selectedMarkersOnMap.length > 1 && markerMode !== 'move' && (
+                  <div className="mt-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                    <div className="text-xs font-semibold text-gray-700 dark:text-gray-200">Elige qué marcador ver</div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {selectedMarkersOnMap.map((m, idx) => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => setSelectedMarkerId(m.id)}
+                          className={
+                            'px-2 py-1 rounded border text-xs ' +
+                            (selectedMarkerId === m.id
+                              ? 'border-primary-300 dark:border-primary-600 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
+                              : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200')
+                          }
+                        >
+                          Marcador {idx + 1}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {markerMode === 'move' && selected && selectedMapId && (selected.marcadores || []).filter((m) => m.mapId === selectedMapId).length > 1 && (
                   <div className="mt-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
@@ -1981,6 +2113,7 @@ export function PlantAssetsView(props: { machineId: string | null }) {
               selectedAsset={selected}
               allAssets={assets}
               showAllMarkers={showAllMarkers}
+              selectedMarkerId={showAllMarkers ? null : selectedMarkerId}
               addingMarker={addingMarker}
               onAddMarker={handleMapClick}
               onSelectAsset={(assetId) => setSelectedId(assetId)}

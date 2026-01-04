@@ -11,6 +11,7 @@ import { useMachineContext } from '../contexts/MachineContext';
 import { Repuesto, RepuestoFormData, ImagenRepuesto, VinculoManual, Machine } from '../types';
 import { APP_VERSION } from '../version';
 import { useGlobalCatalog } from '../hooks/useGlobalCatalog';
+import { usePlantAssets } from '../hooks/usePlantAssets';
 
 // Script de importación - exponer globalmente para uso desde consola
 import { importarRepuestosInformeV2 } from '../scripts/importInformeV2';
@@ -170,6 +171,10 @@ export function Dashboard() {
   
   // Vista principal activa
   const [mainView, setMainView] = useState<MainView>('catalogo');
+
+  const [focusPlantAssetId, setFocusPlantAssetId] = useState<string | null>(null);
+
+  const plantAssets = usePlantAssets();
 
   // Alcance del buscador (tabla): máquina actual vs catálogo completo
   const [catalogScope, setCatalogScope] = useState<'machine' | 'selected' | 'global'>('machine');
@@ -1467,6 +1472,12 @@ export function Dashboard() {
                   <RepuestosTable
                   machineId={machineId}
                   repuestos={repuestos}
+                  plantAssets={plantAssets.assets}
+                  plantAssetsLoading={plantAssets.loading}
+                  onOpenPlantAsset={(assetId) => {
+                    setMainView('motores');
+                    setFocusPlantAssetId(assetId);
+                  }}
                   catalogScope={catalogScope}
                   onCatalogScopeChange={setCatalogScope}
                   machines={machines}
@@ -1725,7 +1736,11 @@ export function Dashboard() {
             <div className="flex-1 flex overflow-hidden">
               {mainView === 'motores' ? (
                 <div className="flex-1 overflow-hidden">
-                  <PlantAssetsView machineId={machineId} />
+                  <PlantAssetsView
+                    machineId={machineId}
+                    focusAssetId={focusPlantAssetId}
+                    onFocusHandled={() => setFocusPlantAssetId(null)}
+                  />
                 </div>
               ) : mainView === 'reportes' ? (
             <div className="flex-1 overflow-hidden">
@@ -1973,6 +1988,12 @@ export function Dashboard() {
                   <RepuestosTable
                   machineId={machineId}
                   repuestos={repuestos}
+                  plantAssets={plantAssets.assets}
+                  plantAssetsLoading={plantAssets.loading}
+                  onOpenPlantAsset={(assetId) => {
+                    setMainView('motores');
+                    setFocusPlantAssetId(assetId);
+                  }}
                   catalogScope={catalogScope}
                   onCatalogScopeChange={setCatalogScope}
                   machines={machines}

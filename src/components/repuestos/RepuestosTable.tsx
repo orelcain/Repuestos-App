@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Repuesto, HistorialCambio, isTagAsignado, getTagNombre, TagAsignado, Machine } from '../../types';
+import { Repuesto, HistorialCambio, isTagAsignado, getTagNombre, TagAsignado, Machine, PlantAsset } from '../../types';
 import { useTableColumns } from '../../hooks/useTableColumns';
 import { useTags } from '../../hooks/useTags';
 import { AddToListModal } from './AddToListModal';
@@ -42,6 +42,9 @@ import {
 interface RepuestosTableProps {
   machineId: string | null;
   repuestos: Repuesto[];
+  plantAssets?: PlantAsset[];
+  plantAssetsLoading?: boolean;
+  onOpenPlantAsset?: (assetId: string) => void;
   catalogScope?: 'machine' | 'selected' | 'global';
   onCatalogScopeChange?: (scope: 'machine' | 'selected' | 'global') => void;
   machines?: Machine[];
@@ -73,6 +76,14 @@ interface RepuestosTableProps {
 }
 
 const ITEMS_PER_PAGE = 15;
+
+const normalizeText = (v: string) =>
+  v
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 
 // Modal para ver historial de cambios de un campo específico
 function HistorialCampoModal({ 
@@ -141,6 +152,9 @@ function HistorialCampoModal({
 export function RepuestosTable({
   machineId,
   repuestos,
+  plantAssets,
+  plantAssetsLoading,
+  onOpenPlantAsset,
   catalogScope = 'machine',
   onCatalogScopeChange,
   machines = [],
@@ -171,6 +185,35 @@ export function RepuestosTable({
   compactMode = false
 }: RepuestosTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
+
+  const plantAssetMatches = useMemo(() => {
+    const term = normalizeText(searchTerm);
+    if (!term) return [] as PlantAsset[];
+    if (!plantAssets || plantAssets.length === 0) return [] as PlantAsset[];
+
+    const results = plantAssets.filter((a) => {
+      const hay = normalizeText(
+        [
+          a.tipo,
+          a.equipo,
+          a.codigoSAP,
+          a.descripcionSAP,
+          a.area,
+          a.subarea,
+          a.componente,
+          a.marca,
+          a.modeloTipo,
+          a.potencia,
+          a.voltaje
+        ]
+          .filter(Boolean)
+          .join(' ')
+      );
+      return hay.includes(term);
+    });
+
+    return results.slice(0, 12);
+  }, [plantAssets, searchTerm]);
   const [currentPage, setCurrentPage] = useState(1);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -1544,6 +1587,53 @@ export function RepuestosTable({
           <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
             <MapPin className="w-5 h-5" />
             <span>{sinMarcadorCount} repuestos sin ubicación en el manual</span>
+          </div>
+        )}
+
+        {/* Resultados: Motores/Bombas dentro del buscador general */}
+        {searchTerm.trim() && (plantAssetsLoading || plantAssetMatches.length > 0) && (
+          <div className="p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-sm font-semibold text-gray-700 dark:text-gray-200">Motores / Bombas</div>
+              {plantAssetsLoading && (
+                <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-300">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Cargando...
+                </div>
+              )}
+            </div>
+
+            {plantAssetMatches.length > 0 ? (
+              <div className="mt-3 grid grid-cols-1 gap-2">
+                {plantAssetMatches.map((a) => {
+                  const area = [a.area, a.subarea].filter(Boolean).join(' / ');
+                  const title = a.descripcionSAP || a.modeloTipo || a.componente || '';
+                  return (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => onOpenPlantAsset?.(a.id)}
+                      disabled={!onOpenPlantAsset}
+                      className="text-left p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-60"
+                      title={onOpenPlantAsset ? 'Abrir en Motores/Bombas' : undefined}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                          {a.codigoSAP || a.equipo}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-300 whitespace-nowrap">{a.tipo.toUpperCase()}</div>
+                      </div>
+                      <div className="mt-1 text-xs text-gray-600 dark:text-gray-300 truncate">
+                        {area ? `${area} — ` : ''}
+                        {title}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              !plantAssetsLoading && <div className="mt-2 text-sm text-gray-500 dark:text-gray-300">Sin coincidencias.</div>
+            )}
           </div>
         )}
       </div>

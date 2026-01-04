@@ -5,15 +5,25 @@ type ViewerMode = 'embedded' | 'fullscreen';
 
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 
-const readFocusZoomScale = () => {
+const MIN_SCALE = 1;
+const MAX_SCALE = 10;
+
+const getDefaultFocusZoomForMapName = (name: string) => {
+  const n = (name || '').toLowerCase();
+  if (n.includes('exteriores') && n.includes('general')) return 9.5;
+  if (n.includes('planta') && n.includes('principal')) return 5;
+  return 2.5;
+};
+
+const readFocusZoomScale = (key: string): number | null => {
   try {
-    const raw = window.localStorage.getItem('plant.mapFocusZoom');
-    if (!raw) return 2.5;
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
     const n = Number(raw);
-    if (!Number.isFinite(n)) return 2.5;
-    return clamp(n, 1, 8);
+    if (!Number.isFinite(n)) return null;
+    return clamp(n, MIN_SCALE, MAX_SCALE);
   } catch {
-    return 2.5;
+    return null;
   }
 };
 
@@ -26,13 +36,18 @@ export function PlantMapViewer(props: {
   onAddMarker: (args: { mapId: string; x: number; y: number }) => void;
   onSelectAsset?: (assetId: string) => void;
   focusMarkerId?: string | null;
+  selectedMarkerId?: string | null;
   mode?: ViewerMode;
   clickTitle?: string;
 }) {
-  const { map, selectedAsset, allAssets, showAllMarkers, addingMarker, onAddMarker, onSelectAsset, focusMarkerId = null, mode = 'embedded', clickTitle } = props;
+  const { map, selectedAsset, allAssets, showAllMarkers, addingMarker, onAddMarker, onSelectAsset, focusMarkerId = null, selectedMarkerId = null, mode = 'embedded', clickTitle } = props;
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const focusZoomScale = useMemo(() => readFocusZoomScale(), []);
+  const focusZoomScale = useMemo(() => {
+    const perMap = readFocusZoomScale(`plant.mapFocusZoom.${map.id}`);
+    const global = readFocusZoomScale('plant.mapFocusZoom');
+    return perMap ?? global ?? getDefaultFocusZoomForMapName(map.nombre);
+  }, [map.id, map.nombre]);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [pinnedMarkerId, setPinnedMarkerId] = useState<string | null>(null);
   const [pinnedPhotoIndex, setPinnedPhotoIndex] = useState(0);
@@ -102,10 +117,10 @@ export function PlantMapViewer(props: {
   // Factor visual del marcador en relación al zoom del mapa.
   // El mapa escala completo; este factor hace que el marcador crezca mucho menos que el plano.
   const markerVisualScaleBase = useMemo(() => {
-    // scale^(0.3): crece suave al acercar, pero no se vuelve gigante.
-    const exponent = 0.7;
-    const base = Math.pow(clamp(scale, 1, 8), -exponent);
-    const exterioresFactor = isExterioresGeneral ? 0.5 : 1;
+    // Compensación del zoom del plano para que el marcador no tape el dibujo.
+    const exponent = 1;
+    const base = Math.pow(clamp(scale, MIN_SCALE, MAX_SCALE), -exponent);
+    const exterioresFactor = isExterioresGeneral ? 0.35 : 1;
     return clamp(base * exterioresFactor, 0.2, 2);
   }, [isExterioresGeneral, scale]);
 
@@ -114,8 +129,8 @@ export function PlantMapViewer(props: {
     const rect = containerRef.current.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
 
-    const target = clamp(opts?.zoomInScale ?? focusZoomScale, 1, 8);
-    const nextScale = clamp(Math.max(scale, target), 1, 8);
+    const target = clamp(opts?.zoomInScale ?? focusZoomScale, MIN_SCALE, MAX_SCALE);
+    const nextScale = clamp(Math.max(scale, target), MIN_SCALE, MAX_SCALE);
     const nextTx = rect.width / 2 - m.x * rect.width * nextScale;
     const nextTy = rect.height / 2 - m.y * rect.height * nextScale;
     setScale(nextScale);
@@ -150,6 +165,9 @@ export function PlantMapViewer(props: {
         modeloTipo?: string;
         potencia?: string;
         voltaje?: string;
+        corriente?: string;
+        eje?: string;
+        relacionReduccion?: string;
         imageUrl?: string;
         images?: Array<{ url: string; descripcion?: string }>; // todas las fotos (ordenadas)
       }
@@ -178,6 +196,9 @@ export function PlantMapViewer(props: {
           modeloTipo: asset.modeloTipo,
           potencia: asset.potencia,
           voltaje: asset.voltaje,
+          corriente: asset.corriente,
+          eje: asset.eje,
+          relacionReduccion: asset.relacionReduccion,
           imageUrl: imageUrl || undefined,
           images: images.length ? images : undefined
         }));
@@ -188,8 +209,10 @@ export function PlantMapViewer(props: {
     }
 
     if (!selectedAsset) return [];
-    return pickMarkers(selectedAsset);
-  }, [allAssets, map.id, selectedAsset, showAllMarkers]);
+    const list = pickMarkers(selectedAsset);
+    if (selectedMarkerId) return list.filter((m) => m.id === selectedMarkerId);
+    return list;
+  }, [allAssets, map.id, selectedAsset, selectedMarkerId, showAllMarkers]);
 
   const hoveredMarker = useMemo(() => {
     if (!hoveredMarkerId) return null;
@@ -211,6 +234,14 @@ export function PlantMapViewer(props: {
     if (!focusMarker) return;
     focusOnMarker(focusMarker);
   }, [addingMarker, focusMarker]);
+
+  useEffect(() => {
+    if (addingMarker) return;
+    if (!focusMarkerId) return;
+    if (!markers.some((m) => m.id === focusMarkerId)) return;
+    setPinnedMarkerId(focusMarkerId);
+    setPinnedPhotoIndex(0);
+  }, [addingMarker, focusMarkerId, markers]);
 
   useEffect(() => {
     // Si el marcador fijado ya no existe (cambio de filtros/selección), soltarlo.
@@ -267,7 +298,7 @@ export function PlantMapViewer(props: {
     const py = clientY - rect.top;
 
     const s0 = scale;
-    const s1 = clamp(nextScale, 1, 8);
+    const s1 = clamp(nextScale, MIN_SCALE, MAX_SCALE);
     if (s1 === s0) return;
 
     // Mantener el punto bajo el cursor fijo al hacer zoom
@@ -337,7 +368,7 @@ export function PlantMapViewer(props: {
       const pinch = pinchRef.current;
       if (!pinch.active || pinch.startDist <= 0) return;
 
-      const nextScale = clamp(pinch.startScale * (dist / pinch.startDist), 1, 8);
+      const nextScale = clamp(pinch.startScale * (dist / pinch.startDist), MIN_SCALE, MAX_SCALE);
 
       // Mantener el centro del pinch estable
       const rect = containerRef.current.getBoundingClientRect();
@@ -460,16 +491,6 @@ export function PlantMapViewer(props: {
 
                 {/* Info ordenada */}
                 <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-gray-200">
-                  {formatField(pinnedMarker.marca) && (
-                    <div>
-                      <span className="text-gray-400">Marca:</span> {pinnedMarker.marca}
-                    </div>
-                  )}
-                  {formatField(pinnedMarker.modeloTipo) && (
-                    <div>
-                      <span className="text-gray-400">Modelo:</span> {pinnedMarker.modeloTipo}
-                    </div>
-                  )}
                   {formatField(pinnedMarker.potencia) && (
                     <div>
                       <span className="text-gray-400">Potencia:</span> {pinnedMarker.potencia}
@@ -478,6 +499,31 @@ export function PlantMapViewer(props: {
                   {formatField(pinnedMarker.voltaje) && (
                     <div>
                       <span className="text-gray-400">Voltaje:</span> {pinnedMarker.voltaje}
+                    </div>
+                  )}
+                  {formatField((pinnedMarker as any).corriente) && (
+                    <div>
+                      <span className="text-gray-400">Corriente:</span> {(pinnedMarker as any).corriente}
+                    </div>
+                  )}
+                  {formatField((pinnedMarker as any).eje) && (
+                    <div>
+                      <span className="text-gray-400">Eje:</span> {(pinnedMarker as any).eje}
+                    </div>
+                  )}
+                  {formatField((pinnedMarker as any).relacionReduccion) && (
+                    <div className="col-span-2">
+                      <span className="text-gray-400">Relación de reducción (i):</span> {(pinnedMarker as any).relacionReduccion}
+                    </div>
+                  )}
+                  {formatField(pinnedMarker.marca) && (
+                    <div>
+                      <span className="text-gray-400">Marca:</span> {pinnedMarker.marca}
+                    </div>
+                  )}
+                  {formatField(pinnedMarker.modeloTipo) && (
+                    <div>
+                      <span className="text-gray-400">Modelo:</span> {pinnedMarker.modeloTipo}
                     </div>
                   )}
                   {formatField(pinnedMarker.componente) && (

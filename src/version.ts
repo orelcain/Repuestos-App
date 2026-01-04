@@ -1,9 +1,18 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.105';
+export const APP_VERSION = '4.9.106';
 
 // Historial de versiones
 // ⚠️ Importante: agrega SIEMPRE la versión más nueva ARRIBA (al inicio del array)
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.106',
+    date: '2026-01-04',
+    changes: [
+      'Zoom enfoque por plano',
+      'Solo este por marcador',
+      'Motores en buscador del catálogo'
+    ]
+  },
   {
     version: '4.9.105',
     date: '2026-01-04',
