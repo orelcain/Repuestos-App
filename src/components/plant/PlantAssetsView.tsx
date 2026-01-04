@@ -385,6 +385,38 @@ export function PlantAssetsView(props: { machineId: string | null }) {
   const [showPhoto, setShowPhoto] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string>('');
 
+  const photoContainerRef = useRef<HTMLDivElement>(null);
+  const [photoScale, setPhotoScale] = useState(1);
+  const [photoTx, setPhotoTx] = useState(0);
+  const [photoTy, setPhotoTy] = useState(0);
+  const photoDragRef = useRef<{ active: boolean; startX: number; startY: number; baseTx: number; baseTy: number }>({
+    active: false,
+    startX: 0,
+    startY: 0,
+    baseTx: 0,
+    baseTy: 0
+  });
+  const photoPointersRef = useRef(new Map<number, { x: number; y: number }>());
+  const photoPinchRef = useRef<{ active: boolean; startDist: number; startScale: number; startTx: number; startTy: number; centerX: number; centerY: number }>({
+    active: false,
+    startDist: 0,
+    startScale: 1,
+    startTx: 0,
+    startTy: 0,
+    centerX: 0,
+    centerY: 0
+  });
+
+  useEffect(() => {
+    if (!showPhoto) return;
+    setPhotoScale(1);
+    setPhotoTx(0);
+    setPhotoTy(0);
+    photoDragRef.current.active = false;
+    photoPointersRef.current.clear();
+    photoPinchRef.current.active = false;
+  }, [showPhoto, photoUrl]);
+
   // === Editar activo ===
   const [showEdit, setShowEdit] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
@@ -1527,8 +1559,124 @@ export function PlantAssetsView(props: { machineId: string | null }) {
       <Modal isOpen={showPhoto} onClose={() => setShowPhoto(false)} title="Foto" size="full">
         <div className="w-full">
           {photoUrl ? (
-            <div className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-black/5 dark:bg-black/20 overflow-hidden">
-              <img src={photoUrl} alt="" className="w-full" style={{ maxHeight: '80vh', objectFit: 'contain' }} />
+            <div
+              ref={photoContainerRef}
+              className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-black/5 dark:bg-black/20 overflow-hidden touch-none"
+              style={{ maxHeight: '80vh' }}
+              onWheel={(e) => {
+                e.preventDefault();
+                if (!photoContainerRef.current) return;
+                const rect = photoContainerRef.current.getBoundingClientRect();
+                const cx = e.clientX - rect.left;
+                const cy = e.clientY - rect.top;
+
+                const factor = e.deltaY < 0 ? 1.1 : 0.9;
+                const nextScale = Math.max(1, Math.min(6, photoScale * factor));
+
+                const worldX = (cx - photoTx) / photoScale;
+                const worldY = (cy - photoTy) / photoScale;
+                const nextTx = cx - worldX * nextScale;
+                const nextTy = cy - worldY * nextScale;
+
+                setPhotoScale(nextScale);
+                setPhotoTx(nextTx);
+                setPhotoTy(nextTy);
+              }}
+              onPointerDown={(e) => {
+                (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+                photoPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+                if (photoPointersRef.current.size === 2 && photoContainerRef.current) {
+                  const [p0, p1] = Array.from(photoPointersRef.current.values());
+                  const dx = p1.x - p0.x;
+                  const dy = p1.y - p0.y;
+                  const dist = Math.hypot(dx, dy);
+
+                  const rect = photoContainerRef.current.getBoundingClientRect();
+                  const cx = (p0.x + p1.x) / 2 - rect.left;
+                  const cy = (p0.y + p1.y) / 2 - rect.top;
+
+                  photoPinchRef.current = {
+                    active: true,
+                    startDist: dist,
+                    startScale: photoScale,
+                    startTx: photoTx,
+                    startTy: photoTy,
+                    centerX: cx,
+                    centerY: cy
+                  };
+                  photoDragRef.current.active = false;
+                  return;
+                }
+
+                if (photoPointersRef.current.size === 1) {
+                  photoDragRef.current = {
+                    active: true,
+                    startX: e.clientX,
+                    startY: e.clientY,
+                    baseTx: photoTx,
+                    baseTy: photoTy
+                  };
+                }
+              }}
+              onPointerMove={(e) => {
+                if (!photoPointersRef.current.has(e.pointerId)) return;
+                photoPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+                if (photoPinchRef.current.active && photoPointersRef.current.size === 2 && photoContainerRef.current) {
+                  const [p0, p1] = Array.from(photoPointersRef.current.values());
+                  const dx = p1.x - p0.x;
+                  const dy = p1.y - p0.y;
+                  const dist = Math.hypot(dx, dy);
+                  const pinch = photoPinchRef.current;
+
+                  const rect = photoContainerRef.current.getBoundingClientRect();
+                  const cx = (p0.x + p1.x) / 2 - rect.left;
+                  const cy = (p0.y + p1.y) / 2 - rect.top;
+
+                  const nextScale = Math.max(1, Math.min(6, pinch.startScale * (dist / pinch.startDist)));
+
+                  const worldX = (pinch.centerX - pinch.startTx) / pinch.startScale;
+                  const worldY = (pinch.centerY - pinch.startTy) / pinch.startScale;
+                  const nextTx = cx - worldX * nextScale;
+                  const nextTy = cy - worldY * nextScale;
+
+                  setPhotoScale(nextScale);
+                  setPhotoTx(nextTx);
+                  setPhotoTy(nextTy);
+                  return;
+                }
+
+                if (!photoDragRef.current.active) return;
+                const dx = e.clientX - photoDragRef.current.startX;
+                const dy = e.clientY - photoDragRef.current.startY;
+                setPhotoTx(photoDragRef.current.baseTx + dx);
+                setPhotoTy(photoDragRef.current.baseTy + dy);
+              }}
+              onPointerUp={(e) => {
+                photoPointersRef.current.delete(e.pointerId);
+                if (photoPointersRef.current.size < 2) photoPinchRef.current.active = false;
+                if (photoPointersRef.current.size === 0) photoDragRef.current.active = false;
+              }}
+              onPointerCancel={(e) => {
+                photoPointersRef.current.delete(e.pointerId);
+                if (photoPointersRef.current.size < 2) photoPinchRef.current.active = false;
+                if (photoPointersRef.current.size === 0) photoDragRef.current.active = false;
+              }}
+            >
+              <div className="relative w-full" style={{ height: '80vh' }}>
+                <img
+                  src={photoUrl}
+                  alt=""
+                  draggable={false}
+                  className="absolute inset-0 w-full h-full"
+                  style={{
+                    objectFit: 'contain',
+                    transform: `translate(${photoTx}px, ${photoTy}px) scale(${photoScale})`,
+                    transformOrigin: '0 0'
+                  }}
+                />
+              </div>
             </div>
           ) : (
             <div className="text-sm text-gray-500">Sin foto.</div>

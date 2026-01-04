@@ -1,9 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.104';
+export const APP_VERSION = '4.9.105';
 
 // Historial de versiones
 // ⚠️ Importante: agrega SIEMPRE la versión más nueva ARRIBA (al inicio del array)
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.105',
+    date: '2026-01-04',
+    changes: [
+      'Indicador zoom + marcadores exteriores 50% + zoom foto'
+    ]
+  },
   {
     version: '4.9.104',
     date: '2026-01-04',

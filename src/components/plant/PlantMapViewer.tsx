@@ -94,6 +94,21 @@ export function PlantMapViewer(props: {
     setTy(0);
   };
 
+  const isExterioresGeneral = useMemo(() => {
+    const n = (map.nombre || '').toLowerCase();
+    return n.includes('exteriores') && n.includes('general');
+  }, [map.nombre]);
+
+  // Factor visual del marcador en relación al zoom del mapa.
+  // El mapa escala completo; este factor hace que el marcador crezca mucho menos que el plano.
+  const markerVisualScaleBase = useMemo(() => {
+    // scale^(0.3): crece suave al acercar, pero no se vuelve gigante.
+    const exponent = 0.7;
+    const base = Math.pow(clamp(scale, 1, 8), -exponent);
+    const exterioresFactor = isExterioresGeneral ? 0.5 : 1;
+    return clamp(base * exterioresFactor, 0.2, 2);
+  }, [isExterioresGeneral, scale]);
+
   const focusOnMarker = (m: { x: number; y: number }, opts?: { zoomInScale?: number }) => {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
@@ -553,16 +568,18 @@ export function PlantMapViewer(props: {
             const isPinned = pinnedMarkerId === m.id;
             const isFocused = focusMarkerId === m.id;
 
+            const markerScale = markerVisualScaleBase * (isSelected ? 1.25 : 1);
+
             // En modo agregar/mover, NO queremos que los marcadores intercepten clicks (mejora mover marcador).
             if (addingMarker) {
               return (
                 <div
                   key={m.id}
                   className={
-                    `absolute pointer-events-none -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary-600 ring-2 ring-white dark:ring-gray-900 ` +
+                    `absolute pointer-events-none rounded-full bg-primary-600 ring-2 ring-white dark:ring-gray-900 ` +
                     (isSelected ? 'w-3 h-3' : 'w-2 h-2')
                   }
-                  style={{ left: `${m.x * 100}%`, top: `${m.y * 100}%` }}
+                  style={{ left: `${m.x * 100}%`, top: `${m.y * 100}%`, transform: `translate(-50%, -50%) scale(${markerScale})` }}
                 />
               );
             }
@@ -591,17 +608,22 @@ export function PlantMapViewer(props: {
                 }}
                 onBlur={() => setHoveredMarkerId(null)}
                 className={
-                  `absolute -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-white dark:ring-gray-900 ` +
+                  `absolute rounded-full ring-2 ring-white dark:ring-gray-900 ` +
                   (isPinned || isFocused ? 'bg-emerald-500' : 'bg-primary-600') +
                   ' ' +
                   (isSelected ? 'w-3 h-3' : 'w-2 h-2') +
-                  ' cursor-pointer hover:scale-110 transition-transform'
+                  ' cursor-pointer transition-opacity hover:opacity-90'
                 }
-                style={{ left: `${m.x * 100}%`, top: `${m.y * 100}%` }}
+                style={{ left: `${m.x * 100}%`, top: `${m.y * 100}%`, transform: `translate(-50%, -50%) scale(${markerScale})` }}
                 title={m.assetLabel}
               />
             );
           })}
+        </div>
+
+        {/* Indicador de zoom */}
+        <div className="absolute bottom-2 left-2 z-10 px-2 py-1 rounded-lg text-[11px] border border-gray-200 dark:border-gray-700 bg-white/90 dark:bg-gray-900/80 text-gray-700 dark:text-gray-200">
+          Zoom: {scale.toFixed(2)}x
         </div>
 
         {/* Botón Centrar / Reset */}
