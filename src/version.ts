@@ -1,9 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.114';
+export const APP_VERSION = '4.9.115';
 
 // Historial de versiones
 // ⚠️ Importante: agrega SIEMPRE la versión más nueva ARRIBA (al inicio del array)
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.115',
+    date: '2026-01-04',
+    changes: [
+      'Agregar Marker Lab (10 estilos)'
+    ]
+  },
   {
     version: '4.9.114',
     date: '2026-01-04',
