@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, Maximize2, Pencil, Plus, Upload, Trash2, MapPin, X, Download, Image as ImageIcon, ChevronLeft, ChevronRight, Minus, RefreshCw } from 'lucide-react';
+import { AlertCircle, Maximize2, Pencil, Plus, Upload, Trash2, MapPin, X, Download, Image as ImageIcon, ChevronLeft, ChevronRight, Minus, RefreshCw, Undo2 } from 'lucide-react';
 import type { PlantAsset, PlantAssetTipo, PlantMap, PlantAssetImagen, PlantMapAreaShape } from '../../types';
 import { Button, Modal } from '../ui';
 import { useAuth } from '../../hooks/useAuth';
@@ -458,6 +458,7 @@ export function PlantAssetsView(props: {
   const [areaMode, setAreaMode] = useState<'none' | 'circle' | 'polygon'>('none');
   const [draftCircleCenter, setDraftCircleCenter] = useState<{ x: number; y: number } | null>(null);
   const [draftPolygonPoints, setDraftPolygonPoints] = useState<Array<{ x: number; y: number }>>([]);
+  const [areaShowBorder, setAreaShowBorder] = useState(true);
   const [areaCursor, setAreaCursor] = useState<{ x: number; y: number; fitW: number; fitH: number } | null>(null);
 
   const [areasEditorEnabled, setAreasEditorEnabled] = useState(false);
@@ -584,47 +585,9 @@ export function PlantAssetsView(props: {
 
   const [showMapFullscreen, setShowMapFullscreen] = useState(false);
 
-  // === Fotos (ver en grande) ===
-  const [showPhoto, setShowPhoto] = useState(false);
-  const [photoUrl, setPhotoUrl] = useState<string>('');
-
-  const photoContainerRef = useRef<HTMLDivElement>(null);
-  const [photoScale, setPhotoScale] = useState(1);
-  const [photoTx, setPhotoTx] = useState(0);
-  const [photoTy, setPhotoTy] = useState(0);
-  const photoDragRef = useRef<{ active: boolean; startX: number; startY: number; baseTx: number; baseTy: number }>({
-    active: false,
-    startX: 0,
-    startY: 0,
-    baseTx: 0,
-    baseTy: 0
-  });
-  const photoPointersRef = useRef(new Map<number, { x: number; y: number }>());
-  const photoPinchRef = useRef<{ active: boolean; startDist: number; startScale: number; startTx: number; startTy: number; centerX: number; centerY: number }>({
-    active: false,
-    startDist: 0,
-    startScale: 1,
-    startTx: 0,
-    startTy: 0,
-    centerX: 0,
-    centerY: 0
-  });
-
-  useEffect(() => {
-    if (!showPhoto) return;
-    setPhotoScale(1);
-    setPhotoTx(0);
-    setPhotoTy(0);
-    photoDragRef.current.active = false;
-    photoPointersRef.current.clear();
-    photoPinchRef.current.active = false;
-  }, [showPhoto, photoUrl]);
-
-  // === Editar activo ===
-  const [showEdit, setShowEdit] = useState(false);
-  const [savingEdit, setSavingEdit] = useState(false);
-  const [creatingNew, setCreatingNew] = useState(false);
-  const [editDraft, setEditDraft] = useState<Omit<PlantAsset, 'createdAt' | 'updatedAt'>>({
+  // === Editar/crear activo ===
+  type PlantAssetDraft = Omit<PlantAsset, 'createdAt' | 'updatedAt'>;
+  const emptyEditDraft: PlantAssetDraft = {
     id: '',
     tipo: 'motor',
     equipo: 'pendiente',
@@ -640,11 +603,20 @@ export function PlantAssetsView(props: {
     relacionReduccion: '',
     corriente: '',
     eje: '',
+    caudalM3h: '',
+    alturaM: '',
+    acople: '',
+    alturaBaseCentroEjeMm: '',
     observaciones: '',
     referencias: [],
     imagenes: [],
     marcadores: []
-  });
+  };
+
+  const [showEdit, setShowEdit] = useState(false);
+  const [creatingNew, setCreatingNew] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editDraft, setEditDraft] = useState<PlantAssetDraft>(emptyEditDraft);
 
   const editOptions = useMemo(() => {
     const byKey: Record<
@@ -962,7 +934,7 @@ export function PlantAssetsView(props: {
         nombre: `Área ${mapAreas.length + 1}`,
         visible: true,
         fillOpacity: 0.18,
-        strokeOpacity: 0.7,
+        strokeOpacity: areaShowBorder ? 0.7 : 0,
         shape: { kind: 'circle', cx: draftCircleCenter.x, cy: draftCircleCenter.y, r }
       });
 
@@ -985,7 +957,7 @@ export function PlantAssetsView(props: {
             nombre: `Área ${mapAreas.length + 1}`,
             visible: true,
             fillOpacity: 0.18,
-            strokeOpacity: 0.7,
+            strokeOpacity: areaShowBorder ? 0.7 : 0,
             shape: { kind: 'polygon', points: pts }
           });
           setDraftPolygonPoints([]);
@@ -1046,10 +1018,14 @@ export function PlantAssetsView(props: {
       nombre: `Área ${mapAreas.length + 1}`,
       visible: true,
       fillOpacity: 0.18,
-      strokeOpacity: 0.7,
+      strokeOpacity: areaShowBorder ? 0.7 : 0,
       shape: { kind: 'polygon', points: draftPolygonPoints }
     });
     setDraftPolygonPoints([]);
+  };
+
+  const undoLastAreaPoint = () => {
+    setDraftPolygonPoints((prev) => (prev.length > 0 ? prev.slice(0, -1) : prev));
   };
 
   const handleCancelArea = () => {
@@ -1069,13 +1045,21 @@ export function PlantAssetsView(props: {
         const rPx = Math.hypot(dxPx, dyPx);
         return cur.fitW > 0 ? rPx / cur.fitW : 0;
       })();
-      return { shape: { kind: 'circle', cx: draftCircleCenter.x, cy: draftCircleCenter.y, r } as const, fillOpacity: 0.12, strokeOpacity: 0.9 };
+      return {
+        shape: { kind: 'circle', cx: draftCircleCenter.x, cy: draftCircleCenter.y, r } as const,
+        fillOpacity: 0.12,
+        strokeOpacity: areaShowBorder ? 0.9 : 0
+      };
     }
     if (areaMode === 'polygon' && draftPolygonPoints.length > 0) {
-      return { shape: { kind: 'polygon', points: draftPolygonPoints } as const, fillOpacity: 0.08, strokeOpacity: 0.95 };
+      return {
+        shape: { kind: 'polygon', points: draftPolygonPoints } as const,
+        fillOpacity: 0.08,
+        strokeOpacity: areaShowBorder ? 0.95 : 0
+      };
     }
     return null;
-  }, [areaCursor, areaMode, draftCircleCenter, draftPolygonPoints]);
+  }, [areaCursor, areaMode, areaShowBorder, draftCircleCenter, draftPolygonPoints]);
 
   const handleUploadAssetImage = async (file: File) => {
     if (!selected) return;
@@ -1943,14 +1927,13 @@ export function PlantAssetsView(props: {
                 {(selected.imagenes || [])
                   .slice()
                   .sort((a, b) => a.orden - b.orden)
-                  .map((img) => (
+                  .map((img, idx) => (
                     <div key={img.id} className="relative rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-100">
                       <button
                         type="button"
                         className="block w-full"
                         onClick={() => {
-                          setPhotoUrl(img.url);
-                          setShowPhoto(true);
+                          openImagesViewerForAsset({ assetId: selected.id, index: idx });
                         }}
                         title="Ver foto en grande"
                       >
@@ -2181,140 +2164,6 @@ export function PlantAssetsView(props: {
 
           <div className="flex justify-end">
             <Button variant="secondary" onClick={() => setShowColumnsExport(false)}>
-              Cerrar
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Modal Foto en grande */}
-      <Modal isOpen={showPhoto} onClose={() => setShowPhoto(false)} title="Foto" size="full">
-        <div className="w-full">
-          {photoUrl ? (
-            <div
-              ref={photoContainerRef}
-              className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-black/5 dark:bg-black/20 overflow-hidden touch-none"
-              style={{ maxHeight: '80vh' }}
-              onWheel={(e) => {
-                e.preventDefault();
-                if (!photoContainerRef.current) return;
-                const rect = photoContainerRef.current.getBoundingClientRect();
-                const cx = e.clientX - rect.left;
-                const cy = e.clientY - rect.top;
-
-                const factor = e.deltaY < 0 ? 1.1 : 0.9;
-                const nextScale = Math.max(1, Math.min(6, photoScale * factor));
-
-                const worldX = (cx - photoTx) / photoScale;
-                const worldY = (cy - photoTy) / photoScale;
-                const nextTx = cx - worldX * nextScale;
-                const nextTy = cy - worldY * nextScale;
-
-                setPhotoScale(nextScale);
-                setPhotoTx(nextTx);
-                setPhotoTy(nextTy);
-              }}
-              onPointerDown={(e) => {
-                (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
-                photoPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-
-                if (photoPointersRef.current.size === 2 && photoContainerRef.current) {
-                  const [p0, p1] = Array.from(photoPointersRef.current.values());
-                  const dx = p1.x - p0.x;
-                  const dy = p1.y - p0.y;
-                  const dist = Math.hypot(dx, dy);
-
-                  const rect = photoContainerRef.current.getBoundingClientRect();
-                  const cx = (p0.x + p1.x) / 2 - rect.left;
-                  const cy = (p0.y + p1.y) / 2 - rect.top;
-
-                  photoPinchRef.current = {
-                    active: true,
-                    startDist: dist,
-                    startScale: photoScale,
-                    startTx: photoTx,
-                    startTy: photoTy,
-                    centerX: cx,
-                    centerY: cy
-                  };
-                  photoDragRef.current.active = false;
-                  return;
-                }
-
-                if (photoPointersRef.current.size === 1) {
-                  photoDragRef.current = {
-                    active: true,
-                    startX: e.clientX,
-                    startY: e.clientY,
-                    baseTx: photoTx,
-                    baseTy: photoTy
-                  };
-                }
-              }}
-              onPointerMove={(e) => {
-                if (!photoPointersRef.current.has(e.pointerId)) return;
-                photoPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-
-                if (photoPinchRef.current.active && photoPointersRef.current.size === 2 && photoContainerRef.current) {
-                  const [p0, p1] = Array.from(photoPointersRef.current.values());
-                  const dx = p1.x - p0.x;
-                  const dy = p1.y - p0.y;
-                  const dist = Math.hypot(dx, dy);
-                  const pinch = photoPinchRef.current;
-
-                  const rect = photoContainerRef.current.getBoundingClientRect();
-                  const cx = (p0.x + p1.x) / 2 - rect.left;
-                  const cy = (p0.y + p1.y) / 2 - rect.top;
-
-                  const nextScale = Math.max(1, Math.min(6, pinch.startScale * (dist / pinch.startDist)));
-
-                  const worldX = (pinch.centerX - pinch.startTx) / pinch.startScale;
-                  const worldY = (pinch.centerY - pinch.startTy) / pinch.startScale;
-                  const nextTx = cx - worldX * nextScale;
-                  const nextTy = cy - worldY * nextScale;
-
-                  setPhotoScale(nextScale);
-                  setPhotoTx(nextTx);
-                  setPhotoTy(nextTy);
-                  return;
-                }
-
-                if (!photoDragRef.current.active) return;
-                const dx = e.clientX - photoDragRef.current.startX;
-                const dy = e.clientY - photoDragRef.current.startY;
-                setPhotoTx(photoDragRef.current.baseTx + dx);
-                setPhotoTy(photoDragRef.current.baseTy + dy);
-              }}
-              onPointerUp={(e) => {
-                photoPointersRef.current.delete(e.pointerId);
-                if (photoPointersRef.current.size < 2) photoPinchRef.current.active = false;
-                if (photoPointersRef.current.size === 0) photoDragRef.current.active = false;
-              }}
-              onPointerCancel={(e) => {
-                photoPointersRef.current.delete(e.pointerId);
-                if (photoPointersRef.current.size < 2) photoPinchRef.current.active = false;
-                if (photoPointersRef.current.size === 0) photoDragRef.current.active = false;
-              }}
-            >
-              <div className="relative w-full" style={{ height: '80vh' }}>
-                <img
-                  src={photoUrl}
-                  alt=""
-                  draggable={false}
-                  className="absolute inset-0 w-full h-full"
-                  style={{
-                    objectFit: 'contain',
-                    transform: `translate(${photoTx}px, ${photoTy}px) scale(${photoScale})`,
-                    transformOrigin: '0 0'
-                  }}
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="text-sm text-gray-500">Sin foto.</div>
-          )}
-          <div className="mt-3 flex justify-end">
-            <Button variant="secondary" onClick={() => setShowPhoto(false)}>
               Cerrar
             </Button>
           </div>
@@ -2881,6 +2730,39 @@ export function PlantAssetsView(props: {
                       Polígono {areaMode === 'polygon' ? `(${draftPolygonPoints.length})` : ''}
                     </Button>
 
+                    {areaMode === 'circle' && draftCircleCenter && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        icon={<Undo2 className="w-4 h-4" />}
+                        onClick={() => setDraftCircleCenter(null)}
+                        title="Deshacer centro"
+                      >
+                        Deshacer
+                      </Button>
+                    )}
+
+                    {areaMode === 'polygon' && draftPolygonPoints.length > 0 && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        icon={<Undo2 className="w-4 h-4" />}
+                        onClick={undoLastAreaPoint}
+                        title="Deshacer último punto"
+                      >
+                        Deshacer
+                      </Button>
+                    )}
+
+                    <Button
+                      size="sm"
+                      variant={areaShowBorder ? 'secondary' : 'primary'}
+                      onClick={() => setAreaShowBorder((v) => !v)}
+                      title={areaShowBorder ? 'Ocultar borde (solo relleno)' : 'Mostrar borde'}
+                    >
+                      {areaShowBorder ? 'Con borde' : 'Sin borde'}
+                    </Button>
+
                     {areaMode !== 'none' && (
                       <Button size="sm" variant="secondary" onClick={handleCancelArea}>
                         Cancelar
@@ -2902,6 +2784,23 @@ export function PlantAssetsView(props: {
                       {areasPanelOpen ? 'Ocultar panel' : 'Mostrar panel'}
                     </Button>
                   </>
+                )}
+              </div>
+            )}
+
+            {canEditMapAreas && areasEditorEnabled && areaMode !== 'none' && (
+              <div className="mt-2 px-4 py-2 bg-primary-600 text-white text-sm flex items-center justify-between flex-wrap gap-2 rounded-lg">
+                <span>
+                  {areaMode === 'polygon'
+                    ? `Haz clic para agregar puntos${draftPolygonPoints.length > 2 ? ' (clic en punto 1 para cerrar)' : ''}`
+                    : draftCircleCenter
+                      ? 'Haz clic para definir el radio'
+                      : 'Haz clic para definir el centro'}
+                </span>
+                {areaMode === 'polygon' && (
+                  <span className="bg-primary-700/40 px-2 py-1 rounded text-xs">
+                    {draftPolygonPoints.length} punto{draftPolygonPoints.length !== 1 ? 's' : ''}
+                  </span>
                 )}
               </div>
             )}
@@ -3093,7 +2992,7 @@ export function PlantAssetsView(props: {
           imagesViewerList.length === 0 ? (
             <div className="p-6 text-sm text-gray-500">Este motor/bomba no tiene fotos.</div>
           ) : (
-            <div className="h-[80vh] flex flex-col">
+            <div className="h-full min-h-0 flex flex-col">
               <div className="flex items-center justify-between gap-3 p-3 border-b border-gray-200 dark:border-gray-700">
                 <div className="text-xs text-gray-600 dark:text-gray-300">
                   {imagesViewerIndex + 1} / {imagesViewerList.length}
@@ -3122,7 +3021,7 @@ export function PlantAssetsView(props: {
                 </div>
               </div>
 
-              <div className="flex-1 bg-gray-100 dark:bg-gray-900 flex items-center justify-center relative">
+              <div className="flex-1 min-h-0 bg-gray-100 dark:bg-gray-900 flex items-center justify-center relative">
                 <TransformWrapper
                   key={imagesViewerList[imagesViewerIndex]?.id}
                   initialScale={1}

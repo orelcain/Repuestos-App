@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Layouts Motores/Bombas - 16:9</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #1a1d29;
+      color: #e5e7eb;
+      padding: 20px;
+    }
+    
+    .controls {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      max-width: 400px;
+    }
+    
+    .controls button {
+      padding: 10px 20px;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    
+    .controls button:hover {
+      background: #2563eb;
+      transform: translateY(-1px);
+    }
+    
+    .controls button.active {
+      background: #059669;
+    }
+    
+    .container {
+      width: 100%;
+      max-width: 1920px;
+      margin: 0 auto;
+      aspect-ratio: 16/9;
+      background: #0f1117;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    
+    .layout {
+      display: none;
+      width: 100%;
+      height: 100%;
+      gap: 2px;
+      background: #1a1d29;
+    }
+    
+    .layout.active {
+      display: flex;
+    }
+    
+    .panel {
+      background: #1f2937;
+      padding: 16px;
+      overflow: auto;
+      border: 1px solid #374151;
+    }
+    
+    .panel-header {
+      font-weight: 600;
+      font-size: 12px;
+      color: #9ca3af;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .table-panel {
+      background: #1a1f2e;
+    }
+    
+    .map-panel {
+      background: #141824;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #6b7280;
+      font-size: 14px;
+    }
+    
+    .details-panel {
+      background: #1f2937;
+    }
+    
+    .photos-panel {
+      background: #141824;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-content: flex-start;
+    }
+    
+    .photo-mock {
+      width: 80px;
+      height: 80px;
+      background: #374151;
+      border-radius: 6px;
+    }
+    
+    .info-label {
+      font-size: 11px;
+      color: #6b7280;
+      margin-top: 8px;
+    }
+    
+    .info-value {
+      font-size: 13px;
+      color: #e5e7eb;
+      margin-bottom: 8px;
+    }
+    
+    /* Layout 1: Classic Vertical Split */
+    #layout1 {
+      flex-direction: row;
+    }
+    #layout1 .table-panel {
+      flex: 0 0 38%;
+    }
+    #layout1 .right-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    #layout1 .map-panel {
+      flex: 1;
+    }
+    #layout1 .bottom-row {
+      flex: 0 0 32%;
+      display: flex;
+      gap: 2px;
+    }
+    #layout1 .details-panel {
+      flex: 1;
+    }
+    #layout1 .photos-panel {
+      flex: 0 0 40%;
+    }
+    
+    #layout1 .data-table {
+      width: 100%;
+      font-size: 11px;
+      border-collapse: collapse;
+    }
+    
+    #layout1 .data-table th {
+      background: #374151;
+      padding: 6px 8px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 10px;
+      color: #9ca3af;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    
+    #layout1 .data-table td {
+      padding: 8px 8px;
+      border-bottom: 1px solid #374151;
+      color: #e5e7eb;
+    }
+    
+    #layout1 .data-table tr:hover {
+      background: #374151;
+      cursor: pointer;
+    }
+    
+    #layout1 .data-table tr.selected {
+      background: #3b82f6;
+    }
+    
+    #layout1 .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 500;
+    }
+    
+    #layout1 .badge-area {
+      background: #fbbf24;
+      color: #78350f;
+    }
+    
+    #layout1 .badge-type {
+      background: #3b82f6;
+      color: #dbeafe;
+    }
+    
+    #layout1 .link-icon {
+      color: #3b82f6;
+      font-size: 10px;
+    }
+    
+    /* Layout 2: Wide Table Top */
+    #layout2 {
+      flex-direction: column;
+    }
+    #layout2 .table-panel {
+      flex: 0 0 25%;
+    }
+    #layout2 .bottom-section {
+      flex: 1;
+      display: flex;
+      gap: 2px;
+    }
+    #layout2 .map-panel {
+      flex: 0 0 45%;
+    }
+    #layout2 .details-panel {
+      flex: 1;
+    }
+    #layout2 .photos-panel {
+      flex: 0 0 25%;
+    }
+    
+    /* Layout 3: Map Focus */
+    #layout3 {
+      flex-direction: row;
+    }
+    #layout3 .table-panel {
+      flex: 0 0 25%;
+    }
+    #layout3 .map-panel {
+      flex: 1;
+    }
+    #layout3 .right-sidebar {
+      flex: 0 0 25%;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    #layout3 .details-panel {
+      flex: 1;
+    }
+    #layout3 .photos-panel {
+      flex: 1;
+    }
+    
+    /* Layout 4: Grid 2x2 with Table Top */
+    #layout4 {
+      flex-direction: column;
+    }
+    #layout4 .table-panel {
+      flex: 0 0 20%;
+    }
+    #layout4 .grid-section {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 2px;
+    }
+    
+    /* Layout 5: Compact Sidebar */
+    #layout5 {
+      flex-direction: row;
+    }
+    #layout5 .table-panel {
+      flex: 0 0 20%;
+    }
+    #layout5 .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    #layout5 .top-row {
+      flex: 1;
+      display: flex;
+      gap: 2px;
+    }
+    #layout5 .map-panel {
+      flex: 0 0 60%;
+    }
+    #layout5 .details-panel {
+      flex: 1;
+    }
+    #layout5 .photos-panel {
+      flex: 0 0 25%;
+    }
+    
+    /* Layout 6: Three Columns */
+    #layout6 {
+      flex-direction: row;
+    }
+    #layout6 .table-panel {
+      flex: 0 0 30%;
+    }
+    #layout6 .middle-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    #layout6 .map-panel {
+      flex: 1;
+    }
+    #layout6 .photos-panel {
+      flex: 0 0 35%;
+    }
+    #layout6 .details-panel {
+      flex: 0 0 25%;
+    }
+    
+    /* Layout 7: Widescreen Dashboard */
+    #layout7 {
+      flex-direction: column;
+    }
+    #layout7 .top-bar {
+      flex: 0 0 22%;
+      display: flex;
+      gap: 2px;
+    }
+    #layout7 .table-panel {
+      flex: 0 0 40%;
+    }
+    #layout7 .details-panel {
+      flex: 1;
+    }
+    #layout7 .bottom-section {
+      flex: 1;
+      display: flex;
+      gap: 2px;
+    }
+    #layout7 .map-panel {
+      flex: 1;
+    }
+    #layout7 .photos-panel {
+      flex: 0 0 30%;
+    }
+    
+    /* Layout 8: Asymmetric */
+    #layout8 {
+      flex-direction: row;
+    }
+    #layout8 .left-section {
+      flex: 0 0 40%;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    #layout8 .table-panel {
+      flex: 0 0 45%;
+    }
+    #layout8 .details-panel {
+      flex: 1;
+    }
+    #layout8 .right-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    #layout8 .map-panel {
+      flex: 1;
+    }
+    #layout8 .photos-panel {
+      flex: 0 0 30%;
+    }
+    
+    /* Layout 9: Full Width Table Bottom */
+    #layout9 {
+      flex-direction: column;
+    }
+    #layout9 .top-section {
+      flex: 1;
+      display: flex;
+      gap: 2px;
+    }
+    #layout9 .map-panel {
+      flex: 0 0 50%;
+    }
+    #layout9 .details-panel {
+      flex: 1;
+    }
+    #layout9 .photos-panel {
+      flex: 0 0 25%;
+    }
+    #layout9 .table-panel {
+      flex: 0 0 30%;
+    }
+    
+    /* Layout 10: Centered Focus */
+    #layout10 {
+      flex-direction: row;
+    }
+    #layout10 .table-panel {
+      flex: 0 0 22%;
+    }
+    #layout10 .center-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    #layout10 .map-panel {
+      flex: 1;
+    }
+    #layout10 .details-panel {
+      flex: 0 0 28%;
+    }
+    #layout10 .photos-panel {
+      flex: 0 0 22%;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="controls">
+    <button onclick="showLayout(1)" class="active">Layout 1: Clásico</button>
+    <button onclick="showLayout(2)">Layout 2: Tabla Arriba</button>
+    <button onclick="showLayout(3)">Layout 3: Mapa Grande</button>
+    <button onclick="showLayout(4)">Layout 4: Grid 2x2</button>
+    <button onclick="showLayout(5)">Layout 5: Compacto</button>
+    <button onclick="showLayout(6)">Layout 6: 3 Columnas</button>
+    <button onclick="showLayout(7)">Layout 7: Dashboard</button>
+    <button onclick="showLayout(8)">Layout 8: Asimétrico</button>
+    <button onclick="showLayout(9)">Layout 9: Tabla Abajo</button>
+    <button onclick="showLayout(10)">Layout 10: Centro Focus</button>
+  </div>
+  
+  <div class="container">
+    <!-- Layout 1: Classic Vertical Split -->
+    <div id="layout1" class="layout active">
+      <div class="table-panel panel">
+        <div class="panel-header">Motores / Bombas</div>
+        <input type="text" placeholder="Buscar por área, subárea, SAP, marca..." 
+          style="width: 100%; padding: 6px 8px; margin-bottom: 8px; background: #0f1117; border: 1px solid #374151; border-radius: 6px; color: #e5e7eb; font-size: 12px;">
+        <div style="overflow: auto; max-height: calc(100% - 80px);">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Tipo</th>
+                <th>Área</th>
+                <th>Subárea</th>
+                <th>SAP</th>
+                <th>Marca</th>
+                <th>Pot.</th>
+                <th>Eje</th>
+                <th>Rel.</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="selected">
+                <td><span class="badge badge-type">MOTOR</span></td>
+                <td><span class="badge badge-area">Empanillado</span></td>
+                <td>Corta Clarificado Grader</td>
+                <td>330011681B</td>
+                <td>SEW</td>
+                <td>2.2 Kw</td>
+                <td>30mm</td>
+                <td>7.5:1</td>
+              </tr>
+              <tr>
+                <td><span class="badge badge-type">MOTOR</span></td>
+                <td><span class="badge badge-area">Estanque 18cl</span></td>
+                <td>—</td>
+                <td>—</td>
+                <td>SEW</td>
+                <td>15 Kw</td>
+                <td>—</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><span class="badge badge-type">MOTOR</span></td>
+                <td><span class="badge badge-area">Estanque 18cl</span></td>
+                <td>Corta esabl largo Monet</td>
+                <td>—</td>
+                <td>SEW</td>
+                <td>0.75 Kw</td>
+                <td>30mm</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><span class="badge badge-type">MOTOR</span></td>
+                <td><span class="badge badge-area">Estanque 18cl</span></td>
+                <td>Sinfin reposo corta monet</td>
+                <td>—</td>
+                <td>SEW</td>
+                <td>0.75 Kw</td>
+                <td>30mm</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><span class="badge badge-type">MOTOR</span></td>
+                <td><span class="badge badge-area">Estanque 18cl</span></td>
+                <td>Corta Cuello costas lado Monet</td>
+                <td>—</td>
+                <td>SEW</td>
+                <td>1.5 Kw</td>
+                <td>30mm</td>
+                <td>32.44:1</td>
+              </tr>
+              <tr>
+                <td><span class="badge badge-type">MOTOR</span></td>
+                <td><span class="badge badge-area">Estanque 18cl</span></td>
+                <td>Corta aplanado pololos kweker 142</td>
+                <td>—</td>
+                <td>SEW</td>
+                <td>0.75 Kw</td>
+                <td>30mm</td>
+                <td>32.44:1</td>
+              </tr>
+              <tr>
+                <td><span class="badge badge-type">MOTOR</span></td>
+                <td><span class="badge badge-area">Estanque 18cl</span></td>
+                <td>Deflojo de Desangrador</td>
+                <td>—</td>
+                <td>SEW</td>
+                <td>11 Kw</td>
+                <td>35mm</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><span class="badge badge-type">MOTOR</span></td>
+                <td><span class="badge badge-area">Estanque 18cl</span></td>
+                <td>Desangrador</td>
+                <td>—</td>
+                <td>SEW</td>
+                <td>1 Kw</td>
+                <td>—</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><span class="badge badge-type">MOTOR</span></td>
+                <td><span class="badge badge-area">Estanque 18cl</span></td>
+                <td>Banda 162 N°1</td>
+                <td>—</td>
+                <td>Nord Drivesystems</td>
+                <td>—</td>
+                <td>—</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><span class="badge badge-type">MOTOR</span></td>
+                <td><span class="badge badge-area">Estanque 18cl</span></td>
+                <td>Corta remonteación 3 greder</td>
+                <td>330015455</td>
+                <td>SEW</td>
+                <td>0.37 Kw</td>
+                <td>—</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><span class="badge badge-type">MOTOR</span></td>
+                <td><span class="badge badge-area">Estanque 18cl</span></td>
+                <td>Corta aselerecion 3 grader</td>
+                <td>330015455</td>
+                <td>SEW</td>
+                <td>0.37 Kw</td>
+                <td>—</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><span class="badge badge-type">MOTOR</span></td>
+                <td><span class="badge badge-area">Estanque 18cl</span></td>
+                <td>Corta Turbo Greder</td>
+                <td>330015455</td>
+                <td>SEW</td>
+                <td>1.5 Kw</td>
+                <td>40mm</td>
+                <td>32.44:1</td>
+              </tr>
+              <tr>
+                <td><span class="badge badge-type">MOTOR</span></td>
+                <td><span class="badge badge-area">Filtrado</span></td>
+                <td>Corta Despostado Bauder 200</td>
+                <td>—</td>
+                <td>—</td>
+                <td>0.75 Kw</td>
+                <td>—</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><span class="badge badge-type">MOTOR</span></td>
+                <td><span class="badge badge-area">Hilado</span></td>
+                <td>Corta Despressa</td>
+                <td>—</td>
+                <td>SEW</td>
+                <td>0.75 Kw</td>
+                <td>30mm</td>
+                <td>32.44:1</td>
+              </tr>
+              <tr>
+                <td><span class="badge badge-type">MOTOR</span></td>
+                <td><span class="badge badge-area">Receso Empaques</span></td>
+                <td>Gbcretter Autometico</td>
+                <td>—</td>
+                <td>—</td>
+                <td>—</td>
+                <td>40mm</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><span class="badge badge-type">MOTOR</span></td>
+                <td><span class="badge badge-area">Receso Empaques</span></td>
+                <td>Espersalelex 3 areli Fritzkes</td>
+                <td>—</td>
+                <td>—</td>
+                <td>0.25 Kw</td>
+                <td>—</td>
+                <td>19.97</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="right-section">
+        <div class="map-panel panel">
+          <div>
+            <div class="panel-header">Planta Principal</div>
+            <div style="text-align: center; color: #6b7280; margin-top: 40px;">
+              <div style="font-size: 48px; margin-bottom: 12px;">🏭</div>
+              <div style="font-size: 14px;">Mapa con marcadores</div>
+              <div style="font-size: 12px; margin-top: 8px; color: #9ca3af;">
+                📍 Ver todos | Solo este
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="bottom-row">
+          <div class="details-panel panel">
+            <div class="panel-header">MOTOR - 330011681B</div>
+            <div style="font-size: 11px; color: #6b7280; margin-bottom: 12px;">Empanillado → Corta Clarificado Grader</div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px;">
+              <div>
+                <div class="info-label">Descripción SAP</div>
+                <div class="info-value">Motorreductor Tornillo SA57T DRN100LA</div>
+              </div>
+              <div>
+                <div class="info-label">Marca</div>
+                <div class="info-value">SEW</div>
+              </div>
+              <div>
+                <div class="info-label">Modelo/Tipo</div>
+                <div class="info-value">SA57/TDRS100A4</div>
+              </div>
+              <div>
+                <div class="info-label">Potencia</div>
+                <div class="info-value">2.2 Kw</div>
+              </div>
+              <div>
+                <div class="info-label">Voltaje</div>
+                <div class="info-value">220/380 V</div>
+              </div>
+              <div>
+                <div class="info-label">Reducción</div>
+                <div class="info-value">7.5:1</div>
+              </div>
+              <div>
+                <div class="info-label">Corriente</div>
+                <div class="info-value">11.7/6.8 Amp</div>
+              </div>
+              <div>
+                <div class="info-label">Eje</div>
+                <div class="info-value">30mm</div>
+              </div>
+            </div>
+            
+            <div style="margin-top: 12px;">
+              <div class="info-label">Referencias</div>
+              <div style="display: flex; gap: 6px; margin-top: 4px;">
+                <a href="#" class="link-icon" style="text-decoration: none;">🔗 Planta Principal</a>
+                <a href="#" class="link-icon" style="text-decoration: none;">🔗 Mapa Eléctrico General</a>
+              </div>
+            </div>
+          </div>
+          <div class="photos-panel panel">
+            <div class="panel-header">Fotos (zona/repuesto)</div>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+              <div class="photo-mock" style="width: 100%; height: 90px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"></div>
+              <div class="photo-mock" style="width: 100%; height: 90px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);"></div>
+              <div class="photo-mock" style="width: 100%; height: 90px; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);"></div>
+              <div class="photo-mock" style="width: 100%; height: 90px; background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layout 2: Wide Table Top -->
+    <div id="layout2" class="layout">
+      <div class="table-panel panel">
+        <div class="panel-header">Motores / Bombas</div>
+        <div style="display: flex; gap: 20px;">
+          <div class="info-value">MOTOR - 330011681B</div>
+          <div class="info-value">MOTOR - Estanque 18cl</div>
+          <div class="info-value">MOTOR - Filtrado</div>
+          <div class="info-value">MOTOR - Hilado</div>
+        </div>
+      </div>
+      <div class="bottom-section">
+        <div class="map-panel panel">
+          <div>
+            <div class="panel-header">Planta Principal</div>
+            Mapa con marcadores
+          </div>
+        </div>
+        <div class="details-panel panel">
+          <div class="panel-header">Detalles</div>
+          <div class="info-label">Código SAP</div>
+          <div class="info-value">330011681B</div>
+          <div class="info-label">Marca</div>
+          <div class="info-value">SEW</div>
+          <div class="info-label">Potencia</div>
+          <div class="info-value">2.2 Kw</div>
+          <div class="info-label">Referencias</div>
+          <div class="info-value">Link 1, Link 2</div>
+        </div>
+        <div class="photos-panel panel">
+          <div class="panel-header">Fotos</div>
+          <div class="photo-mock"></div>
+          <div class="photo-mock"></div>
+          <div class="photo-mock"></div>
+          <div class="photo-mock"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layout 3: Map Focus -->
+    <div id="layout3" class="layout">
+      <div class="table-panel panel">
+        <div class="panel-header">Motores / Bombas</div>
+        <div class="info-value">MOTOR - 330011681B</div>
+        <div class="info-value">MOTOR - Estanque 18cl</div>
+        <div class="info-value">MOTOR - Filtrado</div>
+        <div class="info-value">MOTOR - Hilado</div>
+        <div class="info-value">MOTOR - Receso Empaques</div>
+      </div>
+      <div class="map-panel panel">
+        <div>
+          <div class="panel-header">Planta Principal</div>
+          Mapa Grande con Marcadores
+        </div>
+      </div>
+      <div class="right-sidebar">
+        <div class="details-panel panel">
+          <div class="panel-header">Detalles</div>
+          <div class="info-label">Código SAP</div>
+          <div class="info-value">330011681B</div>
+          <div class="info-label">Marca</div>
+          <div class="info-value">SEW</div>
+          <div class="info-label">Potencia</div>
+          <div class="info-value">2.2 Kw</div>
+        </div>
+        <div class="photos-panel panel">
+          <div class="panel-header">Fotos</div>
+          <div class="photo-mock"></div>
+          <div class="photo-mock"></div>
+          <div class="photo-mock"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layout 4: Grid 2x2 with Table Top -->
+    <div id="layout4" class="layout">
+      <div class="table-panel panel">
+        <div class="panel-header">Motores / Bombas - Vista Horizontal</div>
+        <div style="display: flex; gap: 15px; overflow-x: auto;">
+          <div class="info-value">330011681B</div>
+          <div class="info-value">Estanque 18cl</div>
+          <div class="info-value">Filtrado</div>
+          <div class="info-value">Hilado</div>
+          <div class="info-value">Receso Empaques</div>
+        </div>
+      </div>
+      <div class="grid-section">
+        <div class="map-panel panel">
+          <div>
+            <div class="panel-header">Planta Principal</div>
+            Mapa
+          </div>
+        </div>
+        <div class="details-panel panel">
+          <div class="panel-header">Detalles</div>
+          <div class="info-label">Código SAP</div>
+          <div class="info-value">330011681B</div>
+          <div class="info-label">Marca</div>
+          <div class="info-value">SEW</div>
+        </div>
+        <div class="photos-panel panel">
+          <div class="panel-header">Fotos</div>
+          <div class="photo-mock"></div>
+          <div class="photo-mock"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">Referencias</div>
+          <div class="info-value">Link 1</div>
+          <div class="info-value">Link 2</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layout 5: Compact Sidebar -->
+    <div id="layout5" class="layout">
+      <div class="table-panel panel">
+        <div class="panel-header">Lista</div>
+        <div class="info-value">330011681B</div>
+        <div class="info-value">Estanque 18cl</div>
+        <div class="info-value">Filtrado</div>
+        <div class="info-value">Hilado</div>
+        <div class="info-value">Receso Empaques</div>
+      </div>
+      <div class="main-content">
+        <div class="top-row">
+          <div class="map-panel panel">
+            <div>
+              <div class="panel-header">Planta Principal</div>
+              Mapa
+            </div>
+          </div>
+          <div class="details-panel panel">
+            <div class="panel-header">Detalles</div>
+            <div class="info-label">Código SAP</div>
+            <div class="info-value">330011681B</div>
+            <div class="info-label">Marca</div>
+            <div class="info-value">SEW</div>
+            <div class="info-label">Potencia</div>
+            <div class="info-value">2.2 Kw</div>
+          </div>
+        </div>
+        <div class="photos-panel panel">
+          <div class="panel-header">Fotos</div>
+          <div style="display: flex; gap: 8px;">
+            <div class="photo-mock"></div>
+            <div class="photo-mock"></div>
+            <div class="photo-mock"></div>
+            <div class="photo-mock"></div>
+            <div class="photo-mock"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layout 6: Three Columns -->
+    <div id="layout6" class="layout">
+      <div class="table-panel panel">
+        <div class="panel-header">Motores / Bombas</div>
+        <div class="info-value">MOTOR - 330011681B</div>
+        <div class="info-value">MOTOR - Estanque 18cl</div>
+        <div class="info-value">MOTOR - Filtrado</div>
+        <div class="info-value">MOTOR - Hilado</div>
+      </div>
+      <div class="middle-section">
+        <div class="map-panel panel">
+          <div>
+            <div class="panel-header">Planta Principal</div>
+            Mapa Central
+          </div>
+        </div>
+        <div class="photos-panel panel">
+          <div class="panel-header">Fotos</div>
+          <div style="display: flex; gap: 8px;">
+            <div class="photo-mock"></div>
+            <div class="photo-mock"></div>
+            <div class="photo-mock"></div>
+          </div>
+        </div>
+      </div>
+      <div class="details-panel panel">
+        <div class="panel-header">Detalles Completos</div>
+        <div class="info-label">Código SAP</div>
+        <div class="info-value">330011681B</div>
+        <div class="info-label">Marca</div>
+        <div class="info-value">SEW</div>
+        <div class="info-label">Potencia</div>
+        <div class="info-value">2.2 Kw</div>
+        <div class="info-label">Voltaje</div>
+        <div class="info-value">220/380 V</div>
+      </div>
+    </div>
+
+    <!-- Layout 7: Widescreen Dashboard -->
+    <div id="layout7" class="layout">
+      <div class="top-bar">
+        <div class="table-panel panel">
+          <div class="panel-header">Lista de Motores</div>
+          <div style="display: flex; gap: 10px; overflow-x: auto;">
+            <div class="info-value">330011681B</div>
+            <div class="info-value">Estanque</div>
+            <div class="info-value">Filtrado</div>
+          </div>
+        </div>
+        <div class="details-panel panel">
+          <div class="panel-header">Detalles Rápidos</div>
+          <div style="display: flex; gap: 15px;">
+            <div>
+              <div class="info-label">SAP</div>
+              <div class="info-value">330011681B</div>
+            </div>
+            <div>
+              <div class="info-label">Potencia</div>
+              <div class="info-value">2.2 Kw</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="bottom-section">
+        <div class="map-panel panel">
+          <div>
+            <div class="panel-header">Planta Principal</div>
+            Mapa Grande
+          </div>
+        </div>
+        <div class="photos-panel panel">
+          <div class="panel-header">Fotos</div>
+          <div class="photo-mock"></div>
+          <div class="photo-mock"></div>
+          <div class="photo-mock"></div>
+          <div class="photo-mock"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layout 8: Asymmetric -->
+    <div id="layout8" class="layout">
+      <div class="left-section">
+        <div class="table-panel panel">
+          <div class="panel-header">Motores / Bombas</div>
+          <div class="info-value">MOTOR - 330011681B</div>
+          <div class="info-value">MOTOR - Estanque 18cl</div>
+          <div class="info-value">MOTOR - Filtrado</div>
+        </div>
+        <div class="details-panel panel">
+          <div class="panel-header">Detalles</div>
+          <div class="info-label">Código SAP</div>
+          <div class="info-value">330011681B</div>
+          <div class="info-label">Marca</div>
+          <div class="info-value">SEW</div>
+          <div class="info-label">Potencia</div>
+          <div class="info-value">2.2 Kw</div>
+        </div>
+      </div>
+      <div class="right-section">
+        <div class="map-panel panel">
+          <div>
+            <div class="panel-header">Planta Principal</div>
+            Mapa Grande
+          </div>
+        </div>
+        <div class="photos-panel panel">
+          <div class="panel-header">Fotos</div>
+          <div style="display: flex; gap: 8px;">
+            <div class="photo-mock"></div>
+            <div class="photo-mock"></div>
+            <div class="photo-mock"></div>
+            <div class="photo-mock"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layout 9: Full Width Table Bottom -->
+    <div id="layout9" class="layout">
+      <div class="top-section">
+        <div class="map-panel panel">
+          <div>
+            <div class="panel-header">Planta Principal</div>
+            Mapa Grande
+          </div>
+        </div>
+        <div class="details-panel panel">
+          <div class="panel-header">Detalles</div>
+          <div class="info-label">Código SAP</div>
+          <div class="info-value">330011681B</div>
+          <div class="info-label">Marca</div>
+          <div class="info-value">SEW</div>
+          <div class="info-label">Potencia</div>
+          <div class="info-value">2.2 Kw</div>
+          <div class="info-label">Voltaje</div>
+          <div class="info-value">220/380 V</div>
+        </div>
+        <div class="photos-panel panel">
+          <div class="panel-header">Fotos</div>
+          <div class="photo-mock"></div>
+          <div class="photo-mock"></div>
+          <div class="photo-mock"></div>
+        </div>
+      </div>
+      <div class="table-panel panel">
+        <div class="panel-header">Lista Completa de Motores / Bombas</div>
+        <div style="display: flex; gap: 20px;">
+          <div class="info-value">330011681B</div>
+          <div class="info-value">Estanque 18cl</div>
+          <div class="info-value">Filtrado</div>
+          <div class="info-value">Hilado</div>
+          <div class="info-value">Receso Empaques</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layout 10: Centered Focus -->
+    <div id="layout10" class="layout">
+      <div class="table-panel panel">
+        <div class="panel-header">Lista</div>
+        <div class="info-value">330011681B</div>
+        <div class="info-value">Estanque 18cl</div>
+        <div class="info-value">Filtrado</div>
+        <div class="info-value">Hilado</div>
+        <div class="info-value">Receso</div>
+      </div>
+      <div class="center-section">
+        <div class="map-panel panel">
+          <div>
+            <div class="panel-header">Planta Principal</div>
+            Mapa Central Grande
+          </div>
+        </div>
+        <div class="details-panel panel">
+          <div class="panel-header">Detalles</div>
+          <div style="display: flex; gap: 20px;">
+            <div>
+              <div class="info-label">Código SAP</div>
+              <div class="info-value">330011681B</div>
+            </div>
+            <div>
+              <div class="info-label">Marca</div>
+              <div class="info-value">SEW</div>
+            </div>
+            <div>
+              <div class="info-label">Potencia</div>
+              <div class="info-value">2.2 Kw</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="photos-panel panel">
+        <div class="panel-header">Fotos</div>
+        <div class="photo-mock"></div>
+        <div class="photo-mock"></div>
+        <div class="photo-mock"></div>
+        <div class="photo-mock"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function showLayout(num) {
+      // Hide all layouts
+      document.querySelectorAll('.layout').forEach(l => l.classList.remove('active'));
+      document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+      
+      // Show selected layout
+      document.getElementById('layout' + num).classList.add('active');
+      event.target.classList.add('active');
+    }
+    
+    // Keyboard navigation
+    document.addEventListener('keydown', (e) => {
+      if (e.key >= '1' && e.key <= '9') {
+        const num = parseInt(e.key);
+        showLayout(num);
+        document.querySelectorAll('.controls button')[num - 1].classList.add('active');
+      } else if (e.key === '0') {
+        showLayout(10);
+        document.querySelectorAll('.controls button')[9].classList.add('active');
+      }
+    });
+  </script>
+</body>
+</html>

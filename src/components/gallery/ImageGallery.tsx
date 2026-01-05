@@ -49,7 +49,7 @@ export function ImageGallery({
   onSetPrimary,
 }: ImageGalleryProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [zoomImage, setZoomImage] = useState<ImagenRepuesto | null>(null);
+  const [zoomOpen, setZoomOpen] = useState(false);
   const [zoomScale, setZoomScale] = useState(1);
   const [isPanning, setIsPanning] = useState(false);
   const [inlineScale, setInlineScale] = useState(1);
@@ -107,11 +107,19 @@ export function ImageGallery({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (sortedImages.length <= 1) return;
-
       const active = document.activeElement as HTMLElement | null;
       const tag = active?.tagName?.toLowerCase();
       if (tag === 'input' || tag === 'textarea' || (active && active.isContentEditable)) return;
+
+      if (zoomOpen && e.key === 'Escape') {
+        e.preventDefault();
+        setZoomOpen(false);
+        setZoomScale(1);
+        setIsPanning(false);
+        return;
+      }
+
+      if (sortedImages.length <= 1) return;
 
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
@@ -125,7 +133,7 @@ export function ImageGallery({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [sortedImages.length]);
+  }, [sortedImages.length, zoomOpen]);
 
   if (!repuesto) {
     return null;
@@ -336,6 +344,11 @@ export function ImageGallery({
                         alt={sortedImages[currentIndex]?.descripcion || 'Imagen del repuesto'}
                         className="max-w-full max-h-full object-contain select-none"
                         draggable={false}
+                        onDoubleClick={() => {
+                          setZoomOpen(true);
+                          setZoomScale(1);
+                          setIsPanning(false);
+                        }}
                       />
                     </TransformComponent>
                   </>
@@ -447,18 +460,18 @@ export function ImageGallery({
 
       {/* Zoom Modal */}
       <Modal
-        isOpen={!!zoomImage}
+        isOpen={zoomOpen}
         onClose={() => {
-          setZoomImage(null);
+          setZoomOpen(false);
           setZoomScale(1);
           setIsPanning(false);
         }}
         size="full"
       >
-        <div className="relative w-full h-full min-h-[70vh]">
+        <div className="relative w-full h-full flex flex-col min-h-0">
           <button
             onClick={() => {
-              setZoomImage(null);
+              setZoomOpen(false);
               setZoomScale(1);
               setIsPanning(false);
             }}
@@ -467,8 +480,9 @@ export function ImageGallery({
             <X className="w-5 h-5" />
           </button>
           
-          {zoomImage && (
+          {zoomOpen && sortedImages[currentIndex] && (
             <TransformWrapper
+              key={sortedImages[currentIndex].id}
               initialScale={1}
               minScale={1}
               maxScale={6}
@@ -524,8 +538,8 @@ export function ImageGallery({
                     contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   >
                     <img
-                      src={zoomImage.url}
-                      alt={zoomImage.descripcion}
+                      src={sortedImages[currentIndex].url}
+                      alt={sortedImages[currentIndex].descripcion}
                       className="max-w-full max-h-full object-contain select-none"
                       draggable={false}
                     />
