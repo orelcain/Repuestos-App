@@ -898,24 +898,39 @@ export function Dashboard() {
     const hasStock = !!activeContexts.stock;
     const onlySolicitud = hasSolicitud && !hasStock;
     const onlyStock = hasStock && !hasSolicitud;
+    const ambos = hasSolicitud && hasStock;
 
-    // Solo pasamos contextTag/tipoContexto cuando hay un único contexto activo.
-    const contextName = onlySolicitud
-      ? activeContexts.solicitud || undefined
-      : onlyStock
-        ? activeContexts.stock || undefined
-        : undefined;
-    const tipoContexto = onlySolicitud ? 'solicitud' : onlyStock ? 'stock' : null;
-    
-    exportToExcel(toExport, {
-      formato: excelFormato,
-      incluirResumen: excelIncluirResumen,
-      incluirSinStock: excelIncluirSinStock,
-      incluirPorTags: excelIncluirPorTags,
-      incluirEstilos: excelIncluirEstilos,
-      contextTag: contextName, // Pasar el contexto activo
-      tipoContexto // Pasar el tipo de contexto (solicitud/stock) si aplica
-    }, buildExportFilename('excel'));
+    // Si hay ambos contextos activos, pasar ambos para comparación
+    if (ambos) {
+      exportToExcel(toExport, {
+        formato: excelFormato,
+        incluirResumen: excelIncluirResumen,
+        incluirSinStock: excelIncluirSinStock,
+        incluirPorTags: excelIncluirPorTags,
+        incluirEstilos: excelIncluirEstilos,
+        contextSolicitud: activeContexts.solicitud || undefined,
+        contextStock: activeContexts.stock || undefined,
+        tipoContexto: 'comparacion'
+      }, buildExportFilename('excel'));
+    } else {
+      // Contexto único o ninguno
+      const contextName = onlySolicitud
+        ? activeContexts.solicitud || undefined
+        : onlyStock
+          ? activeContexts.stock || undefined
+          : undefined;
+      const tipoContexto = onlySolicitud ? 'solicitud' : onlyStock ? 'stock' : null;
+      
+      exportToExcel(toExport, {
+        formato: excelFormato,
+        incluirResumen: excelIncluirResumen,
+        incluirSinStock: excelIncluirSinStock,
+        incluirPorTags: excelIncluirPorTags,
+        incluirEstilos: excelIncluirEstilos,
+        contextTag: contextName,
+        tipoContexto
+      }, buildExportFilename('excel'));
+    }
     
     success(`Excel exportado: ${buildExportViewLabel()}`);
     setShowExcelExportModal(false);

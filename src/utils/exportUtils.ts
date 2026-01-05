@@ -369,8 +369,10 @@ export interface ExcelExportOptions {
   incluirSinStock?: boolean;
   incluirPorTags?: boolean;
   incluirEstilos?: boolean;
-  contextTag?: string | null;  // Tag de contexto para cantidades
-  tipoContexto?: 'solicitud' | 'stock' | null; // Tipo del contexto para determinar columnas
+  contextTag?: string | null;  // Tag de contexto para cantidades (cuando es único)
+  tipoContexto?: 'solicitud' | 'stock' | 'comparacion' | null; // Tipo del contexto
+  contextSolicitud?: string;  // Nombre de la solicitud (cuando hay comparación)
+  contextStock?: string;      // Nombre del stock (cuando hay comparación)
 }
 
 // Exportación formato informe: Igual al "Informe Baader 200 v2.xlsx"
@@ -514,6 +516,168 @@ async function exportToExcelInforme(
   saveAs(blob, `${finalFilename}.xlsx`);
 }
 
+// Exportación comparación: Solicitud vs Stock lado a lado
+async function exportToExcelComparacion(
+  repuestos: Repuesto[], 
+  filename: string, 
+  contextSolicitud: string,
+  contextStock: string
+) {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'Baader 200 App';
+  workbook.created = new Date();
+
+  const sheetName = `${contextSolicitud.substring(0, 15)} vs ${contextStock.substring(0, 15)}`;
+  const ws = workbook.addWorksheet(sanitizeWorksheetName(sheetName));
+
+  // === COLUMNAS: SAP, TEXTO BREVE, COD BAADER, CANT SOLICITUD, VALOR UN, TOTAL SOL, CANT STOCK, TOTAL STOCK, DIFERENCIA ===
+  ws.columns = [
+    { header: 'CODIGO SAP', key: 'codigoSAP', width: 14 },
+    { header: 'TEXTO BREVE', key: 'textoBreve', width: 50 },
+    { header: 'COD. BAADER', key: 'codBaader', width: 16 },
+    { header: `CANT. ${contextSolicitud.toUpperCase()}`, key: 'cantSolicitud', width: 18 },
+    { header: 'VALOR UN', key: 'valorUn', width: 14 },
+    { header: `TOTAL ${contextSolicitud.toUpperCase()} $`, key: 'totalSolicitud', width: 18 },
+    { header: `CANT. ${contextStock.toUpperCase()}`, key: 'cantStock', width: 18 },
+    { header: `TOTAL ${contextStock.toUpperCase()} $`, key: 'totalStock', width: 18 },
+    { header: 'DIFERENCIA', key: 'diferencia', width: 16 },
+  ];
+
+  // === ESTILO DEL HEADER ===
+  const headerRow = ws.getRow(1);
+  headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E40AF' } };
+  headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+  headerRow.height = 22;
+
+  // === AGREGAR DATOS ===
+  let totalSolicitud = 0;
+  let totalStock = 0;
+  let cantTotalSolicitud = 0;
+  let cantTotalStock = 0;
+
+  repuestos.forEach((r, index) => {
+    const cantSol = getCantidadPorContexto(r, contextSolicitud, 'solicitud');
+    const cantSto = getCantidadPorContexto(r, contextStock, 'stock');
+    const totalSol = r.valorUnitario * cantSol;
+    const totalSto = r.valorUnitario * cantSto;
+    const dif = cantSol - cantSto;
+
+    totalSolicitud += totalSol;
+    totalStock += totalSto;
+    cantTotalSolicitud += cantSol;
+    cantTotalStock += cantSto;
+
+    const row = ws.addRow({
+      codigoSAP: r.codigoSAP,
+      textoBreve: r.textoBreve,
+      codBaader: r.codigoBaader,
+      cantSolicitud: cantSol,
+      valorUn: r.valorUnitario,
+      totalSolicitud: totalSol,
+      cantStock: cantSto,
+      totalStock: totalSto,
+      diferencia: dif
+    });
+
+    // Alternar colores de fila
+    if (index % 2 === 1) {
+      row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } };
+    }
+
+    // Formato de moneda
+    row.getCell('valorUn').numFmt = '"$"#,##0.00';
+    row.getCell('totalSolicitud').numFmt = '"$"#,##0.00';
+    row.getCell('totalStock').numFmt = '"$"#,##0.00';
+    
+    // Colorear diferencia
+    const difCell = row.getCell('diferencia');
+    if (dif > 0) {
+      difCell.font = { bold: true, color: { argb: 'FFEF4444' } }; // Rojo (falta stock)
+    } else if (dif < 0) {
+      difCell.font = { bold: true, color: { argb: 'FF22C55E' } }; // Verde (sobra stock)
+    }
+    
+    // Alineación
+    row.getCell('codigoSAP').alignment = { horizontal: 'center' };
+    row.getCell('codBaader').alignment = { horizontal: 'center' };
+    row.getCell('cantSolicitud').alignment = { horizontal: 'center' };
+    row.getCell('cantStock').alignment = { horizontal: 'center' };
+    row.getCell('diferencia').alignment = { horizontal: 'center' };
+    row.getCell('valorUn').alignment = { horizontal: 'right' };
+    row.getCell('totalSolicitud').alignment = { horizontal: 'right' };
+    row.getCell('totalStock').alignment = { horizontal: 'right' };
+  });
+
+  // === FILA DE TOTALES ===
+  const totalRow = ws.addRow({
+    codigoSAP: '',
+    textoBreve: 'TOTALES',
+    codBaader: '',
+    cantSolicitud: cantTotalSolicitud,
+    valorUn: '',
+    totalSolicitud: totalSolicitud,
+    cantStock: cantTotalStock,
+    totalStock: totalStock,
+    diferencia: cantTotalSolicitud - cantTotalStock
+  });
+  totalRow.font = { bold: true };
+  totalRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDBEAFE' } };
+  totalRow.getCell('totalSolicitud').numFmt = '"$"#,##0.00';
+  totalRow.getCell('totalStock').numFmt = '"$"#,##0.00';
+  totalRow.getCell('textoBreve').alignment = { horizontal: 'right' };
+  totalRow.getCell('cantSolicitud').alignment = { horizontal: 'center' };
+  totalRow.getCell('cantStock').alignment = { horizontal: 'center' };
+  totalRow.getCell('diferencia').alignment = { horizontal: 'center' };
+  totalRow.getCell('totalSolicitud').alignment = { horizontal: 'right' };
+  totalRow.getCell('totalStock').alignment = { horizontal: 'right' };
+
+  // === BORDES ===
+  ws.eachRow((row) => {
+    row.eachCell((cell) => {
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+        left: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+        bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+        right: { style: 'thin', color: { argb: 'FFE5E7EB' } }
+      };
+    });
+  });
+
+  // === FILTROS AUTOMÁTICOS ===
+  ws.autoFilter = {
+    from: { row: 1, column: 1 },
+    to: { row: repuestos.length + 1, column: 9 }
+  };
+
+  // === INFO EN NUEVA HOJA ===
+  const wsInfo = workbook.addWorksheet('Info');
+  wsInfo.columns = [
+    { header: 'Campo', key: 'campo', width: 25 },
+    { header: 'Valor', key: 'valor', width: 40 },
+  ];
+  wsInfo.addRow({ campo: 'Solicitud', valor: contextSolicitud });
+  wsInfo.addRow({ campo: 'Stock', valor: contextStock });
+  wsInfo.addRow({ campo: 'Total Repuestos', valor: repuestos.length });
+  wsInfo.addRow({ campo: `Total Cantidad ${contextSolicitud}`, valor: cantTotalSolicitud });
+  wsInfo.addRow({ campo: `Total USD ${contextSolicitud}`, valor: totalSolicitud });
+  wsInfo.addRow({ campo: `Total Cantidad ${contextStock}`, valor: cantTotalStock });
+  wsInfo.addRow({ campo: `Total USD ${contextStock}`, valor: totalStock });
+  wsInfo.addRow({ campo: 'Diferencia Cantidades', valor: cantTotalSolicitud - cantTotalStock });
+  wsInfo.addRow({ campo: 'Diferencia USD', valor: totalSolicitud - totalStock });
+  wsInfo.addRow({ campo: 'Fecha Exportación', valor: new Date().toLocaleDateString('es-CL') });
+  wsInfo.getRow(1).font = { bold: true };
+  wsInfo.getCell('B5').numFmt = '"$"#,##0.00';
+  wsInfo.getCell('B7').numFmt = '"$"#,##0.00';
+  wsInfo.getCell('B9').numFmt = '"$"#,##0.00';
+
+  // Guardar archivo
+  const finalFilename = `${filename}_${contextSolicitud}_vs_${contextStock}`.replace(/[^a-zA-Z0-9_]/g, '_');
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  saveAs(blob, `${finalFilename}.xlsx`);
+}
+
 // Exportación simple: Solo datos básicos, sin estilos ni hojas adicionales (legacy)
 async function exportToExcelSimple(repuestos: Repuesto[], filename: string, contextTag?: string | null) {
   const workbook = new ExcelJS.Workbook();
@@ -579,6 +743,16 @@ export async function exportToExcel(
   options: ExcelExportOptions = { formato: 'completo' },
   filename: string = 'repuestos_baader_200'
 ) {
+  // Si es comparación (solicitud vs stock), usar formato de comparación
+  if (options.tipoContexto === 'comparacion' && options.contextSolicitud && options.contextStock) {
+    return exportToExcelComparacion(
+      repuestos, 
+      filename, 
+      options.contextSolicitud, 
+      options.contextStock
+    );
+  }
+
   // Si es formato simple, usar el nuevo formato informe (6 columnas)
   if (options.formato === 'simple') {
     return exportToExcelInforme(repuestos, filename, options.contextTag || null, options.tipoContexto || null);
