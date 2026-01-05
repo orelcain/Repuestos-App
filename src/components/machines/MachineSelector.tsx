@@ -19,9 +19,10 @@ interface MachineSelectorProps {
   displayLabel?: string | null;
   displaySubLabel?: string | null;
   variant?: 'default' | 'tab';
+  readOnly?: boolean;
 }
 
-export function MachineSelector({ onEditMachine, displayLabel = null, displaySubLabel = null, variant = 'default' }: MachineSelectorProps) {
+export function MachineSelector({ onEditMachine, displayLabel = null, displaySubLabel = null, variant = 'default', readOnly = false }: MachineSelectorProps) {
   const { currentMachine, machines, setCurrentMachine, loading } = useMachineContext();
   
   const [isOpen, setIsOpen] = useState(false);
@@ -59,6 +60,7 @@ export function MachineSelector({ onEditMachine, displayLabel = null, displaySub
 
   const handleEditMachine = (machine: Machine, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (readOnly) return;
     setIsOpen(false);
     // Si se pasó un callback externo, usarlo; sino usar el modal interno
     if (onEditMachine) {
@@ -69,6 +71,7 @@ export function MachineSelector({ onEditMachine, displayLabel = null, displaySub
   };
 
   const handleNewMachine = () => {
+    if (readOnly) return;
     setShowNewModal(true);
     setIsOpen(false);
   };
@@ -166,13 +169,15 @@ export function MachineSelector({ onEditMachine, displayLabel = null, displaySub
                     )}
                     
                     {/* Botón editar */}
-                    <button
-                      onClick={(e) => handleEditMachine(machine, e)}
-                      className="p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-100 opacity-0 group-hover:opacity-100 hover:opacity-100"
-                      title="Editar máquina"
-                    >
-                      <Settings className="w-4 h-4" />
-                    </button>
+                    {!readOnly && (
+                      <button
+                        onClick={(e) => handleEditMachine(machine, e)}
+                        className="p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-100 opacity-0 group-hover:opacity-100 hover:opacity-100"
+                        title="Editar máquina"
+                      >
+                        <Settings className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 ))
               )}
@@ -182,19 +187,21 @@ export function MachineSelector({ onEditMachine, displayLabel = null, displaySub
             <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
             
             {/* Botón crear nueva */}
-            <button
-              onClick={handleNewMachine}
-              className="w-full flex items-center gap-3 px-4 py-2 text-primary-600 dark:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="font-medium">Crear nueva máquina</span>
-            </button>
+            {!readOnly && (
+              <button
+                onClick={handleNewMachine}
+                className="w-full flex items-center gap-3 px-4 py-2 text-primary-600 dark:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="font-medium">Crear nueva máquina</span>
+              </button>
+            )}
           </div>
         )}
       </div>
 
       {/* Modal para crear nueva máquina */}
-      {showNewModal && (
+      {showNewModal && !readOnly && (
         <MachineFormModal
           isOpen={showNewModal}
           onClose={() => setShowNewModal(false)}
@@ -202,7 +209,7 @@ export function MachineSelector({ onEditMachine, displayLabel = null, displaySub
       )}
 
       {/* Modal para editar máquina */}
-      {editingMachine && (
+      {editingMachine && !readOnly && (
         <MachineFormModal
           isOpen={!!editingMachine}
           onClose={() => setEditingMachine(null)}

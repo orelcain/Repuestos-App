@@ -12,6 +12,7 @@ import { Repuesto, RepuestoFormData, ImagenRepuesto, VinculoManual, Machine } fr
 import { APP_VERSION } from '../version';
 import { useGlobalCatalog } from '../hooks/useGlobalCatalog';
 import { usePlantAssets } from '../hooks/usePlantAssets';
+import { isAdminEmail } from '../utils/admin';
 
 // Script de importación - exponer globalmente para uso desde consola
 import { importarRepuestosInformeV2 } from '../scripts/importInformeV2';
@@ -110,6 +111,8 @@ const sanitizeImagen = (img: ImagenRepuesto): ImagenRepuesto => {
 export function Dashboard() {
   const { user, signOut } = useAuth();
   const { currentMachine, machines, setCurrentMachine } = useMachineContext();
+
+  const canMutate = useMemo(() => isAdminEmail(user?.email), [user?.email]);
   
   const machineId = currentMachine?.id || null;
   
@@ -438,7 +441,7 @@ export function Dashboard() {
       // Ctrl/Cmd + N: Nuevo repuesto
       if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
         e.preventDefault();
-        handleAddNew();
+        if (canMutate) handleAddNew();
       }
       
       // Ctrl/Cmd + E: Exportar Excel
@@ -476,7 +479,7 @@ export function Dashboard() {
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [rightPanelMode, showForm, showExcelExportModal, showPDFExportModal, showBackupModal]);
+  }, [rightPanelMode, showForm, showExcelExportModal, showPDFExportModal, showBackupModal, canMutate]);
 
   // Handlers de selección
   const handleSelectRepuesto = (repuesto: Repuesto | null) => {
@@ -491,12 +494,14 @@ export function Dashboard() {
 
   // Handlers de CRUD
   const handleAddNew = () => {
+    if (!canMutate) return;
     setEditRepuesto(null);
     setFormMode('create');
     setShowForm(true);
   };
 
   const handleEdit = (repuesto: Repuesto) => {
+    if (!canMutate) return;
     setEditRepuesto(repuesto);
     setFormMode('edit');
     setShowForm(true);
@@ -1090,16 +1095,18 @@ export function Dashboard() {
 
         {modulesMenuOpen && (
           <div className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
-            <button
-              onClick={() => {
-                setShowImportModal(true);
-                setModulesMenuOpen(false);
-              }}
-              className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
-            >
-              <Upload className="w-4 h-4 text-gray-500 dark:text-gray-300" />
-              <span>Importar</span>
-            </button>
+            {canMutate && (
+              <button
+                onClick={() => {
+                  setShowImportModal(true);
+                  setModulesMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
+              >
+                <Upload className="w-4 h-4 text-gray-500 dark:text-gray-300" />
+                <span>Importar</span>
+              </button>
+            )}
 
             <button
               onClick={() => {
@@ -1144,16 +1151,18 @@ export function Dashboard() {
 
             <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
 
-            <button
-              onClick={() => {
-                setShowBackupModal(true);
-                setModulesMenuOpen(false);
-              }}
-              className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
-            >
-              <Database className="w-4 h-4 text-gray-500 dark:text-gray-300" />
-              <span>Backup</span>
-            </button>
+            {canMutate && (
+              <button
+                onClick={() => {
+                  setShowBackupModal(true);
+                  setModulesMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
+              >
+                <Database className="w-4 h-4 text-gray-500 dark:text-gray-300" />
+                <span>Backup</span>
+              </button>
+            )}
 
             <button
               onClick={() => {
@@ -1233,14 +1242,16 @@ export function Dashboard() {
       </div>
 
       {repuestos.length === 0 && (
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => setShowImportModal(true)}
-          icon={<Upload className="w-4 h-4" />}
-        >
-          Importar
-        </Button>
+        canMutate ? (
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setShowImportModal(true)}
+            icon={<Upload className="w-4 h-4" />}
+          >
+            Importar
+          </Button>
+        ) : null
       )}
 
       <div className="w-px h-8 bg-gray-200 dark:bg-gray-700" />
@@ -1291,10 +1302,11 @@ export function Dashboard() {
 
           <div className="px-0">
             <MachineSelector
-              onEditMachine={(machine) => setEditingMachineModal(machine)}
+              onEditMachine={canMutate ? (machine) => setEditingMachineModal(machine) : undefined}
               displayLabel={catalogScopeBadge}
               displaySubLabel={catalogScopeBadge ? (currentMachine?.nombre || null) : null}
               variant="tab"
+              readOnly={!canMutate}
             />
           </div>
 
@@ -1452,16 +1464,18 @@ export function Dashboard() {
                 <span>Comparar</span>
               </button>
 
-              <button
-                onClick={() => {
-                  setShowImportModal(true);
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100"
-              >
-                <Upload className="w-5 h-5 text-gray-500" />
-                <span>Importar</span>
-              </button>
+              {canMutate && (
+                <button
+                  onClick={() => {
+                    setShowImportModal(true);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100"
+                >
+                  <Upload className="w-5 h-5 text-gray-500" />
+                  <span>Importar</span>
+                </button>
+              )}
               <button
                 onClick={() => {
                   handleExportExcel();
@@ -1482,16 +1496,18 @@ export function Dashboard() {
                 <Download className="w-5 h-5 text-gray-500" />
                 <span>Exportar PDF</span>
               </button>
-              <button
-                onClick={() => {
-                  setShowBackupModal(true);
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
-                <Database className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-                <span>Backup/Restore</span>
-              </button>
+              {canMutate && (
+                <button
+                  onClick={() => {
+                    setShowBackupModal(true);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <Database className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                  <span>Backup/Restore</span>
+                </button>
+              )}
               <button
                 onClick={() => {
                   setShowReportsModal(true);
@@ -1565,20 +1581,21 @@ export function Dashboard() {
                   onFocusHandled={() => setFocusRepuestoId(null)}
                   selectedRepuesto={selectedRepuesto}
                   onSelect={handleSelectRepuesto}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
+                  onEdit={canMutate ? handleEdit : undefined}
+                  onDelete={canMutate ? handleDelete : undefined}
                   onViewManual={handleViewManual}
                   onViewPhotos={handleViewPhotos}
                   onViewHistory={handleViewHistory}
-                  onAddNew={handleAddNew}
-                  onMarkInManual={handleMarkInManual}
+                  onAddNew={canMutate ? handleAddNew : undefined}
+                  onMarkInManual={canMutate ? handleMarkInManual : undefined}
                   getHistorial={getHistorial}
-                  onManageTags={() => setShowTagManager(true)}
+                  onManageTags={canMutate ? () => setShowTagManager(true) : undefined}
                   onFilteredChange={setFilteredRepuestos}
                   onContextsChange={handleContextsChange}
-                  onImportCantidadesPorTag={importCantidadesPorTag}
-                  onImportCatalogoDesdeExcel={importCatalogoDesdeExcel}
+                  onImportCantidadesPorTag={canMutate ? importCantidadesPorTag : undefined}
+                  onImportCatalogoDesdeExcel={canMutate ? importCatalogoDesdeExcel : undefined}
                   compactMode={true}
+                  readOnly={!canMutate}
                   />
                 </div>
               </div>
@@ -1656,6 +1673,7 @@ export function Dashboard() {
                           <ImageGallery
                             repuesto={selectedRepuesto}
                             tipo={galleryType}
+                            readOnly={!canMutate}
                             onUpload={handleUploadImage}
                             onDelete={handleDeleteImage}
                             onSetPrimary={handleSetPrimaryImage}
@@ -1663,7 +1681,7 @@ export function Dashboard() {
                           />
                         </div>
                       </div>
-                    ) : rightPanelMode === 'marker-editor' && markerRepuesto && pdfUrl ? (
+                    ) : rightPanelMode === 'marker-editor' && canMutate && markerRepuesto && pdfUrl ? (
                       <Suspense fallback={<PDFLoadingFallback />}>
                         <PDFMarkerEditor
                           pdfUrl={pdfUrl}
@@ -1763,10 +1781,10 @@ export function Dashboard() {
                                 pdfUrl={pdfUrl}
                                 targetPage={targetPage}
                                 marker={currentMarker}
-                                onCapture={selectedRepuesto ? handlePDFCapture : undefined}
-                                onEditMarker={selectedRepuesto ? (marker) => handleMarkInManual(selectedRepuesto, marker) : undefined}
-                                onDeleteMarker={selectedRepuesto ? (marker) => handleDeleteMarker(selectedRepuesto, marker.id) : undefined}
-                                onAddMarker={selectedRepuesto ? () => handleMarkInManual(selectedRepuesto) : undefined}
+                                onCapture={selectedRepuesto && canMutate ? handlePDFCapture : undefined}
+                                onEditMarker={selectedRepuesto && canMutate ? (marker) => handleMarkInManual(selectedRepuesto, marker) : undefined}
+                                onDeleteMarker={selectedRepuesto && canMutate ? (marker) => handleDeleteMarker(selectedRepuesto, marker.id) : undefined}
+                                onAddMarker={selectedRepuesto && canMutate ? () => handleMarkInManual(selectedRepuesto) : undefined}
                                 preloadedPDF={pdfPreloader.url === pdfUrl ? pdfPreloader.pdf : null}
                                 preloadedText={pdfPreloader.url === pdfUrl ? pdfPreloader.textContent : undefined}
                               />
@@ -1785,17 +1803,19 @@ export function Dashboard() {
                                 Esta máquina aún no tiene manuales cargados.
                                 {currentMachine ? ` Puedes agregar manuales desde la configuración de "${currentMachine.nombre}".` : ''}
                               </p>
-                              <Button
-                                variant="primary"
-                                onClick={() => {
-                                  if (currentMachine) {
-                                    setEditingMachineModal(currentMachine);
-                                  }
-                                }}
-                                icon={<Upload className="w-4 h-4" />}
-                              >
-                                Agregar Manual
-                              </Button>
+                              {canMutate && (
+                                <Button
+                                  variant="primary"
+                                  onClick={() => {
+                                    if (currentMachine) {
+                                      setEditingMachineModal(currentMachine);
+                                    }
+                                  }}
+                                  icon={<Upload className="w-4 h-4" />}
+                                >
+                                  Agregar Manual
+                                </Button>
+                              )}
                             </div>
                           </div>
                         )}
@@ -1934,7 +1954,7 @@ export function Dashboard() {
 
                   {/* Panel derecho: visor (40% en lg+) */}
                   <div className="w-full lg:w-2/5 flex flex-col overflow-hidden">
-                    {rightPanelMode === 'marker-editor' && markerRepuesto && pdfUrl ? (
+                    {rightPanelMode === 'marker-editor' && canMutate && markerRepuesto && pdfUrl ? (
                       <Suspense fallback={<PDFLoadingFallback />}>
                         <PDFMarkerEditor
                           pdfUrl={pdfUrl}
@@ -2012,10 +2032,10 @@ export function Dashboard() {
                               pdfUrl={pdfUrl}
                               targetPage={targetPage}
                               marker={currentMarker}
-                              onCapture={selectedRepuesto ? handlePDFCapture : undefined}
-                              onEditMarker={selectedRepuesto ? (marker) => handleMarkInManual(selectedRepuesto, marker) : undefined}
-                              onDeleteMarker={selectedRepuesto ? (marker) => handleDeleteMarker(selectedRepuesto, marker.id) : undefined}
-                              onAddMarker={selectedRepuesto ? () => handleMarkInManual(selectedRepuesto) : undefined}
+                              onCapture={selectedRepuesto && canMutate ? handlePDFCapture : undefined}
+                              onEditMarker={selectedRepuesto && canMutate ? (marker) => handleMarkInManual(selectedRepuesto, marker) : undefined}
+                              onDeleteMarker={selectedRepuesto && canMutate ? (marker) => handleDeleteMarker(selectedRepuesto, marker.id) : undefined}
+                              onAddMarker={selectedRepuesto && canMutate ? () => handleMarkInManual(selectedRepuesto) : undefined}
                               preloadedPDF={pdfPreloader.url === pdfUrl ? pdfPreloader.pdf : null}
                               preloadedText={pdfPreloader.url === pdfUrl ? pdfPreloader.textContent : undefined}
                             />
@@ -2035,17 +2055,19 @@ export function Dashboard() {
                             Esta máquina aún no tiene manuales cargados.
                             {currentMachine ? ` Puedes agregar manuales desde la configuración de "${currentMachine.nombre}".` : ''}
                           </p>
-                          <Button
-                            variant="primary"
-                            onClick={() => {
-                              if (currentMachine) {
-                                setEditingMachineModal(currentMachine);
-                              }
-                            }}
-                            icon={<Upload className="w-4 h-4" />}
-                          >
-                            Agregar Manual
-                          </Button>
+                          {canMutate && (
+                            <Button
+                              variant="primary"
+                              onClick={() => {
+                                if (currentMachine) {
+                                  setEditingMachineModal(currentMachine);
+                                }
+                              }}
+                              icon={<Upload className="w-4 h-4" />}
+                            >
+                              Agregar Manual
+                            </Button>
+                          )}
                         </div>
                       </div>
                     )}
@@ -2082,20 +2104,21 @@ export function Dashboard() {
                   onFocusHandled={() => setFocusRepuestoId(null)}
                   selectedRepuesto={selectedRepuesto}
                   onSelect={handleSelectRepuesto}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
+                  onEdit={canMutate ? handleEdit : undefined}
+                  onDelete={canMutate ? handleDelete : undefined}
                   onViewManual={handleViewManual}
                   onViewPhotos={handleViewPhotos}
                   onViewHistory={handleViewHistory}
-                  onAddNew={handleAddNew}
-                  onMarkInManual={handleMarkInManual}
+                  onAddNew={canMutate ? handleAddNew : undefined}
+                  onMarkInManual={canMutate ? handleMarkInManual : undefined}
                   getHistorial={getHistorial}
-                  onManageTags={() => setShowTagManager(true)}
+                  onManageTags={canMutate ? () => setShowTagManager(true) : undefined}
                   onFilteredChange={setFilteredRepuestos}
                   onContextsChange={handleContextsChange}
-                  onImportCantidadesPorTag={importCantidadesPorTag}
-                  onImportCatalogoDesdeExcel={importCatalogoDesdeExcel}
+                  onImportCantidadesPorTag={canMutate ? importCantidadesPorTag : undefined}
+                  onImportCatalogoDesdeExcel={canMutate ? importCatalogoDesdeExcel : undefined}
                   compactMode={rightPanelMode !== 'hidden'}
+                  readOnly={!canMutate}
                   />
                 </div>
               </div>
@@ -2174,6 +2197,7 @@ export function Dashboard() {
                     <ImageGallery
                       repuesto={selectedRepuesto}
                       tipo={galleryType}
+                      readOnly={!canMutate}
                       onUpload={handleUploadImage}
                       onDelete={handleDeleteImage}
                       onSetPrimary={handleSetPrimaryImage}
@@ -2181,7 +2205,7 @@ export function Dashboard() {
                     />
                   </div>
                 </div>
-              ) : rightPanelMode === 'marker-editor' && markerRepuesto && pdfUrl ? (
+              ) : rightPanelMode === 'marker-editor' && canMutate && markerRepuesto && pdfUrl ? (
                 <Suspense fallback={<PDFLoadingFallback />}>
                   <PDFMarkerEditor
                     pdfUrl={pdfUrl}
@@ -2281,10 +2305,10 @@ export function Dashboard() {
                           pdfUrl={pdfUrl}
                           targetPage={targetPage}
                           marker={currentMarker}
-                          onCapture={selectedRepuesto ? handlePDFCapture : undefined}
-                          onEditMarker={selectedRepuesto ? (marker) => handleMarkInManual(selectedRepuesto, marker) : undefined}
-                          onDeleteMarker={selectedRepuesto ? (marker) => handleDeleteMarker(selectedRepuesto, marker.id) : undefined}
-                          onAddMarker={selectedRepuesto ? () => handleMarkInManual(selectedRepuesto) : undefined}
+                          onCapture={selectedRepuesto && canMutate ? handlePDFCapture : undefined}
+                          onEditMarker={selectedRepuesto && canMutate ? (marker) => handleMarkInManual(selectedRepuesto, marker) : undefined}
+                          onDeleteMarker={selectedRepuesto && canMutate ? (marker) => handleDeleteMarker(selectedRepuesto, marker.id) : undefined}
+                          onAddMarker={selectedRepuesto && canMutate ? () => handleMarkInManual(selectedRepuesto) : undefined}
                           preloadedPDF={pdfPreloader.url === pdfUrl ? pdfPreloader.pdf : null}
                           preloadedText={pdfPreloader.url === pdfUrl ? pdfPreloader.textContent : undefined}
                         />
@@ -2303,17 +2327,19 @@ export function Dashboard() {
                           Esta máquina aún no tiene manuales cargados.
                           {currentMachine ? ` Puedes agregar manuales desde la configuración de "${currentMachine.nombre}".` : ''}
                         </p>
-                        <Button
-                          variant="primary"
-                          onClick={() => {
-                            if (currentMachine) {
-                              setEditingMachineModal(currentMachine);
-                            }
-                          }}
-                          icon={<Upload className="w-4 h-4" />}
-                        >
-                          Agregar Manual
-                        </Button>
+                        {canMutate && (
+                          <Button
+                            variant="primary"
+                            onClick={() => {
+                              if (currentMachine) {
+                                setEditingMachineModal(currentMachine);
+                              }
+                            }}
+                            icon={<Upload className="w-4 h-4" />}
+                          >
+                            Agregar Manual
+                          </Button>
+                        )}
                       </div>
                     </div>
                   )}
@@ -2330,15 +2356,17 @@ export function Dashboard() {
       </div>
 
       {/* Modales */}
-      <RepuestoForm
-        isOpen={showForm}
-        onClose={() => setShowForm(false)}
-        onSave={handleSave}
-        repuesto={editRepuesto}
-        machineId={machineId}
-        allRepuestos={repuestos}
-        initialContexts={formMode === 'create' ? activeContexts : undefined}
-      />
+      {canMutate && (
+        <RepuestoForm
+          isOpen={showForm}
+          onClose={() => setShowForm(false)}
+          onSave={handleSave}
+          repuesto={editRepuesto}
+          machineId={machineId}
+          allRepuestos={repuestos}
+          initialContexts={formMode === 'create' ? activeContexts : undefined}
+        />
+      )}
 
       <HistorialModal
         isOpen={!!historialTarget}
@@ -2347,28 +2375,34 @@ export function Dashboard() {
         getHistorial={getHistorial}
       />
 
-      <DeleteConfirmModal
-        isOpen={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={confirmDelete}
-        repuesto={deleteTarget}
-        loading={deleteLoading}
-      />
+      {canMutate && (
+        <DeleteConfirmModal
+          isOpen={!!deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={confirmDelete}
+          repuesto={deleteTarget}
+          loading={deleteLoading}
+        />
+      )}
 
-      <ImportModal
-        isOpen={showImportModal}
-        onClose={() => setShowImportModal(false)}
-        onImport={handleImport}
-      />
+      {canMutate && (
+        <ImportModal
+          isOpen={showImportModal}
+          onClose={() => setShowImportModal(false)}
+          onImport={handleImport}
+        />
+      )}
 
-      <TagManagerModal
-        isOpen={showTagManager}
-        onClose={() => setShowTagManager(false)}
-        machineId={machineId}
-        repuestos={repuestos}
-        onRenameTag={renameTag}
-        onDeleteTag={deleteTag}
-      />
+      {canMutate && (
+        <TagManagerModal
+          isOpen={showTagManager}
+          onClose={() => setShowTagManager(false)}
+          machineId={machineId}
+          repuestos={repuestos}
+          onRenameTag={renameTag}
+          onDeleteTag={deleteTag}
+        />
+      )}
 
       {/* Modal de exportación PDF */}
       {showPDFExportModal && (
@@ -2562,15 +2596,17 @@ export function Dashboard() {
       )}
 
       {/* Modal de Backup/Restore */}
-      <BackupModal
-        isOpen={showBackupModal}
-        onClose={() => setShowBackupModal(false)}
-        backupSystem={backupSystem}
-        repuestos={repuestos}
-        onRestore={importRepuestos}
-        onSuccess={success}
-        onError={error}
-      />
+      {canMutate && (
+        <BackupModal
+          isOpen={showBackupModal}
+          onClose={() => setShowBackupModal(false)}
+          backupSystem={backupSystem}
+          repuestos={repuestos}
+          onRestore={importRepuestos}
+          onSuccess={success}
+          onError={error}
+        />
+      )}
 
       {/* Modal de Reportes */}
       <ReportsModal 
@@ -2600,7 +2636,7 @@ export function Dashboard() {
       />
 
       {/* Modal para editar máquina (agregar manuales) */}
-      {editingMachineModal && (
+      {canMutate && editingMachineModal && (
         <MachineFormModal
           key={editingMachineModal.id} // Force remount on machine change
           isOpen={!!editingMachineModal}

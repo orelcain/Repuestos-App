@@ -10,6 +10,7 @@ import { usePlantStorage } from '../../hooks/usePlantStorage';
 import ExcelJS from 'exceljs';
 import { PlantMapViewer } from './PlantMapViewer';
 import { exportPlantAssetsToExcel, exportPlantAssetsToPDF, type PlantAssetsColumnKey } from '../../utils/exportUtils';
+import { isAdminEmail } from '../../utils/admin';
 import type { UndoableAction } from '../../hooks/useUndoRedo';
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 
@@ -125,31 +126,16 @@ export function PlantAssetsView(props: {
   const { maps, createMap, updateMap, deleteMap } = usePlantMaps();
   const { uploadPlantMapImage, uploadPlantAssetImage, deleteByUrl } = usePlantStorage(machineId);
 
+  const canMutate = useMemo(() => isAdminEmail(user?.email), [user?.email]);
+
   const canEditMapAreas = useMemo(() => {
-    if (!user) return false;
-    const email = String(user.email || '').trim().toLowerCase();
-    if (!email) return false;
-
-    // 1) Flag local (oculto) para habilitar editor en este navegador
-    let localEnabled = false;
+    if (!canMutate) return false;
     try {
-      localEnabled = window.localStorage.getItem('plant.mapAreasEditor') === '1';
+      return window.localStorage.getItem('plant.mapAreasEditor') === '1';
     } catch {
-      localEnabled = false;
+      return false;
     }
-
-    // 2) Allowlist opcional por env (VITE_ADMIN_EMAILS="a@b.com,c@d.com")
-    const envRaw = String((import.meta as any)?.env?.VITE_ADMIN_EMAILS ?? '').trim();
-    const envList = envRaw
-      ? envRaw
-          .split(',')
-          .map((s: string) => s.trim().toLowerCase())
-          .filter(Boolean)
-      : [];
-    const envEnabled = envList.length > 0 ? envList.includes(email) : false;
-
-    return localEnabled || envEnabled;
-  }, [user]);
+  }, [canMutate]);
 
   const recordUndo = useCallback(
     (action: Omit<UndoableAction, 'id' | 'timestamp'>) => {
@@ -1124,12 +1110,16 @@ export function PlantAssetsView(props: {
           <div className="flex items-center justify-between gap-2">
             <div className="font-semibold text-gray-900 dark:text-gray-100">Motores / Bombas</div>
             <div className="flex items-center gap-2">
-              <Button size="sm" icon={<Plus className="w-4 h-4" />} onClick={openCreate}>
-                Nuevo
-              </Button>
-              <Button size="sm" variant="secondary" icon={<Upload className="w-4 h-4" />} onClick={() => setShowImport(true)}>
-                Importar Excel
-              </Button>
+              {canMutate && (
+                <Button size="sm" icon={<Plus className="w-4 h-4" />} onClick={openCreate}>
+                  Nuevo
+                </Button>
+              )}
+              {canMutate && (
+                <Button size="sm" variant="secondary" icon={<Upload className="w-4 h-4" />} onClick={() => setShowImport(true)}>
+                  Importar Excel
+                </Button>
+              )}
               <Button size="sm" variant="secondary" icon={<Download className="w-4 h-4" />} onClick={() => setShowColumnsExport(true)}>
                 Exportar
               </Button>
@@ -1430,14 +1420,16 @@ export function PlantAssetsView(props: {
                         >
                           <ImageIcon className="w-3.5 h-3.5" />
                         </button>
-                        <button
-                          type="button"
-                          className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300"
-                          onClick={() => openEdit(a)}
-                          title="Editar"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
+                        {canMutate && (
+                          <button
+                            type="button"
+                            className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300"
+                            onClick={() => openEdit(a)}
+                            title="Editar"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
@@ -1489,9 +1481,11 @@ export function PlantAssetsView(props: {
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
               <div className="text-sm font-semibold text-gray-800 dark:text-gray-100">Ubicación (planos)</div>
               <div className="flex items-center gap-2 flex-wrap">
-                <Button size="sm" variant="secondary" icon={<Plus className="w-4 h-4" />} onClick={() => setShowAddMap(true)}>
-                  Agregar plano
-                </Button>
+                {canMutate && (
+                  <Button size="sm" variant="secondary" icon={<Plus className="w-4 h-4" />} onClick={() => setShowAddMap(true)}>
+                    Agregar plano
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant="secondary"
@@ -1502,16 +1496,18 @@ export function PlantAssetsView(props: {
                 >
                   Ver grande
                 </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  icon={<Trash2 className="w-4 h-4" />}
-                  onClick={() => setShowDeleteMap(true)}
-                  disabled={!selectedMap || deletingMap}
-                  title={!selectedMap ? 'Selecciona un plano para poder eliminarlo' : 'Eliminar plano'}
-                >
-                  Eliminar plano
-                </Button>
+                {canMutate && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    icon={<Trash2 className="w-4 h-4" />}
+                    onClick={() => setShowDeleteMap(true)}
+                    disabled={!selectedMap || deletingMap}
+                    title={!selectedMap ? 'Selecciona un plano para poder eliminarlo' : 'Eliminar plano'}
+                  >
+                    Eliminar plano
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -1559,22 +1555,24 @@ export function PlantAssetsView(props: {
                 </button>
               </div>
 
-              <Button
-                size="sm"
-                icon={<MapPin className="w-4 h-4" />}
-                onClick={() => {
-                  if (!selectedMapId || !selected) return;
-                  setAreaMode('none');
-                  setDraftCircleCenter(null);
-                  setDraftPolygonPoints([]);
-                  setMarkerMode((m) => (m === 'add' ? 'none' : 'add'));
-                  setMovingMarkerId(null);
-                }}
-                disabled={!selectedMapId || !selected}
-                title={!selected ? 'Selecciona un motor/bomba para agregar marcador' : undefined}
-              >
-                {markerMode === 'add' ? 'Click en el plano...' : 'Agregar marcador'}
-              </Button>
+              {canMutate && (
+                <Button
+                  size="sm"
+                  icon={<MapPin className="w-4 h-4" />}
+                  onClick={() => {
+                    if (!selectedMapId || !selected) return;
+                    setAreaMode('none');
+                    setDraftCircleCenter(null);
+                    setDraftPolygonPoints([]);
+                    setMarkerMode((m) => (m === 'add' ? 'none' : 'add'));
+                    setMovingMarkerId(null);
+                  }}
+                  disabled={!selectedMapId || !selected}
+                  title={!selected ? 'Selecciona un motor/bomba para agregar marcador' : undefined}
+                >
+                  {markerMode === 'add' ? 'Click en el plano...' : 'Agregar marcador'}
+                </Button>
+              )}
             </div>
 
 
@@ -1624,15 +1622,19 @@ export function PlantAssetsView(props: {
                   areas={mapAreas}
                   draftArea={draftAreaForViewer}
                   onSelectAsset={(assetId) => setSelectedId(assetId)}
-                  onRequestMoveMarker={({ markerId }) => {
-                    setShowAllMarkers(false);
-                    setAreaMode('none');
-                    setDraftCircleCenter(null);
-                    setDraftPolygonPoints([]);
-                    setSelectedMarkerId(markerId);
-                    setMovingMarkerId(markerId);
-                    setMarkerMode('move');
-                  }}
+                  onRequestMoveMarker={
+                    canMutate
+                      ? ({ markerId }) => {
+                          setShowAllMarkers(false);
+                          setAreaMode('none');
+                          setDraftCircleCenter(null);
+                          setDraftPolygonPoints([]);
+                          setSelectedMarkerId(markerId);
+                          setMovingMarkerId(markerId);
+                          setMarkerMode('move');
+                        }
+                      : undefined
+                  }
                   focusMarkerId={markerMode === 'move' ? movingMarkerId : null}
                   clickTitle={
                     areaMode === 'circle'
@@ -1727,6 +1729,7 @@ export function PlantAssetsView(props: {
                             setMarkerMode('none');
                           }}
                           title="Eliminar el marcador seleccionado"
+                          style={!canMutate ? { display: 'none' } : undefined}
                         >
                           Eliminar marcador
                         </button>
@@ -1770,9 +1773,11 @@ export function PlantAssetsView(props: {
                     Copiar SAP
                   </Button>
 
-                  <Button size="sm" variant="secondary" onClick={() => openEdit(selected)}>
-                    Editar
-                  </Button>
+                  {canMutate && (
+                    <Button size="sm" variant="secondary" onClick={() => openEdit(selected)}>
+                      Editar
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -1859,32 +1864,34 @@ export function PlantAssetsView(props: {
                 <div className="text-sm font-semibold text-gray-800 dark:text-gray-100">Referencias</div>
               </div>
 
-              <div className="mt-3 grid grid-cols-1 md:grid-cols-[1fr,1fr,auto] gap-2">
-                <input
-                  value={newRefTitle}
-                  onChange={(e) => setNewRefTitle(e.target.value)}
-                  placeholder="Título"
-                  className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
-                />
-                <input
-                  value={newRefUrl}
-                  onChange={(e) => setNewRefUrl(e.target.value)}
-                  placeholder="URL"
-                  className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
-                />
-                <Button
-                  size="sm"
-                  icon={<Plus className="w-4 h-4" />}
-                  onClick={async () => {
-                    if (!newRefTitle.trim() || !newRefUrl.trim()) return;
-                    await addReferencia(selected, { titulo: newRefTitle.trim(), url: newRefUrl.trim() });
-                    setNewRefTitle('');
-                    setNewRefUrl('');
-                  }}
-                >
-                  Agregar
-                </Button>
-              </div>
+              {canMutate && (
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-[1fr,1fr,auto] gap-2">
+                  <input
+                    value={newRefTitle}
+                    onChange={(e) => setNewRefTitle(e.target.value)}
+                    placeholder="Título"
+                    className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+                  />
+                  <input
+                    value={newRefUrl}
+                    onChange={(e) => setNewRefUrl(e.target.value)}
+                    placeholder="URL"
+                    className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+                  />
+                  <Button
+                    size="sm"
+                    icon={<Plus className="w-4 h-4" />}
+                    onClick={async () => {
+                      if (!newRefTitle.trim() || !newRefUrl.trim()) return;
+                      await addReferencia(selected, { titulo: newRefTitle.trim(), url: newRefUrl.trim() });
+                      setNewRefTitle('');
+                      setNewRefUrl('');
+                    }}
+                  >
+                    Agregar
+                  </Button>
+                </div>
+              )}
 
               <div className="mt-3 space-y-2">
                 {(selected.referencias || []).map((r) => (
@@ -1892,13 +1899,15 @@ export function PlantAssetsView(props: {
                     <a href={r.url} target="_blank" rel="noreferrer" className="text-primary-700 dark:text-primary-300 hover:underline">
                       {r.titulo}
                     </a>
-                    <button
-                      onClick={() => deleteReferencia(selected, r.id)}
-                      className="ml-auto p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500"
-                      title="Eliminar"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {canMutate && (
+                      <button
+                        onClick={() => deleteReferencia(selected, r.id)}
+                        className="ml-auto p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500"
+                        title="Eliminar"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 ))}
                 {(selected.referencias || []).length === 0 && (
@@ -1911,21 +1920,23 @@ export function PlantAssetsView(props: {
             <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
               <div className="flex items-center justify-between gap-2">
                 <div className="text-sm font-semibold text-gray-800 dark:text-gray-100">Fotos (zona/equipo)</div>
-                <label className="inline-flex items-center gap-2 text-sm text-primary-700 dark:text-primary-300 cursor-pointer">
-                  <Upload className="w-4 h-4" />
-                  Subir
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (!f) return;
-                      handleUploadAssetImage(f);
-                      e.currentTarget.value = '';
-                    }}
-                  />
-                </label>
+                {canMutate && (
+                  <label className="inline-flex items-center gap-2 text-sm text-primary-700 dark:text-primary-300 cursor-pointer">
+                    <Upload className="w-4 h-4" />
+                    Subir
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (!f) return;
+                        handleUploadAssetImage(f);
+                        e.currentTarget.value = '';
+                      }}
+                    />
+                  </label>
+                )}
               </div>
 
               <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -1945,13 +1956,15 @@ export function PlantAssetsView(props: {
                       >
                         <img src={img.url} alt="" className="w-full h-28 object-cover" />
                       </button>
-                      <button
-                        onClick={() => deleteImagen(selected, img.id)}
-                        className="absolute top-1 right-1 p-1 rounded bg-white/80 hover:bg-white text-gray-700"
-                        title="Eliminar"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
+                      {canMutate && (
+                        <button
+                          onClick={() => deleteImagen(selected, img.id)}
+                          className="absolute top-1 right-1 p-1 rounded bg-white/80 hover:bg-white text-gray-700"
+                          title="Eliminar"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   ))}
               </div>

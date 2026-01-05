@@ -23,6 +23,7 @@ import { formatFileSize } from '../../utils/imageUtils';
 interface ImageGalleryProps {
   repuesto: Repuesto | null;
   tipo: 'manual' | 'real';
+  readOnly?: boolean;
   onUpload: (
     file: File,
     repuestoId: string,
@@ -42,6 +43,7 @@ interface ImageGalleryProps {
 export function ImageGallery({ 
   repuesto, 
   tipo, 
+  readOnly = false,
   onUpload, 
   onDelete, 
   onSetPrimary,
@@ -61,6 +63,7 @@ export function ImageGallery({
   const sortedImages = [...(imagenes || [])].sort((a, b) => a.orden - b.orden);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (readOnly) return;
     const files = e.target.files;
     if (!files || !repuesto || files.length === 0) return;
 
@@ -141,51 +144,55 @@ export function ImageGallery({
           </div>
           
           {/* Botones de agregar con opciones para móvil */}
-          <div className="relative">
-            <div className="flex items-center gap-1">
-              {/* Botón Galería */}
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => fileInputRef.current?.click()}
-                loading={uploading}
-                icon={<ImageIcon className="w-4 h-4" />}
-                title="Seleccionar de galería"
-              >
-                <span className="hidden sm:inline">Galería</span>
-              </Button>
+          {!readOnly && (
+            <>
+              <div className="relative">
+                <div className="flex items-center gap-1">
+                  {/* Botón Galería */}
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => fileInputRef.current?.click()}
+                    loading={uploading}
+                    icon={<ImageIcon className="w-4 h-4" />}
+                    title="Seleccionar de galería"
+                  >
+                    <span className="hidden sm:inline">Galería</span>
+                  </Button>
+                  
+                  <Button
+                    size="sm"
+                    onClick={() => cameraInputRef.current?.click()}
+                    loading={uploading}
+                    icon={<Camera className="w-4 h-4" />}
+                    title="Tomar foto con cámara"
+                  >
+                    <span className="hidden sm:inline">Cámara</span>
+                  </Button>
+                </div>
+              </div>
               
-              <Button
-                size="sm"
-                onClick={() => cameraInputRef.current?.click()}
-                loading={uploading}
-                icon={<Camera className="w-4 h-4" />}
-                title="Tomar foto con cámara"
-              >
-                <span className="hidden sm:inline">Cámara</span>
-              </Button>
-            </div>
-          </div>
-          
-          {/* Input para galería */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={handleFileSelect}
-            className="hidden"
-          />
-          
-          {/* Input para cámara - captura directa y optimizada */}
-          <input
-            ref={cameraInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={handleFileSelect}
-            className="hidden"
-          />
+              {/* Input para galería */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              
+              {/* Input para cámara - captura directa y optimizada */}
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+            </>
+          )}
         </div>
       </div>
 
@@ -199,22 +206,24 @@ export function ImageGallery({
             <p className="text-amber-700 dark:text-amber-400 font-medium mb-3">Sin imágenes</p>
             
             {/* Opciones de carga para móvil */}
-            <div className="flex flex-col sm:flex-row gap-2 w-full max-w-xs">
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl text-gray-700 dark:text-gray-300 font-medium transition-colors"
-              >
-                <ImageIcon className="w-5 h-5" />
-                <span>Galería</span>
-              </button>
-              <button
-                onClick={() => cameraInputRef.current?.click()}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-primary-100 dark:bg-primary-900/50 hover:bg-primary-200 dark:hover:bg-primary-900/70 rounded-xl text-primary-700 dark:text-primary-300 font-medium transition-colors"
-              >
-                <Camera className="w-5 h-5" />
-                <span>Cámara</span>
-              </button>
-            </div>
+            {!readOnly && (
+              <div className="flex flex-col sm:flex-row gap-2 w-full max-w-xs">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl text-gray-700 dark:text-gray-300 font-medium transition-colors"
+                >
+                  <ImageIcon className="w-5 h-5" />
+                  <span>Galería</span>
+                </button>
+                <button
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-primary-100 dark:bg-primary-900/50 hover:bg-primary-200 dark:hover:bg-primary-900/70 rounded-xl text-primary-700 dark:text-primary-300 font-medium transition-colors"
+                >
+                  <Camera className="w-5 h-5" />
+                  <span>Cámara</span>
+                </button>
+              </div>
+            )}
             
             <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-3">
               Las imágenes se optimizarán automáticamente (WebP/JPEG)
@@ -405,31 +414,33 @@ export function ImageGallery({
             </div>
 
             {/* Actions */}
-            <div className="p-3 border-t border-gray-200 flex items-center gap-2">
-              <button
-                onClick={() => repuesto && onSetPrimary(repuesto, sortedImages[currentIndex])}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded text-sm transition-colors ${
-                  sortedImages[currentIndex]?.esPrincipal
-                    ? 'bg-yellow-100 text-yellow-700'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                {sortedImages[currentIndex]?.esPrincipal ? (
-                  <Star className="w-4 h-4 fill-current" />
-                ) : (
-                  <StarOff className="w-4 h-4" />
-                )}
-                Principal
-              </button>
+            {!readOnly && (
+              <div className="p-3 border-t border-gray-200 flex items-center gap-2">
+                <button
+                  onClick={() => repuesto && onSetPrimary(repuesto, sortedImages[currentIndex])}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded text-sm transition-colors ${
+                    sortedImages[currentIndex]?.esPrincipal
+                      ? 'bg-yellow-100 text-yellow-700'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {sortedImages[currentIndex]?.esPrincipal ? (
+                    <Star className="w-4 h-4 fill-current" />
+                  ) : (
+                    <StarOff className="w-4 h-4" />
+                  )}
+                  Principal
+                </button>
 
-              <button
-                onClick={() => repuesto && onDelete(repuesto, sortedImages[currentIndex])}
-                className="flex items-center gap-1 px-3 py-1.5 rounded text-sm bg-red-100 text-red-600 hover:bg-red-200 transition-colors ml-auto"
-              >
-                <Trash2 className="w-4 h-4" />
-                Eliminar
-              </button>
-            </div>
+                <button
+                  onClick={() => repuesto && onDelete(repuesto, sortedImages[currentIndex])}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded text-sm bg-red-100 text-red-600 hover:bg-red-200 transition-colors ml-auto"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Eliminar
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>

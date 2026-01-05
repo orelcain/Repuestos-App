@@ -1,9 +1,16 @@
 // Versión de la aplicación
-export const APP_VERSION = '4.9.127';
+export const APP_VERSION = '4.9.128';
 
 // Historial de versiones
 // ⚠️ Importante: agrega SIEMPRE la versión más nueva ARRIBA (al inicio del array)
 export const VERSION_HISTORY = [
+  {
+    version: '4.9.128',
+    date: '2026-01-05',
+    changes: [
+      'permisos no-admin'
+    ]
+  },
   {
     version: '4.9.127',
     date: '2026-01-04',

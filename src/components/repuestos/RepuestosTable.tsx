@@ -57,12 +57,12 @@ interface RepuestosTableProps {
   onFocusHandled?: () => void;
   selectedRepuesto: Repuesto | null;
   onSelect: (repuesto: Repuesto | null) => void;
-  onEdit: (repuesto: Repuesto) => void;
-  onDelete: (repuesto: Repuesto) => void;
+  onEdit?: (repuesto: Repuesto) => void;
+  onDelete?: (repuesto: Repuesto) => void;
   onViewManual: (repuesto: Repuesto) => void;
   onViewPhotos: (repuesto: Repuesto) => void;
   onViewHistory: (repuesto: Repuesto) => void;
-  onAddNew: () => void;
+  onAddNew?: () => void;
   onMarkInManual?: (repuesto: Repuesto) => void;
   getHistorial?: (repuestoId: string) => Promise<HistorialCambio[]>;
   onManageTags?: () => void;
@@ -73,6 +73,7 @@ interface RepuestosTableProps {
   onImportCantidadesPorTag?: (args: { rows: ImportCantidadRow[]; tagName: string; tipo: 'solicitud' | 'stock' }) => Promise<void>;
   onImportCatalogoDesdeExcel?: (args: { rows: Omit<ImportCantidadRow, 'cantidad'>[] }) => Promise<void>;
   compactMode?: boolean; // Cuando el panel lateral está abierto
+  readOnly?: boolean;
 }
 
 const ITEMS_PER_PAGE = 15;
@@ -182,7 +183,8 @@ export function RepuestosTable({
   onContextsChange,
   onImportCantidadesPorTag,
   onImportCatalogoDesdeExcel,
-  compactMode = false
+  compactMode = false,
+  readOnly = false
 }: RepuestosTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -848,13 +850,15 @@ export function RepuestosTable({
               <ChevronDown className={`w-4 h-4 transition-transform ${mobileControlsOpen ? 'rotate-180' : ''}`} />
             </button>
 
-            <button
-              onClick={onAddNew}
-              className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary-600 text-white hover:bg-primary-700 transition-colors"
-              title="Agregar"
-            >
-              <Plus className="w-5 h-5" />
-            </button>
+            {!readOnly && !!onAddNew && (
+              <button
+                onClick={onAddNew}
+                className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary-600 text-white hover:bg-primary-700 transition-colors"
+                title="Agregar"
+              >
+                <Plus className="w-5 h-5" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -892,7 +896,7 @@ export function RepuestosTable({
             )}
             
             {/* Botón Gestor de Tags - abre modal directamente */}
-            {onManageTags && (
+            {!readOnly && onManageTags && (
               <button
                 onClick={() => onManageTags()}
                 className="flex items-center gap-2 px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg transition-colors hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
@@ -2063,28 +2067,32 @@ export function RepuestosTable({
                       </button>
 
                       {/* Editar */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onEdit(repuesto);
-                        }}
-                        className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-500 hover:text-blue-600 transition-colors"
-                        title="Editar"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
+                      {!readOnly && !!onEdit && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEdit(repuesto);
+                          }}
+                          className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-500 hover:text-blue-600 transition-colors"
+                          title="Editar"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      )}
 
                       {/* Eliminar */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDelete(repuesto);
-                        }}
-                        className="p-1.5 rounded-lg hover:bg-red-50 text-gray-500 hover:text-red-600 transition-colors"
-                        title="Eliminar"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {!readOnly && !!onDelete && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDelete(repuesto);
+                          }}
+                          className="p-1.5 rounded-lg hover:bg-red-50 text-gray-500 hover:text-red-600 transition-colors"
+                          title="Eliminar"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </td>
                   )}
